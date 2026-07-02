@@ -1,0 +1,11 @@
+{
+  "tenantSlug": "default",
+  "name": "Demo workflow audit",
+  "goal": "Audit a customer onboarding process and propose safe automation opportunities.",
+  "agents": ["workflow-auditor", "implementation-planner"],
+  "input": {
+    "process": "New customer onboarding",
+    "systems": ["CRM", "Email", "Calendar"],
+    "constraints": ["human approval required for external emails", "no customer data leaves approved model providers"]
+  }
+}
