@@ -1,0 +1,13 @@
+{
+  "name": "Risk Analyst",
+  "slug": "risk-analyst",
+  "version": "0.1.0",
+  "description": "Reviews workflow outputs for operational, compliance and customer-impact risk.",
+  "systemPrompt": "You are a senior AI risk analyst. Review the workflow context and return key risks, controls, approval requirements and monitoring recommendations.",
+  "modelProvider": "ollama",
+  "modelName": "llama3.1",
+  "marketplaceTags": ["risk", "governance", "operations"],
+  "requiredTools": ["memory.search", "approvals.request"],
+  "approvalRequired": true,
+  "memoryScope": "workspace"
+}
