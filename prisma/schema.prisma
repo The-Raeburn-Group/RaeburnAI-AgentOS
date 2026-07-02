@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AgentStatus {
+  DRAFT
+  VERIFIED
+  DEPRECATED
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  WAITING_FOR_APPROVAL
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  agents      Agent[]
+  workflows   Workflow[]
+  memories    Memory[]
+  mcpServers  McpServer[]
+}
+
+model Agent {
+  id               String      @id @default(uuid())
+  tenantId         String
+  name             String
+  slug             String
+  version          String      @default("0.1.0")
+  description      String
+  systemPrompt     String
+  modelProvider    String      @default("ollama")
+  modelName        String      @default("llama3.1")
+  status           AgentStatus @default(DRAFT)
+  marketplaceTags  String[]    @default([])
+  requiredTools    String[]    @default([])
+  approvalRequired Boolean     @default(true)
+  memoryScope      String      @default("workspace")
+  manifest         Json
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tasks            AgentTask[]
+
+  @@unique([tenantId, slug, version])
+  @@index([tenantId, status])
+}
+
+model Workflow {
+  id          String        @id @default(uuid())
+  tenantId    String
+  name        String
+  goal        String
+  status      RunStatus     @default(QUEUED)
+  graph       Json
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs        WorkflowRun[]
+}
+
+model WorkflowRun {
+  id          String       @id @default(uuid())
+  workflowId  String
+  status      RunStatus    @default(QUEUED)
+  input       Json
+  output      Json?
+  error       String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  workflow    Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  tasks       AgentTask[]
+  approvals   Approval[]
+  events      AuditEvent[]
+}
+
+model AgentTask {
+  id          String       @id @default(uuid())
+  runId       String
+  agentId     String
+  name        String
+  status      RunStatus    @default(QUEUED)
+  input       Json
+  output      Json?
+  error       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  run         WorkflowRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  agent       Agent        @relation(fields: [agentId], references: [id])
+}
+
+model Memory {
+  id          String   @id @default(uuid())
+  tenantId    String
+  scope       String
+  key         String
+  content     String
+  metadata    Json
+  embedding   Float[]  @default([])
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, scope, key])
+}
+
+model McpServer {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  url         String
+  capabilities String[] @default([])
+  enabled     Boolean  @default(false)
+  policy      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+}
+
+model Approval {
+  id          String         @id @default(uuid())
+  runId       String
+  actionType  String
+  summary     String
+  payload     Json
+  status      ApprovalStatus @default(PENDING)
+  requestedBy String
+  decidedBy   String?
+  decisionNote String?
+  createdAt   DateTime      @default(now())
+  decidedAt   DateTime?
+  run         WorkflowRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id          String      @id @default(uuid())
+  runId       String?
+  actor       String
+  action      String
+  metadata    Json
+  createdAt   DateTime    @default(now())
+  run         WorkflowRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([runId, createdAt])
+}
