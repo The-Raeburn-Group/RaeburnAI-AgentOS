@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -25,10 +29,11 @@ jobs:
           --health-retries 20
     env:
       DATABASE_URL: postgresql://agentos:agentos@localhost:5432/agentos?schema=public
-      NEXTAUTH_SECRET: test-secret-for-ci-only
+      NEXTAUTH_SECRET: test-secret-for-ci-only-change-in-prod
       OLLAMA_BASE_URL: http://localhost:11434
       DEFAULT_MODEL_PROVIDER: ollama
       DEFAULT_MODEL: llama3.1
+      CI: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,8 +41,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm install
+      - run: npm audit --audit-level=high
       - run: npm run db:generate
-      - run: npm run typecheck
+      - run: npm run format:check
       - run: npm run lint
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: docker build -t raeburnai-agentos .
