@@ -37,18 +37,20 @@ describe("human RBAC", () => {
   it("requires all production OIDC session inputs", () => {
     expect(
       humanAuthConfigured({
+        NEXTAUTH_URL: "https://agentos.example.test",
+        NEXTAUTH_SECRET: "session-secret",
         AGENTOS_OIDC_ISSUER: "https://identity.example.test",
         AGENTOS_OIDC_CLIENT_ID: "agentos",
         AGENTOS_OIDC_CLIENT_SECRET: "secret",
-        NEXTAUTH_SECRET: "session-secret",
       }),
     ).toBe(true);
 
     expect(
       humanAuthConfigured({
+        NEXTAUTH_URL: "https://agentos.example.test",
+        NEXTAUTH_SECRET: "session-secret",
         AGENTOS_OIDC_ISSUER: "https://identity.example.test",
         AGENTOS_OIDC_CLIENT_ID: "agentos",
-        NEXTAUTH_SECRET: "session-secret",
       }),
     ).toBe(false);
   });
