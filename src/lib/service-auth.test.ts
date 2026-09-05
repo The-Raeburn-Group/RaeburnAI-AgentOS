@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { requireChainServiceToken } from "@/lib/service-auth";
+import {
+  authenticateChainServiceRequest,
+  requireChainServiceToken,
+} from "@/lib/service-auth";
 
 const originalToken = process.env.RAEBURN_CHAIN_SERVICE_TOKEN;
 
@@ -51,5 +54,51 @@ describe("requireChainServiceToken", () => {
     );
 
     expect(response).toBeNull();
+  });
+});
+
+describe("authenticateChainServiceRequest", () => {
+  it("rejects an authenticated service request without trusted tenant context", async () => {
+    process.env.RAEBURN_CHAIN_SERVICE_TOKEN = "expected-token";
+
+    const result = authenticateChainServiceRequest(
+      new Request("http://localhost/api/workflows/run", {
+        headers: { authorization: "Bearer expected-token" },
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(400);
+      await expect(result.response.json()).resolves.toEqual({
+        error: "Invalid Chain service context",
+      });
+    }
+  });
+
+  it("returns only the tenant and actor context supplied by authenticated Chain", () => {
+    process.env.RAEBURN_CHAIN_SERVICE_TOKEN = "expected-token";
+
+    const result = authenticateChainServiceRequest(
+      new Request("http://localhost/api/workflows/run", {
+        headers: {
+          authorization: "Bearer expected-token",
+          "x-tenant-id": "tenant-a",
+          "x-actor-id": "user-123",
+          "x-request-id": "request-456",
+          "x-roles": "operator,auditor",
+        },
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      context: {
+        tenantId: "tenant-a",
+        actorId: "user-123",
+        requestId: "request-456",
+        roles: ["operator", "auditor"],
+      },
+    });
   });
 });
