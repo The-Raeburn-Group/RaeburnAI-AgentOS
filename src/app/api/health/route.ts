@@ -6,7 +6,8 @@ export async function GET() {
   try {
     await db.$queryRaw`SELECT 1`;
     const authConfigured = humanAuthConfigured();
-    const productionAuthMissing = process.env.NODE_ENV === "production" && !authConfigured;
+    const productionAuthMissing =
+      process.env.NODE_ENV === "production" && !authConfigured;
     return NextResponse.json(
       {
         status: productionAuthMissing ? "degraded" : "ok",

@@ -16,8 +16,14 @@ function identity(roles: HumanIdentity["roles"]): HumanIdentity {
 
 describe("human RBAC", () => {
   it("normalizes only recognized roles", () => {
-    expect(normalizeRoles(["admin", "operator", "root", 42])).toEqual(["admin", "operator"]);
-    expect(normalizeRoles("viewer auditor unknown viewer")).toEqual(["viewer", "auditor"]);
+    expect(normalizeRoles(["admin", "operator", "root", 42])).toEqual([
+      "admin",
+      "operator",
+    ]);
+    expect(normalizeRoles("viewer auditor unknown viewer")).toEqual([
+      "viewer",
+      "auditor",
+    ]);
   });
 
   it("keeps administrator writes separate from operator and viewer access", () => {

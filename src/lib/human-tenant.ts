@@ -9,7 +9,9 @@ export class TenantAccessError extends Error {
   }
 }
 
-export async function requireHumanTenant(identity: HumanIdentity): Promise<Tenant> {
+export async function requireHumanTenant(
+  identity: HumanIdentity,
+): Promise<Tenant> {
   const tenant = await db.tenant.findFirst({
     where: {
       OR: [{ id: identity.tenantId }, { slug: identity.tenantId }],

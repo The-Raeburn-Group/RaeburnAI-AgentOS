@@ -7,11 +7,17 @@ import { AgentManifestSchema } from "@/lib/types";
 
 function authError(error: unknown) {
   if (error instanceof TenantAccessError) {
-    return NextResponse.json({ error: "tenant_access_denied" }, { status: 403 });
+    return NextResponse.json(
+      { error: "tenant_access_denied" },
+      { status: 403 },
+    );
   }
   if (!(error instanceof HumanAuthError)) return undefined;
   if (error.code === "auth_unconfigured") {
-    return NextResponse.json({ error: "human_auth_unconfigured" }, { status: 503 });
+    return NextResponse.json(
+      { error: "human_auth_unconfigured" },
+      { status: 503 },
+    );
   }
   if (error.code === "unauthenticated") {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
@@ -97,7 +103,11 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         agent,
-        actor: { actorId: identity.actorId, tenantId: tenant.id, roles: identity.roles },
+        actor: {
+          actorId: identity.actorId,
+          tenantId: tenant.id,
+          roles: identity.roles,
+        },
       },
       { status: 201 },
     );

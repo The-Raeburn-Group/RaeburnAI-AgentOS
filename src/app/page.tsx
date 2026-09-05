@@ -24,8 +24,9 @@ export default async function HomePage() {
           <section className="section card">
             <h1>Administrator authentication is not configured.</h1>
             <p>
-              Configure the AgentOS OIDC issuer, client credentials, tenant claim, role claim and
-              NextAuth secret before using the administrative dashboard.
+              Configure the AgentOS OIDC issuer, client credentials, tenant
+              claim, role claim and NextAuth secret before using the
+              administrative dashboard.
             </p>
           </section>
         </main>
@@ -43,7 +44,9 @@ export default async function HomePage() {
         <main className="shell">
           <section className="section card">
             <h1>Tenant access denied.</h1>
-            <p>The verified identity is not mapped to an existing AgentOS tenant.</p>
+            <p>
+              The verified identity is not mapped to an existing AgentOS tenant.
+            </p>
           </section>
         </main>
       );
@@ -79,12 +82,17 @@ export default async function HomePage() {
           <div className="eyebrow">RaeburnAI AgentOS</div>
           <h1>The operating system for dependable AI agents.</h1>
           <p>
-            Orchestrate specialist agents, route work across local and cloud LLMs, persist shared
-            memory, expose MCP tools safely, and keep humans in control with approval checkpoints.
+            Orchestrate specialist agents, route work across local and cloud
+            LLMs, persist shared memory, expose MCP tools safely, and keep
+            humans in control with approval checkpoints.
           </p>
           <p>
-            Signed in as <strong>{identity.name ?? identity.email ?? identity.actorId}</strong> for
-            tenant <strong>{tenant.slug}</strong> ({identity.roles.join(", ")}).
+            Signed in as{" "}
+            <strong>
+              {identity.name ?? identity.email ?? identity.actorId}
+            </strong>{" "}
+            for tenant <strong>{tenant.slug}</strong> (
+            {identity.roles.join(", ")}).
           </p>
           <a className="button" href="/api/health">
             Check platform health
@@ -154,7 +162,9 @@ export default async function HomePage() {
       <section className="section card">
         <h2>Recent workflow runs</h2>
         <div className="agent-list">
-          {runs.length === 0 ? <p>No workflow runs yet for this tenant.</p> : null}
+          {runs.length === 0 ? (
+            <p>No workflow runs yet for this tenant.</p>
+          ) : null}
           {runs.map((run) => (
             <div className="agent" key={run.id}>
               <div>
