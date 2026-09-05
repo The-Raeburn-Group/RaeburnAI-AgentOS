@@ -68,6 +68,8 @@ interface OidcProfile extends Record<string, unknown> {
   picture?: string;
 }
 
+type AuthEnvironment = Readonly<Record<string, string | undefined>>;
+
 export interface HumanIdentity {
   actorId: string;
   tenantId: string;
@@ -92,7 +94,7 @@ function configured(value: string | undefined): string | undefined {
 }
 
 export function humanAuthConfigured(
-  env: NodeJS.ProcessEnv = process.env,
+  env: AuthEnvironment = process.env,
 ): boolean {
   return Boolean(
     configured(env.NEXTAUTH_URL) &&
@@ -104,7 +106,7 @@ export function humanAuthConfigured(
 }
 
 export function humanSessionMaxAgeSeconds(
-  env: NodeJS.ProcessEnv = process.env,
+  env: AuthEnvironment = process.env,
 ): number {
   const raw = configured(env.AGENTOS_SESSION_MAX_AGE_SECONDS) ?? "3600";
   const seconds = Number(raw);
