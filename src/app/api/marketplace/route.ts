@@ -80,6 +80,20 @@ export async function POST(request: Request) {
         manifest,
       },
     });
+    await db.auditEvent.create({
+      data: {
+        actor: identity.actorId,
+        action: "agent.marketplace.upsert",
+        metadata: {
+          tenantId: tenant.id,
+          tenantSlug: tenant.slug,
+          agentId: agent.id,
+          agentSlug: agent.slug,
+          agentVersion: agent.version,
+          roles: identity.roles,
+        },
+      },
+    });
     return NextResponse.json(
       {
         agent,
