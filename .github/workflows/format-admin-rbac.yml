@@ -1,0 +1,41 @@
+name: Format admin RBAC branch
+
+on:
+  push:
+    branches: [feat/admin-rbac]
+    paths:
+      - .github/workflows/format-admin-rbac.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/admin-rbac
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Normalize admin RBAC files
+        run: >-
+          npx prettier --write
+          src/app/api/health/route.ts
+          src/app/api/marketplace/route.ts
+          src/app/page.tsx
+          src/lib/admin-auth.test.ts
+          src/lib/admin-auth.ts
+          src/lib/human-tenant.ts
+      - name: Commit normalization if needed
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/app/api/health/route.ts src/app/api/marketplace/route.ts src/app/page.tsx src/lib/admin-auth.test.ts src/lib/admin-auth.ts src/lib/human-tenant.ts
+            git commit -m "style(auth): normalize admin RBAC files"
+            git push origin HEAD:feat/admin-rbac
+          fi
