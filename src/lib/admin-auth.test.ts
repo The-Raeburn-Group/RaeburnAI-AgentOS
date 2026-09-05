@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   hasPermission,
   humanAuthConfigured,
+  humanSessionMaxAgeSeconds,
+  identityFromOidcClaims,
   normalizeRoles,
   type HumanIdentity,
 } from "@/lib/admin-auth";
@@ -59,5 +61,47 @@ describe("human RBAC", () => {
         AGENTOS_OIDC_CLIENT_ID: "agentos",
       }),
     ).toBe(false);
+  });
+
+  it("rejects OIDC identities without a tenant or recognized role", () => {
+    expect(
+      identityFromOidcClaims(
+        { sub: "user-1", tenant_id: "tenant-a", roles: ["admin", "root"] },
+        "tenant_id",
+        "roles",
+      ),
+    ).toMatchObject({
+      actorId: "user-1",
+      tenantId: "tenant-a",
+      roles: ["admin"],
+    });
+
+    expect(
+      identityFromOidcClaims(
+        { sub: "user-1", roles: ["admin"] },
+        "tenant_id",
+        "roles",
+      ),
+    ).toBeUndefined();
+    expect(
+      identityFromOidcClaims(
+        { sub: "user-1", tenant_id: "tenant-a", roles: ["root"] },
+        "tenant_id",
+        "roles",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("uses a bounded configurable administrator session lifetime", () => {
+    expect(humanSessionMaxAgeSeconds({})).toBe(3600);
+    expect(
+      humanSessionMaxAgeSeconds({ AGENTOS_SESSION_MAX_AGE_SECONDS: "900" }),
+    ).toBe(900);
+    expect(() =>
+      humanSessionMaxAgeSeconds({ AGENTOS_SESSION_MAX_AGE_SECONDS: "120" }),
+    ).toThrow("invalid_human_session_max_age");
+    expect(() =>
+      humanSessionMaxAgeSeconds({ AGENTOS_SESSION_MAX_AGE_SECONDS: "90000" }),
+    ).toThrow("invalid_human_session_max_age");
   });
 });
