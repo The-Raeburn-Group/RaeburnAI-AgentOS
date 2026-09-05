@@ -114,10 +114,6 @@ export function humanSessionMaxAgeSeconds(
   return seconds;
 }
 
-function claim(profile: OidcProfile | undefined, name: string): unknown {
-  return profile?.[name];
-}
-
 export function normalizeRoles(value: unknown): HumanRole[] {
   const values = Array.isArray(value)
     ? value
