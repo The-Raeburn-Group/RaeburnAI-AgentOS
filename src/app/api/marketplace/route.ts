@@ -1,14 +1,27 @@
 import { NextResponse } from "next/server";
+import { HumanAuthError, requireHumanPermission } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { apiError, rateLimit } from "@/lib/http";
 import { ensureDefaultTenant } from "@/lib/orchestrator";
 import { AgentManifestSchema } from "@/lib/types";
+
+function authError(error: unknown) {
+  if (!(error instanceof HumanAuthError)) return undefined;
+  if (error.code === "auth_unconfigured") {
+    return NextResponse.json({ error: "human_auth_unconfigured" }, { status: 503 });
+  }
+  if (error.code === "unauthenticated") {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+  return NextResponse.json({ error: "forbidden" }, { status: 403 });
+}
 
 export async function GET(request: Request) {
   const limited = rateLimit(request, 120, 60000);
   if (limited) return limited;
 
   try {
+    await requireHumanPermission("agent.read");
     const tenant = await ensureDefaultTenant();
     const agents = await db.agent.findMany({
       where: { tenantId: tenant.id },
@@ -16,7 +29,7 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({ agents });
   } catch (error) {
-    return apiError(error, "marketplace.list");
+    return authError(error) ?? apiError(error, "marketplace.list");
   }
 }
 
@@ -25,6 +38,7 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   try {
+    const identity = await requireHumanPermission("agent.write");
     const tenant = await ensureDefaultTenant();
     const manifest = AgentManifestSchema.parse(await request.json());
     const agent = await db.agent.upsert({
@@ -63,8 +77,14 @@ export async function POST(request: Request) {
         manifest,
       },
     });
-    return NextResponse.json({ agent }, { status: 201 });
+    return NextResponse.json(
+      {
+        agent,
+        actor: { actorId: identity.actorId, tenantId: identity.tenantId, roles: identity.roles },
+      },
+      { status: 201 },
+    );
   } catch (error) {
-    return apiError(error, "marketplace.upsert");
+    return authError(error) ?? apiError(error, "marketplace.upsert");
   }
 }
