@@ -1,12 +1,17 @@
+import type { Tenant } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { HumanAuthError, requireHumanPermission } from "@/lib/admin-auth";
+import {
+  HumanAuthError,
+  requireHumanPermission,
+  type HumanIdentity,
+} from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  let identity;
+  let identity: HumanIdentity;
   try {
     identity = await requireHumanPermission("agent.read");
   } catch (error) {
@@ -29,7 +34,7 @@ export default async function HomePage() {
     throw error;
   }
 
-  let tenant;
+  let tenant: Tenant;
   try {
     tenant = await requireHumanTenant(identity);
   } catch (error) {
