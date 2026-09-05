@@ -1,22 +1,44 @@
 import { NextResponse } from "next/server";
+import { HumanAuthError, requireHumanPermission } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
+import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 import { apiError, rateLimit } from "@/lib/http";
-import { ensureDefaultTenant } from "@/lib/orchestrator";
 import { AgentManifestSchema } from "@/lib/types";
+
+function authError(error: unknown) {
+  if (error instanceof TenantAccessError) {
+    return NextResponse.json(
+      { error: "tenant_access_denied" },
+      { status: 403 },
+    );
+  }
+  if (!(error instanceof HumanAuthError)) return undefined;
+  if (error.code === "auth_unconfigured") {
+    return NextResponse.json(
+      { error: "human_auth_unconfigured" },
+      { status: 503 },
+    );
+  }
+  if (error.code === "unauthenticated") {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+  return NextResponse.json({ error: "forbidden" }, { status: 403 });
+}
 
 export async function GET(request: Request) {
   const limited = rateLimit(request, 120, 60000);
   if (limited) return limited;
 
   try {
-    const tenant = await ensureDefaultTenant();
+    const identity = await requireHumanPermission("agent.read");
+    const tenant = await requireHumanTenant(identity);
     const agents = await db.agent.findMany({
       where: { tenantId: tenant.id },
       orderBy: [{ status: "asc" }, { name: "asc" }],
     });
     return NextResponse.json({ agents });
   } catch (error) {
-    return apiError(error, "marketplace.list");
+    return authError(error) ?? apiError(error, "marketplace.list");
   }
 }
 
@@ -25,7 +47,8 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   try {
-    const tenant = await ensureDefaultTenant();
+    const identity = await requireHumanPermission("agent.write");
+    const tenant = await requireHumanTenant(identity);
     const manifest = AgentManifestSchema.parse(await request.json());
     const agent = await db.agent.upsert({
       where: {
@@ -63,8 +86,32 @@ export async function POST(request: Request) {
         manifest,
       },
     });
-    return NextResponse.json({ agent }, { status: 201 });
+    await db.auditEvent.create({
+      data: {
+        actor: identity.actorId,
+        action: "agent.marketplace.upsert",
+        metadata: {
+          tenantId: tenant.id,
+          tenantSlug: tenant.slug,
+          agentId: agent.id,
+          agentSlug: agent.slug,
+          agentVersion: agent.version,
+          roles: identity.roles,
+        },
+      },
+    });
+    return NextResponse.json(
+      {
+        agent,
+        actor: {
+          actorId: identity.actorId,
+          tenantId: tenant.id,
+          roles: identity.roles,
+        },
+      },
+      { status: 201 },
+    );
   } catch (error) {
-    return apiError(error, "marketplace.upsert");
+    return authError(error) ?? apiError(error, "marketplace.upsert");
   }
 }
