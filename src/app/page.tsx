@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { ensureDefaultTenant } from "@/lib/orchestrator";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const tenant = await ensureDefaultTenant();
   const [agents, runs, approvals, mcpServers, memories] = await Promise.all([
