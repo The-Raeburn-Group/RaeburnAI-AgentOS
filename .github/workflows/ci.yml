@@ -30,6 +30,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://agentos:agentos@localhost:5432/agentos?schema=public
       NEXTAUTH_SECRET: test-secret-for-ci-only-change-in-prod
+      RAEBURN_CHAIN_SERVICE_TOKEN: test-chain-service-token-for-ci-only
       OLLAMA_BASE_URL: http://localhost:11434
       DEFAULT_MODEL_PROVIDER: ollama
       DEFAULT_MODEL: llama3.1
@@ -38,11 +39,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-      - run: npm install
+      - run: npm ci
       - run: npm audit --audit-level=high
       - run: npm run db:generate
+      - run: npm run db:migrate
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck

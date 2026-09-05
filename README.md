@@ -104,22 +104,22 @@ docker compose up --build
 
 ## 8. Environment variables
 
-| Variable | Purpose |
-| --- | --- |
-| `APP_URL` | Public application URL |
-| `NEXTAUTH_URL` | Auth callback base URL |
-| `NEXTAUTH_SECRET` | Auth/session secret |
-| `ENCRYPTION_KEY` | Application encryption key placeholder |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `OPENAI_API_KEY` | Optional OpenAI cloud model key |
-| `OPENROUTER_API_KEY` | Optional OpenRouter cloud model key |
-| `OLLAMA_BASE_URL` | Optional local model endpoint |
-| `DEFAULT_MODEL_PROVIDER` | `ollama`, `openai` or `openrouter` |
-| `DEFAULT_MODEL` | Default model name |
-| `APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS` | Safety gate for risky actions |
-| `MAX_AGENT_STEPS` | Workflow step limit |
-| `LOG_LEVEL` | Structured logging level |
-| `METRICS_ENABLED` | Metrics endpoint toggle placeholder |
+| Variable                                 | Purpose                                |
+| ---------------------------------------- | -------------------------------------- |
+| `APP_URL`                                | Public application URL                 |
+| `NEXTAUTH_URL`                           | Auth callback base URL                 |
+| `NEXTAUTH_SECRET`                        | Auth/session secret                    |
+| `ENCRYPTION_KEY`                         | Application encryption key placeholder |
+| `DATABASE_URL`                           | PostgreSQL connection string           |
+| `OPENAI_API_KEY`                         | Optional OpenAI cloud model key        |
+| `OPENROUTER_API_KEY`                     | Optional OpenRouter cloud model key    |
+| `OLLAMA_BASE_URL`                        | Optional local model endpoint          |
+| `DEFAULT_MODEL_PROVIDER`                 | `ollama`, `openai` or `openrouter`     |
+| `DEFAULT_MODEL`                          | Default model name                     |
+| `APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS` | Safety gate for risky actions          |
+| `MAX_AGENT_STEPS`                        | Workflow step limit                    |
+| `LOG_LEVEL`                              | Structured logging level               |
+| `METRICS_ENABLED`                        | Metrics endpoint toggle placeholder    |
 
 ## 9. Usage examples
 
