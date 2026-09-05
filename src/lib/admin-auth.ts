@@ -238,11 +238,7 @@ export const humanAuthOptions: NextAuthOptions = {
     async signIn({ profile }) {
       if (!profile) return false;
       return Boolean(
-        identityFromOidcClaims(
-          profile as OidcProfile,
-          tenantClaim,
-          rolesClaim,
-        ),
+        identityFromOidcClaims(profile as OidcProfile, tenantClaim, rolesClaim),
       );
     },
     async jwt({ token, profile }) {
