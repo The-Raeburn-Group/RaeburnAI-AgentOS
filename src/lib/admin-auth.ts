@@ -103,6 +103,17 @@ export function humanAuthConfigured(
   );
 }
 
+export function humanSessionMaxAgeSeconds(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const raw = configured(env.AGENTOS_SESSION_MAX_AGE_SECONDS) ?? "3600";
+  const seconds = Number(raw);
+  if (!Number.isInteger(seconds) || seconds < 300 || seconds > 86400) {
+    throw new Error("invalid_human_session_max_age");
+  }
+  return seconds;
+}
+
 function claim(profile: OidcProfile | undefined, name: string): unknown {
   return profile?.[name];
 }
@@ -118,6 +129,27 @@ export function normalizeRoles(value: unknown): HumanRole[] {
       typeof role === "string" && humanRoles.includes(role as HumanRole),
   );
   return [...new Set(roles)];
+}
+
+export function identityFromOidcClaims(
+  profile: Record<string, unknown>,
+  tenantClaimName: string,
+  rolesClaimName: string,
+): HumanIdentity | undefined {
+  const actorId =
+    typeof profile.sub === "string" ? configured(profile.sub) : undefined;
+  const tenantValue = profile[tenantClaimName];
+  const tenantId =
+    typeof tenantValue === "string" ? configured(tenantValue) : undefined;
+  const roles = normalizeRoles(profile[rolesClaimName]);
+  if (!actorId || !tenantId || roles.length === 0) return undefined;
+  return {
+    actorId,
+    tenantId,
+    roles,
+    ...(typeof profile.email === "string" ? { email: profile.email } : {}),
+    ...(typeof profile.name === "string" ? { name: profile.name } : {}),
+  };
 }
 
 function identityFromToken(token: JWT): HumanIdentity | undefined {
@@ -173,12 +205,14 @@ const clientSecret =
 const rolesClaim = configured(process.env.AGENTOS_OIDC_ROLES_CLAIM) ?? "roles";
 const tenantClaim =
   configured(process.env.AGENTOS_OIDC_TENANT_CLAIM) ?? "tenant_id";
+const sessionMaxAgeSeconds = humanSessionMaxAgeSeconds();
 
 export const humanAuthOptions: NextAuthOptions = {
   secret:
     configured(process.env.NEXTAUTH_SECRET) ??
     "unconfigured-development-secret",
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: sessionMaxAgeSeconds },
+  jwt: { maxAge: sessionMaxAgeSeconds },
   providers: [
     {
       id: "raeburn-oidc",
@@ -201,11 +235,31 @@ export const humanAuthOptions: NextAuthOptions = {
     },
   ],
   callbacks: {
+    async signIn({ profile }) {
+      if (!profile) return false;
+      return Boolean(
+        identityFromOidcClaims(
+          profile as OidcProfile,
+          tenantClaim,
+          rolesClaim,
+        ),
+      );
+    },
     async jwt({ token, profile }) {
       if (profile) {
-        const oidcProfile = profile as OidcProfile;
-        token.tenantId = claim(oidcProfile, tenantClaim);
-        token.roles = normalizeRoles(claim(oidcProfile, rolesClaim));
+        const identity = identityFromOidcClaims(
+          profile as OidcProfile,
+          tenantClaim,
+          rolesClaim,
+        );
+        if (!identity) {
+          delete token.tenantId;
+          token.roles = [];
+          return token;
+        }
+        token.sub = identity.actorId;
+        token.tenantId = identity.tenantId;
+        token.roles = identity.roles;
       }
       return token;
     },
