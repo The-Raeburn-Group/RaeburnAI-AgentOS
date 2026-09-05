@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { HumanAuthError, requireHumanPermission } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
+import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 import { apiError, rateLimit } from "@/lib/http";
-import { ensureDefaultTenant } from "@/lib/orchestrator";
 import { AgentManifestSchema } from "@/lib/types";
 
 function authError(error: unknown) {
+  if (error instanceof TenantAccessError) {
+    return NextResponse.json({ error: "tenant_access_denied" }, { status: 403 });
+  }
   if (!(error instanceof HumanAuthError)) return undefined;
   if (error.code === "auth_unconfigured") {
     return NextResponse.json({ error: "human_auth_unconfigured" }, { status: 503 });
@@ -21,8 +24,8 @@ export async function GET(request: Request) {
   if (limited) return limited;
 
   try {
-    await requireHumanPermission("agent.read");
-    const tenant = await ensureDefaultTenant();
+    const identity = await requireHumanPermission("agent.read");
+    const tenant = await requireHumanTenant(identity);
     const agents = await db.agent.findMany({
       where: { tenantId: tenant.id },
       orderBy: [{ status: "asc" }, { name: "asc" }],
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
 
   try {
     const identity = await requireHumanPermission("agent.write");
-    const tenant = await ensureDefaultTenant();
+    const tenant = await requireHumanTenant(identity);
     const manifest = AgentManifestSchema.parse(await request.json());
     const agent = await db.agent.upsert({
       where: {
@@ -80,7 +83,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         agent,
-        actor: { actorId: identity.actorId, tenantId: identity.tenantId, roles: identity.roles },
+        actor: { actorId: identity.actorId, tenantId: tenant.id, roles: identity.roles },
       },
       { status: 201 },
     );
