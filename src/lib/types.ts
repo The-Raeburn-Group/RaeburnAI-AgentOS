@@ -18,12 +18,31 @@ export const AgentManifestSchema = z.object({
 
 export type AgentManifest = z.infer<typeof AgentManifestSchema>;
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+export const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number().finite(),
+    z.boolean(),
+    z.null(),
+    z.array(JsonValueSchema),
+    z.record(JsonValueSchema),
+  ]),
+);
+
 export const WorkflowRunRequestSchema = z.object({
   tenantSlug: z.string().default("default"),
   name: z.string().default("Untitled workflow"),
   goal: z.string().min(5),
   agents: z.array(z.string()).min(1),
-  input: z.record(z.unknown()).default({}),
+  input: z.record(JsonValueSchema).default({}),
 });
 
 export type WorkflowRunRequest = z.infer<typeof WorkflowRunRequestSchema>;
