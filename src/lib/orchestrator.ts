@@ -4,6 +4,12 @@ import { env } from "@/lib/env";
 import { generateWithProvider } from "@/lib/providers";
 import type { WorkflowRunRequest } from "@/lib/types";
 
+export interface WorkflowExecutionContext {
+  tenantReference: string;
+  actorId: string;
+  requestId: string;
+}
+
 export async function ensureDefaultTenant(slug = "default") {
   return db.tenant.upsert({
     where: { slug },
@@ -12,8 +18,34 @@ export async function ensureDefaultTenant(slug = "default") {
   });
 }
 
-export async function runWorkflow(request: WorkflowRunRequest) {
-  const tenant = await ensureDefaultTenant(request.tenantSlug);
+async function resolveWorkflowTenant(
+  request: WorkflowRunRequest,
+  executionContext?: WorkflowExecutionContext,
+) {
+  if (executionContext) {
+    const tenant = await db.tenant.findFirst({
+      where: {
+        OR: [
+          { id: executionContext.tenantReference },
+          { slug: executionContext.tenantReference },
+        ],
+      },
+    });
+    if (!tenant) throw new Error("Trusted tenant not found");
+    return tenant;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Trusted tenant context is required");
+  }
+  return ensureDefaultTenant(request.tenantSlug);
+}
+
+export async function runWorkflow(
+  request: WorkflowRunRequest,
+  executionContext?: WorkflowExecutionContext,
+) {
+  const tenant = await resolveWorkflowTenant(request, executionContext);
   const agents = await db.agent.findMany({
     where: { tenantId: tenant.id, slug: { in: request.agents } },
   });
@@ -43,6 +75,19 @@ export async function runWorkflow(request: WorkflowRunRequest) {
     },
   });
 
+  await db.auditEvent.create({
+    data: {
+      runId: run.id,
+      actor: executionContext?.actorId ?? "local-development",
+      action: "workflow.started",
+      metadata: {
+        tenantId: tenant.id,
+        tenantSlug: tenant.slug,
+        requestId: executionContext?.requestId ?? null,
+      },
+    },
+  });
+
   let sharedContext = `Goal: ${request.goal}\nInput: ${JSON.stringify(request.input)}`;
   const outputs: Record<string, string> = {};
 
@@ -66,7 +111,7 @@ export async function runWorkflow(request: WorkflowRunRequest) {
           actionType: "agent_step",
           summary: `Approve ${agent.name} to contribute to workflow: ${request.goal}`,
           payload: { agentId: agent.id, taskId: task.id, sharedContext },
-          requestedBy: "system",
+          requestedBy: executionContext?.actorId ?? "system",
         },
       });
     }
@@ -97,6 +142,8 @@ export async function runWorkflow(request: WorkflowRunRequest) {
             provider: response.provider,
             model: response.model,
             tokens: response.tokens ?? null,
+            requestId: executionContext?.requestId ?? null,
+            initiatedBy: executionContext?.actorId ?? null,
           },
         },
       });
