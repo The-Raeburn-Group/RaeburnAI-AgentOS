@@ -65,10 +65,11 @@ function configured(value: string | undefined): string | undefined {
 
 export function humanAuthConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
   return Boolean(
-    configured(env.AGENTOS_OIDC_ISSUER) &&
+    configured(env.NEXTAUTH_URL) &&
+      configured(env.NEXTAUTH_SECRET) &&
+      configured(env.AGENTOS_OIDC_ISSUER) &&
       configured(env.AGENTOS_OIDC_CLIENT_ID) &&
-      configured(env.AGENTOS_OIDC_CLIENT_SECRET) &&
-      configured(env.NEXTAUTH_SECRET),
+      configured(env.AGENTOS_OIDC_CLIENT_SECRET),
   );
 }
 
@@ -146,9 +147,9 @@ export const humanAuthOptions: NextAuthOptions = {
       profile(profile: OidcProfile) {
         return {
           id: String(profile.sub ?? ""),
-          name: typeof profile.name === "string" ? profile.name : undefined,
-          email: typeof profile.email === "string" ? profile.email : undefined,
-          image: typeof profile.picture === "string" ? profile.picture : undefined,
+          name: typeof profile.name === "string" ? profile.name : null,
+          email: typeof profile.email === "string" ? profile.email : null,
+          image: typeof profile.picture === "string" ? profile.picture : null,
         };
       },
     },
