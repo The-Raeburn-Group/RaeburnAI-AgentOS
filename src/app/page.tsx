@@ -61,13 +61,13 @@ export default async function HomePage() {
       take: 6,
     }),
     db.workflowRun.findMany({
-      where: { workflow: { tenantId: tenant.id } },
+      where: { tenantId: tenant.id },
       orderBy: { createdAt: "desc" },
       take: 6,
       include: { workflow: true },
     }),
     db.approval.findMany({
-      where: { run: { workflow: { tenantId: tenant.id } } },
+      where: { tenantId: tenant.id },
       orderBy: { createdAt: "desc" },
       take: 6,
     }),
