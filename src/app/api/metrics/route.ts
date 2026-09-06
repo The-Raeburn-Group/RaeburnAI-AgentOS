@@ -32,12 +32,12 @@ export async function GET() {
     const [runCounts, approvalCounts] = await Promise.all([
       db.workflowRun.groupBy({
         by: ["status"],
-        where: { workflow: { tenantId: tenant.id } },
+        where: { tenantId: tenant.id },
         _count: true,
       }),
       db.approval.groupBy({
         by: ["status"],
-        where: { run: { workflow: { tenantId: tenant.id } } },
+        where: { tenantId: tenant.id },
         _count: true,
       }),
     ]);

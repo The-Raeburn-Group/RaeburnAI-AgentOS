@@ -8,6 +8,16 @@ RaeburnAI AgentOS is designed for production use, but every deployment must be c
 - Rotate `NEXTAUTH_SECRET`, provider API keys and database credentials before production launch.
 - Store secrets in Vercel, Doppler, 1Password, AWS Secrets Manager, GCP Secret Manager or equivalent.
 
+## Tenant identity and isolation
+
+- Configure `AGENTOS_TENANT_REFERENCE_MODE` to exactly one namespace: `id` or `slug`.
+- Human OIDC tenant claims and authenticated Chain `x-tenant-id` values are resolved only in that namespace; AgentOS never performs an ambiguous ID-or-slug lookup.
+- Agents, workflows, workflow runs, tasks, memories, MCP servers, approvals and audit events carry explicit tenant ownership.
+- Operational tables use direct tenant foreign keys and tenant-first indexes so API/dashboard queries do not rely on unscoped joins.
+- Database triggers reject workflow-run, task, approval and audit records whose direct tenant key disagrees with the existing workflow/run/agent ownership graph.
+- Never accept a tenant identifier from an unauthenticated request body in production.
+- Release verification must include adversarial two-tenant tests, including colliding identifier/slug strings and attempted cross-tenant writes.
+
 ## Human approval boundaries
 
 Keep approval required for:

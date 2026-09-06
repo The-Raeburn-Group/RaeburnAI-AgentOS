@@ -88,6 +88,7 @@ export async function POST(request: Request) {
     });
     await db.auditEvent.create({
       data: {
+        tenantId: tenant.id,
         actor: identity.actorId,
         action: "agent.marketplace.upsert",
         metadata: {
