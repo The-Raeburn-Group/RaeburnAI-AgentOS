@@ -1,6 +1,7 @@
 import { RunStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { resolveTenantReference } from "@/lib/human-tenant";
 import { generateWithProvider } from "@/lib/providers";
 import type { WorkflowRunRequest } from "@/lib/types";
 
@@ -23,14 +24,7 @@ async function resolveWorkflowTenant(
   executionContext?: WorkflowExecutionContext,
 ) {
   if (executionContext) {
-    const tenant = await db.tenant.findFirst({
-      where: {
-        OR: [
-          { id: executionContext.tenantReference },
-          { slug: executionContext.tenantReference },
-        ],
-      },
-    });
+    const tenant = await resolveTenantReference(executionContext.tenantReference);
     if (!tenant) throw new Error("Trusted tenant not found");
     return tenant;
   }
@@ -68,6 +62,7 @@ export async function runWorkflow(
 
   const run = await db.workflowRun.create({
     data: {
+      tenantId: tenant.id,
       workflowId: workflow.id,
       status: RunStatus.RUNNING,
       startedAt: new Date(),
@@ -77,6 +72,7 @@ export async function runWorkflow(
 
   await db.auditEvent.create({
     data: {
+      tenantId: tenant.id,
       runId: run.id,
       actor: executionContext?.actorId ?? "local-development",
       action: "workflow.started",
@@ -96,6 +92,7 @@ export async function runWorkflow(
 
     const task = await db.agentTask.create({
       data: {
+        tenantId: tenant.id,
         runId: run.id,
         agentId: agent.id,
         name: `${agent.name} step`,
@@ -107,6 +104,7 @@ export async function runWorkflow(
     if (agent.approvalRequired && env.APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS) {
       await db.approval.create({
         data: {
+          tenantId: tenant.id,
           runId: run.id,
           actionType: "agent_step",
           summary: `Approve ${agent.name} to contribute to workflow: ${request.goal}`,
@@ -135,6 +133,7 @@ export async function runWorkflow(
       });
       await db.auditEvent.create({
         data: {
+          tenantId: tenant.id,
           runId: run.id,
           actor: agent.slug,
           action: "agent.completed",
