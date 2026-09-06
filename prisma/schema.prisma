@@ -30,15 +30,19 @@ enum ApprovalStatus {
 }
 
 model Tenant {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   name        String
-  slug        String   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  slug        String       @unique
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   agents      Agent[]
   workflows   Workflow[]
+  runs        WorkflowRun[]
+  tasks       AgentTask[]
   memories    Memory[]
   mcpServers  McpServer[]
+  approvals   Approval[]
+  auditEvents AuditEvent[]
 }
 
 model Agent {
@@ -81,6 +85,7 @@ model Workflow {
 
 model WorkflowRun {
   id          String       @id @default(uuid())
+  tenantId    String
   workflowId  String
   status      RunStatus    @default(QUEUED)
   input       Json
@@ -89,14 +94,19 @@ model WorkflowRun {
   startedAt   DateTime?
   finishedAt  DateTime?
   createdAt   DateTime     @default(now())
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   workflow    Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   tasks       AgentTask[]
   approvals   Approval[]
   events      AuditEvent[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
 }
 
 model AgentTask {
   id          String       @id @default(uuid())
+  tenantId    String
   runId       String
   agentId     String
   name        String
@@ -106,8 +116,11 @@ model AgentTask {
   error       String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   run         WorkflowRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
   agent       Agent        @relation(fields: [agentId], references: [id])
+
+  @@index([tenantId, status])
 }
 
 model Memory {
@@ -126,43 +139,50 @@ model Memory {
 }
 
 model McpServer {
-  id          String   @id @default(uuid())
-  tenantId    String
-  name        String
-  url         String
+  id           String   @id @default(uuid())
+  tenantId     String
+  name         String
+  url          String
   capabilities String[] @default([])
-  enabled     Boolean  @default(false)
-  policy      Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enabled      Boolean  @default(false)
+  policy       Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, name])
 }
 
 model Approval {
-  id          String         @id @default(uuid())
-  runId       String
-  actionType  String
-  summary     String
-  payload     Json
-  status      ApprovalStatus @default(PENDING)
-  requestedBy String
-  decidedBy   String?
+  id           String         @id @default(uuid())
+  tenantId     String
+  runId        String
+  actionType   String
+  summary      String
+  payload      Json
+  status       ApprovalStatus @default(PENDING)
+  requestedBy  String
+  decidedBy    String?
   decisionNote String?
-  createdAt   DateTime      @default(now())
-  decidedAt   DateTime?
-  run         WorkflowRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  createdAt    DateTime       @default(now())
+  decidedAt    DateTime?
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run          WorkflowRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, createdAt])
 }
 
 model AuditEvent {
-  id          String      @id @default(uuid())
-  runId       String?
-  actor       String
-  action      String
-  metadata    Json
-  createdAt   DateTime    @default(now())
-  run         WorkflowRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  id        String       @id @default(uuid())
+  tenantId  String
+  runId     String?
+  actor     String
+  action    String
+  metadata  Json
+  createdAt DateTime     @default(now())
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run       WorkflowRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, createdAt])
   @@index([runId, createdAt])
 }
