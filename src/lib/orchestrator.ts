@@ -24,7 +24,9 @@ async function resolveWorkflowTenant(
   executionContext?: WorkflowExecutionContext,
 ) {
   if (executionContext) {
-    const tenant = await resolveTenantReference(executionContext.tenantReference);
+    const tenant = await resolveTenantReference(
+      executionContext.tenantReference,
+    );
     if (!tenant) throw new Error("Trusted tenant not found");
     return tenant;
   }

@@ -7,9 +7,7 @@ type Environment = Readonly<Record<string, string | undefined>>;
 
 export class TenantAccessError extends Error {
   constructor(
-    public readonly code:
-      | "tenant_not_found"
-      | "invalid_tenant_reference_mode",
+    public readonly code: "tenant_not_found" | "invalid_tenant_reference_mode",
   ) {
     super(code);
     this.name = "TenantAccessError";
@@ -19,9 +17,7 @@ export class TenantAccessError extends Error {
 export function tenantReferenceMode(
   env: Environment = process.env,
 ): TenantReferenceMode {
-  const raw = (env.AGENTOS_TENANT_REFERENCE_MODE ?? "id")
-    .trim()
-    .toLowerCase();
+  const raw = (env.AGENTOS_TENANT_REFERENCE_MODE ?? "id").trim().toLowerCase();
   if (raw !== "id" && raw !== "slug") {
     throw new TenantAccessError("invalid_tenant_reference_mode");
   }

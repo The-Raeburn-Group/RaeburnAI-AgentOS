@@ -44,9 +44,9 @@ describeWithDatabase("tenant isolation", () => {
 
   it("resolves tenant references in an explicit namespace", async () => {
     expect(tenantReferenceMode({})).toBe("id");
-    expect(
-      tenantReferenceMode({ AGENTOS_TENANT_REFERENCE_MODE: "slug" }),
-    ).toBe("slug");
+    expect(tenantReferenceMode({ AGENTOS_TENANT_REFERENCE_MODE: "slug" })).toBe(
+      "slug",
+    );
     expect(() =>
       tenantReferenceMode({ AGENTOS_TENANT_REFERENCE_MODE: "both" }),
     ).toThrow("invalid_tenant_reference_mode");
