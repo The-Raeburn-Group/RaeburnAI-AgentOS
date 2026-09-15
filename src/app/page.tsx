@@ -1,4 +1,4 @@
-import type { Tenant } from "@prisma/client";
+import { ApprovalStatus, type Tenant } from "@prisma/client";
 import { redirect } from "next/navigation";
 import {
   HumanAuthError,
@@ -54,26 +54,25 @@ export default async function HomePage() {
     throw error;
   }
 
-  const [agents, runs, approvals, mcpServers, memories] = await Promise.all([
-    db.agent.findMany({
-      where: { tenantId: tenant.id },
-      orderBy: { updatedAt: "desc" },
-      take: 6,
-    }),
-    db.workflowRun.findMany({
-      where: { tenantId: tenant.id },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-      include: { workflow: true },
-    }),
-    db.approval.findMany({
-      where: { tenantId: tenant.id },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
-    db.mcpServer.count({ where: { tenantId: tenant.id } }),
-    db.memory.count({ where: { tenantId: tenant.id } }),
-  ]);
+  const [agents, runs, pendingApprovals, mcpServers, memories] =
+    await Promise.all([
+      db.agent.findMany({
+        where: { tenantId: tenant.id },
+        orderBy: { updatedAt: "desc" },
+        take: 6,
+      }),
+      db.workflowRun.findMany({
+        where: { tenantId: tenant.id },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        include: { workflow: true },
+      }),
+      db.approval.count({
+        where: { tenantId: tenant.id, status: ApprovalStatus.PENDING },
+      }),
+      db.mcpServer.count({ where: { tenantId: tenant.id } }),
+      db.memory.count({ where: { tenantId: tenant.id } }),
+    ]);
 
   return (
     <main className="shell">
@@ -94,9 +93,15 @@ export default async function HomePage() {
             for tenant <strong>{tenant.slug}</strong> (
             {identity.roles.join(", ")}).
           </p>
-          <a className="button" href="/api/health">
-            Check platform health
-          </a>
+          <div className="button-row">
+            <a className="button" href="/approvals">
+              Review approvals
+              {pendingApprovals > 0 ? ` (${pendingApprovals})` : ""}
+            </a>
+            <a className="secondary-button" href="/api/health">
+              Check platform health
+            </a>
+          </div>
         </div>
         <div className="card">
           <h2>Production capabilities</h2>
@@ -121,8 +126,8 @@ export default async function HomePage() {
           <span>Recent workflow runs</span>
         </div>
         <div className="metric">
-          <strong>{approvals.length}</strong>
-          <span>Approval requests</span>
+          <strong>{pendingApprovals}</strong>
+          <span>Pending approvals</span>
         </div>
         <div className="metric">
           <strong>{mcpServers}</strong>
