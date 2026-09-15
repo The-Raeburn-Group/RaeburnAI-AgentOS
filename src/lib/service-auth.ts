@@ -79,7 +79,9 @@ export function authenticateChainServiceRequest(
   const approvalId = requiredHeader(request, "x-raeburn-approval-id");
   const idempotencyKey = requiredHeader(request, "idempotency-key");
   const executionId = requiredHeader(request, "x-raeburn-execution-id");
-  const governedHeaders = [approvalId, idempotencyKey, executionId].filter(Boolean).length;
+  const governedHeaders = [approvalId, idempotencyKey, executionId].filter(
+    Boolean,
+  ).length;
 
   if (governedHeaders !== 0 && governedHeaders !== 3) {
     return invalidContext("Incomplete governed Chain execution context");
