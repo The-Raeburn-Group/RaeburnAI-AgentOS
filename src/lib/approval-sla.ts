@@ -182,15 +182,18 @@ async function escalateApproval(options: {
   });
 }
 
-export async function sweepApprovalEscalations(options: {
-  tenantId?: string;
-  now?: Date;
-  actorId?: string;
-  requestId?: string;
-} = {}): Promise<ApprovalSlaSweepResult> {
+export async function sweepApprovalEscalations(
+  options: {
+    tenantId?: string;
+    now?: Date;
+    actorId?: string;
+    requestId?: string;
+  } = {},
+): Promise<ApprovalSlaSweepResult> {
   const now = options.now ?? new Date();
   const actorId = options.actorId?.trim() || "agentos-sla-controller";
-  const requestId = options.requestId?.trim() || `sla-sweep-${now.toISOString()}`;
+  const requestId =
+    options.requestId?.trim() || `sla-sweep-${now.toISOString()}`;
   const tenantWhere = options.tenantId ? { tenantId: options.tenantId } : {};
 
   const pendingWithoutSla = await db.approval.findMany({
@@ -199,7 +202,14 @@ export async function sweepApprovalEscalations(options: {
       status: ApprovalStatus.PENDING,
       OR: [{ slaDueAt: null }, { escalationOwner: null }],
     },
-    select: { id: true, tenantId: true, risk: true, createdAt: true, slaDueAt: true, escalationOwner: true },
+    select: {
+      id: true,
+      tenantId: true,
+      risk: true,
+      createdAt: true,
+      slaDueAt: true,
+      escalationOwner: true,
+    },
     take: 500,
   });
 
@@ -212,7 +222,9 @@ export async function sweepApprovalEscalations(options: {
         status: ApprovalStatus.PENDING,
       },
       data: {
-        ...(approval.slaDueAt ? {} : { slaDueAt: approvalSlaDueAt(approval.risk, approval.createdAt) }),
+        ...(approval.slaDueAt
+          ? {}
+          : { slaDueAt: approvalSlaDueAt(approval.risk, approval.createdAt) }),
         ...(approval.escalationOwner ? {} : { escalationOwner: policy.owner }),
       },
     });
