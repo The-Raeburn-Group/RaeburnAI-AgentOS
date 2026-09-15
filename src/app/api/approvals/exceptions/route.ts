@@ -20,7 +20,10 @@ export async function GET(request: Request) {
   try {
     limit = limitFromRequest(request);
   } catch {
-    return NextResponse.json({ error: "Invalid exception limit" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid exception limit" },
+      { status: 400 },
+    );
   }
 
   const exceptions = await listApprovalExceptions({
