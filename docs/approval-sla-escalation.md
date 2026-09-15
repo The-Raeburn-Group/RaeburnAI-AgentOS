@@ -29,12 +29,12 @@ A deployment scheduler may call the endpoint periodically. The endpoint does not
 
 Defaults are intentionally stricter as risk increases:
 
-| Risk | Decision SLA | Escalation owner |
-| --- | ---: | --- |
-| LOW | 480 minutes | operator |
-| MEDIUM | 120 minutes | operator |
-| HIGH | 30 minutes | approver |
-| CRITICAL | 10 minutes | admin |
+| Risk     | Decision SLA | Escalation owner |
+| -------- | -----------: | ---------------- |
+| LOW      |  480 minutes | operator         |
+| MEDIUM   |  120 minutes | operator         |
+| HIGH     |   30 minutes | approver         |
+| CRITICAL |   10 minutes | admin            |
 
 Override the defaults with the `APPROVAL_SLA_*_MINUTES` and `APPROVAL_ESCALATION_OWNER_*` environment variables documented in `.env.example`.
 
