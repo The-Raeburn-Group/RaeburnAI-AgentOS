@@ -2,10 +2,7 @@ import { ApprovalRisk, ApprovalStatus, RunStatus } from "@prisma/client";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { decideWorkflowApproval } from "@/lib/approvals";
 import { db } from "@/lib/db";
-import {
-  runWorkflow,
-  type WorkflowModelGenerator,
-} from "@/lib/orchestrator";
+import { runWorkflow, type WorkflowModelGenerator } from "@/lib/orchestrator";
 
 const databaseUrl = process.env.DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
