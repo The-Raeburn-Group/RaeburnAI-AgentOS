@@ -7,6 +7,7 @@ import {
   requireHumanPermission,
   type HumanIdentity,
 } from "@/lib/admin-auth";
+import { sweepApprovalEscalations } from "@/lib/approval-sla";
 import { db } from "@/lib/db";
 import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 
@@ -37,6 +38,18 @@ function expiryLabel(value: Date | null) {
   const hours = Math.ceil(minutes / 60);
   if (hours < 48) return `${hours} h remaining`;
   return `${Math.ceil(hours / 24)} d remaining`;
+}
+
+function slaLabel(value: Date | null, escalatedAt: Date | null) {
+  if (escalatedAt) return `Escalated ${formatDate(escalatedAt)}`;
+  if (!value) return "SLA not set";
+  const remainingMs = value.getTime() - Date.now();
+  if (remainingMs <= 0) return "SLA due";
+  const minutes = Math.ceil(remainingMs / 60_000);
+  if (minutes < 60) return `SLA in ${minutes} min`;
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 48) return `SLA in ${hours} h`;
+  return `SLA in ${Math.ceil(hours / 24)} d`;
 }
 
 function AuthConfigurationRequired() {
@@ -92,6 +105,8 @@ export default async function ApprovalsPage({
     throw error;
   }
 
+  await sweepApprovalEscalations({ tenantId: tenant.id });
+
   const canDecide = hasPermission(identity, "approval.decide");
   const [{ decided }, pending, recent] = await Promise.all([
     searchParams,
@@ -113,9 +128,12 @@ export default async function ApprovalsPage({
   ]);
 
   pending.sort((left, right) => {
+    const escalation = Number(Boolean(right.escalatedAt)) - Number(Boolean(left.escalatedAt));
+    if (escalation) return escalation;
     const risk = riskRank[left.risk] - riskRank[right.risk];
     return risk || left.createdAt.getTime() - right.createdAt.getTime();
   });
+  const escalatedPending = pending.filter((approval) => approval.escalatedAt).length;
 
   return (
     <main className="shell">
@@ -129,13 +147,18 @@ export default async function ApprovalsPage({
               {identity.name ?? identity.email ?? identity.actorId}
             </strong>
             . Pending work cannot continue past an approval checkpoint until an
-            authorised decision is recorded.
+            authorised decision is recorded. SLA reconciliation runs before the
+            queue is displayed so overdue items are escalated or expired fail-closed.
           </p>
         </div>
         <div className="approval-header-actions">
           <span className="metric compact-metric">
             <strong>{pending.length}</strong>
             <span>Pending decisions</span>
+          </span>
+          <span className="metric compact-metric">
+            <strong>{escalatedPending}</strong>
+            <span>Escalated</span>
           </span>
           <Link className="secondary-button" href="/">
             Back to dashboard
@@ -154,8 +177,8 @@ export default async function ApprovalsPage({
           <div>
             <h2>Needs attention</h2>
             <p>
-              High and critical requests prevent self-approval by the original
-              requester. Rejections require an audit note.
+              Escalated items are shown first. High and critical requests prevent
+              self-approval by the original requester. Rejections require an audit note.
             </p>
           </div>
           <span className="pill">
@@ -188,10 +211,20 @@ export default async function ApprovalsPage({
                       {approval.risk}
                     </span>
                     <span className="status-badge status-pending">PENDING</span>
+                    {approval.escalatedAt ? (
+                      <span className="status-badge status-rejected">
+                        ESCALATED L{approval.escalationLevel}
+                      </span>
+                    ) : null}
                   </div>
-                  <strong className={expired ? "deadline expired" : "deadline"}>
-                    {expiryLabel(approval.expiresAt)}
-                  </strong>
+                  <div style={{ display: "grid", gap: 4, textAlign: "right" }}>
+                    <strong className={expired ? "deadline expired" : "deadline"}>
+                      {expiryLabel(approval.expiresAt)}
+                    </strong>
+                    <span className={approval.escalatedAt ? "deadline expired" : "deadline"}>
+                      {slaLabel(approval.slaDueAt, approval.escalatedAt)}
+                    </span>
+                  </div>
                 </div>
 
                 <h3>{approval.summary}</h3>
@@ -204,6 +237,8 @@ export default async function ApprovalsPage({
                   <span>Requested by: {approval.requestedBy}</span>
                   <span>Requested: {formatDate(approval.createdAt)}</span>
                   <span>Expires: {formatDate(approval.expiresAt)}</span>
+                  <span>SLA due: {formatDate(approval.slaDueAt)}</span>
+                  <span>Escalation owner: {approval.escalationOwner ?? "Not assigned"}</span>
                 </div>
 
                 <details>
@@ -211,10 +246,16 @@ export default async function ApprovalsPage({
                   <pre>{JSON.stringify(approval.payload, null, 2)}</pre>
                 </details>
 
+                {approval.escalatedAt ? (
+                  <p className="decision-warning">
+                    This request breached its decision SLA and is assigned to{" "}
+                    <strong>{approval.escalationOwner ?? "the escalation owner"}</strong>.
+                  </p>
+                ) : null}
                 {expired ? (
                   <p className="decision-warning">
-                    This approval has passed its deadline. Any decision attempt
-                    will expire and cancel the waiting workflow.
+                    This approval has passed its deadline. SLA reconciliation will
+                    expire and cancel the waiting workflow.
                   </p>
                 ) : null}
                 {selfDecisionBlocked ? (
