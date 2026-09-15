@@ -29,30 +29,26 @@ function taskIdFromPayload(payload: unknown): string | undefined {
 }
 
 async function cancelApprovalRun(options: {
-  tenantId: string;
   runId: string;
   workflowId: string;
   taskId?: string;
 }) {
-  const operations = [
-    db.workflowRun.update({
+  await db.$transaction(async (tx) => {
+    await tx.workflowRun.update({
       where: { id: options.runId },
       data: { status: RunStatus.CANCELLED, finishedAt: new Date() },
-    }),
-    db.workflow.update({
+    });
+    await tx.workflow.update({
       where: { id: options.workflowId },
       data: { status: RunStatus.CANCELLED },
-    }),
-  ];
-  if (options.taskId) {
-    operations.push(
-      db.agentTask.update({
+    });
+    if (options.taskId) {
+      await tx.agentTask.update({
         where: { id: options.taskId },
         data: { status: RunStatus.CANCELLED },
-      }) as (typeof operations)[number],
-    );
-  }
-  await db.$transaction(operations);
+      });
+    }
+  });
 }
 
 export async function decideWorkflowApproval(options: {
@@ -90,7 +86,6 @@ export async function decideWorkflowApproval(options: {
     });
     if (expired.count === 1) {
       await cancelApprovalRun({
-        tenantId: approval.tenantId,
         runId: approval.runId,
         workflowId: approval.run.workflowId,
         ...(taskId ? { taskId } : {}),
@@ -161,7 +156,6 @@ export async function decideWorkflowApproval(options: {
 
   if (status === ApprovalStatus.REJECTED) {
     await cancelApprovalRun({
-      tenantId: approval.tenantId,
       runId: approval.runId,
       workflowId: approval.run.workflowId,
       ...(taskId ? { taskId } : {}),
