@@ -8,6 +8,7 @@ import {
   type Workflow,
   type WorkflowRun,
 } from "@prisma/client";
+import { approvalSlaDueAt, approvalSlaPolicy } from "@/lib/approval-sla";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { resolveTenantReference } from "@/lib/human-tenant";
@@ -151,7 +152,11 @@ async function requestAgentApproval(options: {
   actorId: string;
   requestId: string;
 }) {
-  const expiresAt = new Date(Date.now() + env.APPROVAL_TTL_MINUTES * 60_000);
+  const now = new Date();
+  const risk = ApprovalRisk.HIGH;
+  const slaPolicy = approvalSlaPolicy(risk);
+  const expiresAt = new Date(now.getTime() + env.APPROVAL_TTL_MINUTES * 60_000);
+  const slaDueAt = approvalSlaDueAt(risk, now);
   const approval = await db.$transaction(async (tx) => {
     const created = await tx.approval.create({
       data: {
@@ -165,8 +170,10 @@ async function requestAgentApproval(options: {
           agentIndex: options.agentIndex,
           sharedContext: options.sharedContext,
         },
-        risk: ApprovalRisk.HIGH,
+        risk,
         expiresAt,
+        slaDueAt,
+        escalationOwner: slaPolicy.owner,
         requestedBy: options.actorId,
       },
     });
@@ -193,8 +200,10 @@ async function requestAgentApproval(options: {
           approvalId: created.id,
           taskId: options.taskId,
           agentId: options.agent.id,
-          risk: ApprovalRisk.HIGH,
+          risk,
           expiresAt: expiresAt.toISOString(),
+          slaDueAt: slaDueAt.toISOString(),
+          escalationOwner: slaPolicy.owner,
           requestId: options.requestId,
         },
       },

@@ -1,5 +1,6 @@
 import { ApprovalRisk, ApprovalStatus, RunStatus } from "@prisma/client";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { sweepApprovalEscalations } from "@/lib/approval-sla";
 import { decideWorkflowApproval } from "@/lib/approvals";
 import { db } from "@/lib/db";
 import { runWorkflow, type WorkflowModelGenerator } from "@/lib/orchestrator";
@@ -82,6 +83,12 @@ describeWithDatabase("approval-gated workflow execution", () => {
     expect(approval.status).toBe(ApprovalStatus.PENDING);
     expect(approval.risk).toBe(ApprovalRisk.HIGH);
     expect(approval.expiresAt?.getTime()).toBeGreaterThan(Date.now());
+    expect(approval.slaDueAt?.getTime()).toBeGreaterThan(Date.now());
+    expect(approval.slaDueAt?.getTime()).toBeLessThanOrEqual(
+      approval.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY,
+    );
+    expect(approval.escalationOwner).toBe("approver");
+    expect(approval.escalationLevel).toBe(0);
 
     const waitingTask = await db.agentTask.findFirstOrThrow({
       where: { tenantId: tenantAId, runId: run.id },
@@ -225,5 +232,155 @@ describeWithDatabase("approval-gated workflow execution", () => {
     ]);
     expect(expired.status).toBe(ApprovalStatus.EXPIRED);
     expect(cancelledRun.status).toBe(RunStatus.CANCELLED);
+  });
+
+  it("escalates an overdue SLA once without executing or cancelling the workflow", async () => {
+    const generate = vi.fn(async () => ({
+      text: "must remain gated",
+      provider: "test",
+      model: "test-model",
+    }));
+    const { run, approval } = await createWaitingRun(generate);
+    const now = new Date();
+    await db.approval.update({
+      where: { id: approval.id },
+      data: {
+        slaDueAt: new Date(now.getTime() - 1_000),
+        expiresAt: new Date(now.getTime() + 60_000),
+      },
+    });
+
+    const first = await sweepApprovalEscalations({
+      tenantId: tenantAId,
+      now,
+      actorId: "sla-test",
+      requestId: "sla-escalate-1",
+    });
+    expect(first).toEqual({ expired: 0, escalated: 1 });
+    expect(generate).not.toHaveBeenCalled();
+
+    const escalated = await db.approval.findUniqueOrThrow({
+      where: { id: approval.id },
+    });
+    expect(escalated.status).toBe(ApprovalStatus.PENDING);
+    expect(escalated.escalatedAt).not.toBeNull();
+    expect(escalated.escalationLevel).toBe(1);
+    expect(escalated.escalationOwner).toBe("approver");
+    expect(
+      await db.auditEvent.count({
+        where: {
+          tenantId: tenantAId,
+          runId: run.id,
+          action: "approval.escalated",
+        },
+      }),
+    ).toBe(1);
+
+    const second = await sweepApprovalEscalations({
+      tenantId: tenantAId,
+      now: new Date(now.getTime() + 1_000),
+      actorId: "sla-test",
+      requestId: "sla-escalate-2",
+    });
+    expect(second).toEqual({ expired: 0, escalated: 0 });
+    expect(
+      await db.auditEvent.count({
+        where: {
+          tenantId: tenantAId,
+          runId: run.id,
+          action: "approval.escalated",
+        },
+      }),
+    ).toBe(1);
+
+    const waitingRun = await db.workflowRun.findUniqueOrThrow({
+      where: { id: run.id },
+    });
+    expect(waitingRun.status).toBe(RunStatus.WAITING_FOR_APPROVAL);
+  });
+
+  it("automatically expires and cancels overdue approvals without a human decision", async () => {
+    const generate = vi.fn(async () => ({
+      text: "must not execute",
+      provider: "test",
+      model: "test-model",
+    }));
+    const { run, approval } = await createWaitingRun(generate);
+    const now = new Date();
+    await db.approval.update({
+      where: { id: approval.id },
+      data: { expiresAt: new Date(now.getTime() - 1_000) },
+    });
+
+    const result = await sweepApprovalEscalations({
+      tenantId: tenantAId,
+      now,
+      actorId: "sla-test",
+      requestId: "sla-expire-1",
+    });
+    expect(result).toEqual({ expired: 1, escalated: 0 });
+    expect(generate).not.toHaveBeenCalled();
+
+    const [expired, cancelledRun, cancelledWorkflow, cancelledTask] =
+      await Promise.all([
+        db.approval.findUniqueOrThrow({ where: { id: approval.id } }),
+        db.workflowRun.findUniqueOrThrow({ where: { id: run.id } }),
+        db.workflow.findUniqueOrThrow({ where: { id: run.workflowId } }),
+        db.agentTask.findFirstOrThrow({
+          where: { tenantId: tenantAId, runId: run.id },
+        }),
+      ]);
+    expect(expired.status).toBe(ApprovalStatus.EXPIRED);
+    expect(cancelledRun.status).toBe(RunStatus.CANCELLED);
+    expect(cancelledWorkflow.status).toBe(RunStatus.CANCELLED);
+    expect(cancelledTask.status).toBe(RunStatus.CANCELLED);
+    expect(
+      await db.auditEvent.count({
+        where: {
+          tenantId: tenantAId,
+          runId: run.id,
+          action: "approval.expired",
+        },
+      }),
+    ).toBe(1);
+
+    const repeated = await sweepApprovalEscalations({
+      tenantId: tenantAId,
+      now: new Date(now.getTime() + 1_000),
+      actorId: "sla-test",
+      requestId: "sla-expire-2",
+    });
+    expect(repeated).toEqual({ expired: 0, escalated: 0 });
+  });
+
+  it("keeps SLA sweeps isolated to the authenticated tenant", async () => {
+    const generate = vi.fn(async () => ({
+      text: "must remain gated",
+      provider: "test",
+      model: "test-model",
+    }));
+    const { approval } = await createWaitingRun(generate);
+    const now = new Date();
+    await db.approval.update({
+      where: { id: approval.id },
+      data: {
+        slaDueAt: new Date(now.getTime() - 1_000),
+        expiresAt: new Date(now.getTime() + 60_000),
+      },
+    });
+
+    const result = await sweepApprovalEscalations({
+      tenantId: tenantBId,
+      now,
+      actorId: "tenant-b-sweeper",
+      requestId: "tenant-b-sweep",
+    });
+    expect(result).toEqual({ expired: 0, escalated: 0 });
+
+    const untouched = await db.approval.findUniqueOrThrow({
+      where: { id: approval.id },
+    });
+    expect(untouched.escalatedAt).toBeNull();
+    expect(untouched.escalationLevel).toBe(0);
   });
 });
