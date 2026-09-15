@@ -16,10 +16,30 @@ const envSchema = z.object({
   DEFAULT_MODEL: z.string().default("llama3.1"),
   APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS: z.coerce.boolean().default(true),
   APPROVAL_TTL_MINUTES: z.coerce.number().int().min(5).max(10080).default(60),
-  APPROVAL_SLA_LOW_MINUTES: z.coerce.number().int().min(1).max(10080).default(480),
-  APPROVAL_SLA_MEDIUM_MINUTES: z.coerce.number().int().min(1).max(10080).default(120),
-  APPROVAL_SLA_HIGH_MINUTES: z.coerce.number().int().min(1).max(10080).default(30),
-  APPROVAL_SLA_CRITICAL_MINUTES: z.coerce.number().int().min(1).max(10080).default(10),
+  APPROVAL_SLA_LOW_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10080)
+    .default(480),
+  APPROVAL_SLA_MEDIUM_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10080)
+    .default(120),
+  APPROVAL_SLA_HIGH_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10080)
+    .default(30),
+  APPROVAL_SLA_CRITICAL_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10080)
+    .default(10),
   APPROVAL_ESCALATION_OWNER_LOW: escalationOwner.default("operator"),
   APPROVAL_ESCALATION_OWNER_MEDIUM: escalationOwner.default("operator"),
   APPROVAL_ESCALATION_OWNER_HIGH: escalationOwner.default("approver"),
