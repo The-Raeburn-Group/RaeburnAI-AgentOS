@@ -47,7 +47,9 @@ describe("approval exception feed route", () => {
 
     expect(response.status).toBe(400);
     expect(listApprovalExceptions).not.toHaveBeenCalled();
-    await expect(response.json()).resolves.toEqual({ error: "Invalid exception limit" });
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid exception limit",
+    });
   });
 
   it("lists only the authenticated tenant and propagates trusted correlation", async () => {
