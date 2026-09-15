@@ -1,14 +1,53 @@
-import { RunStatus } from "@prisma/client";
+import {
+  ApprovalRisk,
+  ApprovalStatus,
+  RunStatus,
+  type Agent,
+  type Prisma,
+  type Tenant,
+  type Workflow,
+  type WorkflowRun,
+} from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { resolveTenantReference } from "@/lib/human-tenant";
 import { generateWithProvider } from "@/lib/providers";
-import type { WorkflowRunRequest } from "@/lib/types";
+import type { ProviderResponse, WorkflowRunRequest } from "@/lib/types";
 
 export interface WorkflowExecutionContext {
   tenantReference: string;
   actorId: string;
   requestId: string;
+}
+
+export type WorkflowModelGenerator = (options: {
+  provider?: string;
+  model?: string;
+  messages: Array<{
+    role: "system" | "user" | "assistant";
+    content: string;
+  }>;
+}) => Promise<ProviderResponse>;
+
+interface ApprovalPayload {
+  agentId: string;
+  taskId: string;
+  agentIndex: number;
+  sharedContext: string;
+}
+
+interface AdvanceWorkflowOptions {
+  tenant: Tenant;
+  workflow: Workflow;
+  run: WorkflowRun;
+  agents: Agent[];
+  startIndex: number;
+  sharedContext: string;
+  outputs: Record<string, string>;
+  actorId: string;
+  requestId: string;
+  generate: WorkflowModelGenerator;
+  approvedTaskId?: string;
 }
 
 export async function ensureDefaultTenant(slug = "default") {
@@ -37,20 +76,336 @@ async function resolveWorkflowTenant(
   return ensureDefaultTenant(request.tenantSlug);
 }
 
+function workflowAgentSlugs(graph: Prisma.JsonValue): string[] {
+  if (!graph || typeof graph !== "object" || Array.isArray(graph)) {
+    throw new Error("Invalid workflow graph");
+  }
+  const agents = (graph as Record<string, unknown>).agents;
+  if (
+    !Array.isArray(agents) ||
+    agents.length === 0 ||
+    agents.some((value) => typeof value !== "string" || !value.trim())
+  ) {
+    throw new Error("Invalid workflow agent graph");
+  }
+  return agents as string[];
+}
+
+function approvalPayload(payload: Prisma.JsonValue): ApprovalPayload {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Invalid approval payload");
+  }
+  const candidate = payload as Record<string, unknown>;
+  if (
+    typeof candidate.agentId !== "string" ||
+    typeof candidate.taskId !== "string" ||
+    typeof candidate.agentIndex !== "number" ||
+    !Number.isInteger(candidate.agentIndex) ||
+    candidate.agentIndex < 0 ||
+    typeof candidate.sharedContext !== "string"
+  ) {
+    throw new Error("Invalid approval payload");
+  }
+  return {
+    agentId: candidate.agentId,
+    taskId: candidate.taskId,
+    agentIndex: candidate.agentIndex,
+    sharedContext: candidate.sharedContext,
+  };
+}
+
+function outputRecord(value: Prisma.JsonValue | null): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+}
+
+async function orderedAgents(tenantId: string, slugs: string[]) {
+  const candidates = await db.agent.findMany({
+    where: { tenantId, slug: { in: slugs } },
+    orderBy: { updatedAt: "desc" },
+  });
+  const bySlug = new Map<string, Agent>();
+  for (const agent of candidates) {
+    if (!bySlug.has(agent.slug)) bySlug.set(agent.slug, agent);
+  }
+  const agents = slugs.map((slug) => bySlug.get(slug));
+  const missing = slugs.filter((_, index) => !agents[index]);
+  if (missing.length > 0) {
+    throw new Error(`Missing agents: ${missing.join(", ")}`);
+  }
+  return agents as Agent[];
+}
+
+async function requestAgentApproval(options: {
+  tenant: Tenant;
+  workflow: Workflow;
+  run: WorkflowRun;
+  agent: Agent;
+  taskId: string;
+  agentIndex: number;
+  sharedContext: string;
+  actorId: string;
+  requestId: string;
+}) {
+  const expiresAt = new Date(Date.now() + env.APPROVAL_TTL_MINUTES * 60_000);
+  const approval = await db.$transaction(async (tx) => {
+    const created = await tx.approval.create({
+      data: {
+        tenantId: options.tenant.id,
+        runId: options.run.id,
+        actionType: "agent_step",
+        summary: `Approve ${options.agent.name} to contribute to workflow: ${options.workflow.goal}`,
+        payload: {
+          agentId: options.agent.id,
+          taskId: options.taskId,
+          agentIndex: options.agentIndex,
+          sharedContext: options.sharedContext,
+        },
+        risk: ApprovalRisk.HIGH,
+        expiresAt,
+        requestedBy: options.actorId,
+      },
+    });
+
+    await tx.agentTask.update({
+      where: { id: options.taskId },
+      data: { status: RunStatus.WAITING_FOR_APPROVAL },
+    });
+    await tx.workflowRun.update({
+      where: { id: options.run.id },
+      data: { status: RunStatus.WAITING_FOR_APPROVAL },
+    });
+    await tx.workflow.update({
+      where: { id: options.workflow.id },
+      data: { status: RunStatus.WAITING_FOR_APPROVAL },
+    });
+    await tx.auditEvent.create({
+      data: {
+        tenantId: options.tenant.id,
+        runId: options.run.id,
+        actor: options.actorId,
+        action: "approval.requested",
+        metadata: {
+          approvalId: created.id,
+          taskId: options.taskId,
+          agentId: options.agent.id,
+          risk: ApprovalRisk.HIGH,
+          expiresAt: expiresAt.toISOString(),
+          requestId: options.requestId,
+        },
+      },
+    });
+    return created;
+  });
+
+  return approval;
+}
+
+async function executeAgentTask(options: {
+  tenant: Tenant;
+  workflow: Workflow;
+  run: WorkflowRun;
+  taskId: string;
+  agent: Agent;
+  sharedContext: string;
+  actorId: string;
+  requestId: string;
+  generate: WorkflowModelGenerator;
+}) {
+  await db.agentTask.update({
+    where: { id: options.taskId },
+    data: { status: RunStatus.RUNNING },
+  });
+
+  try {
+    const response = await options.generate({
+      provider: options.agent.modelProvider,
+      model: options.agent.modelName,
+      messages: [
+        { role: "system", content: options.agent.systemPrompt },
+        { role: "user", content: options.sharedContext },
+      ],
+    });
+
+    await db.agentTask.update({
+      where: { id: options.taskId },
+      data: { status: RunStatus.SUCCEEDED, output: response },
+    });
+    await db.auditEvent.create({
+      data: {
+        tenantId: options.tenant.id,
+        runId: options.run.id,
+        actor: options.agent.slug,
+        action: "agent.completed",
+        metadata: {
+          provider: response.provider,
+          model: response.model,
+          tokens: response.tokens ?? null,
+          requestId: options.requestId,
+          initiatedBy: options.actorId,
+          taskId: options.taskId,
+        },
+      },
+    });
+    return response;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    await db.$transaction([
+      db.agentTask.update({
+        where: { id: options.taskId },
+        data: { status: RunStatus.FAILED, error: message },
+      }),
+      db.workflowRun.update({
+        where: { id: options.run.id },
+        data: {
+          status: RunStatus.FAILED,
+          error: message,
+          finishedAt: new Date(),
+        },
+      }),
+      db.workflow.update({
+        where: { id: options.workflow.id },
+        data: { status: RunStatus.FAILED },
+      }),
+      db.auditEvent.create({
+        data: {
+          tenantId: options.tenant.id,
+          runId: options.run.id,
+          actor: options.agent.slug,
+          action: "agent.failed",
+          metadata: {
+            requestId: options.requestId,
+            initiatedBy: options.actorId,
+            taskId: options.taskId,
+            error: message,
+          },
+        },
+      }),
+    ]);
+    throw error;
+  }
+}
+
+async function advanceWorkflow(options: AdvanceWorkflowOptions) {
+  let sharedContext = options.sharedContext;
+  const outputs = { ...options.outputs };
+
+  await db.$transaction([
+    db.workflow.update({
+      where: { id: options.workflow.id },
+      data: { status: RunStatus.RUNNING },
+    }),
+    db.workflowRun.update({
+      where: { id: options.run.id },
+      data: { status: RunStatus.RUNNING, error: null },
+    }),
+  ]);
+
+  for (let index = options.startIndex; index < options.agents.length; index += 1) {
+    if (index >= env.MAX_AGENT_STEPS) break;
+    const agent = options.agents[index];
+    if (!agent) throw new Error("Workflow agent is missing");
+
+    const isApprovedResume =
+      index === options.startIndex && Boolean(options.approvedTaskId);
+    const task = isApprovedResume
+      ? await db.agentTask.findFirstOrThrow({
+          where: {
+            id: options.approvedTaskId,
+            tenantId: options.tenant.id,
+            runId: options.run.id,
+            agentId: agent.id,
+          },
+        })
+      : await db.agentTask.create({
+          data: {
+            tenantId: options.tenant.id,
+            runId: options.run.id,
+            agentId: agent.id,
+            name: `${agent.name} step`,
+            status: RunStatus.QUEUED,
+            input: { sharedContext },
+          },
+        });
+
+    if (
+      !isApprovedResume &&
+      agent.approvalRequired &&
+      env.APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS
+    ) {
+      await requestAgentApproval({
+        tenant: options.tenant,
+        workflow: options.workflow,
+        run: options.run,
+        agent,
+        taskId: task.id,
+        agentIndex: index,
+        sharedContext,
+        actorId: options.actorId,
+        requestId: options.requestId,
+      });
+      return db.workflowRun.findUniqueOrThrow({ where: { id: options.run.id } });
+    }
+
+    const response = await executeAgentTask({
+      tenant: options.tenant,
+      workflow: options.workflow,
+      run: options.run,
+      taskId: task.id,
+      agent,
+      sharedContext,
+      actorId: options.actorId,
+      requestId: options.requestId,
+      generate: options.generate,
+    });
+
+    outputs[agent.slug] = response.text;
+    sharedContext += `\n\n${agent.name} output:\n${response.text}`;
+    await db.workflowRun.update({
+      where: { id: options.run.id },
+      data: { output: outputs },
+    });
+  }
+
+  const completed = await db.$transaction(async (tx) => {
+    const completedRun = await tx.workflowRun.update({
+      where: { id: options.run.id },
+      data: {
+        status: RunStatus.SUCCEEDED,
+        output: outputs,
+        finishedAt: new Date(),
+      },
+    });
+    await tx.workflow.update({
+      where: { id: options.workflow.id },
+      data: { status: RunStatus.SUCCEEDED },
+    });
+    await tx.auditEvent.create({
+      data: {
+        tenantId: options.tenant.id,
+        runId: options.run.id,
+        actor: options.actorId,
+        action: "workflow.completed",
+        metadata: { requestId: options.requestId },
+      },
+    });
+    return completedRun;
+  });
+
+  return completed;
+}
+
 export async function runWorkflow(
   request: WorkflowRunRequest,
   executionContext?: WorkflowExecutionContext,
+  generate: WorkflowModelGenerator = generateWithProvider,
 ) {
   const tenant = await resolveWorkflowTenant(request, executionContext);
-  const agents = await db.agent.findMany({
-    where: { tenantId: tenant.id, slug: { in: request.agents } },
-  });
-
-  if (agents.length !== request.agents.length) {
-    const found = new Set(agents.map((agent) => agent.slug));
-    const missing = request.agents.filter((slug) => !found.has(slug));
-    throw new Error(`Missing agents: ${missing.join(", ")}`);
-  }
+  const agents = await orderedAgents(tenant.id, request.agents);
 
   const workflow = await db.workflow.create({
     data: {
@@ -72,115 +427,84 @@ export async function runWorkflow(
     },
   });
 
+  const actorId = executionContext?.actorId ?? "local-development";
+  const requestId = executionContext?.requestId ?? `local-${run.id}`;
+
   await db.auditEvent.create({
     data: {
       tenantId: tenant.id,
       runId: run.id,
-      actor: executionContext?.actorId ?? "local-development",
+      actor: actorId,
       action: "workflow.started",
       metadata: {
         tenantId: tenant.id,
         tenantSlug: tenant.slug,
-        requestId: executionContext?.requestId ?? null,
+        requestId,
       },
     },
   });
 
-  let sharedContext = `Goal: ${request.goal}\nInput: ${JSON.stringify(request.input)}`;
-  const outputs: Record<string, string> = {};
+  return advanceWorkflow({
+    tenant,
+    workflow,
+    run,
+    agents,
+    startIndex: 0,
+    sharedContext: `Goal: ${request.goal}\nInput: ${JSON.stringify(request.input)}`,
+    outputs: {},
+    actorId,
+    requestId,
+    generate,
+  });
+}
 
-  for (const [index, agent] of agents.entries()) {
-    if (index >= env.MAX_AGENT_STEPS) break;
-
-    const task = await db.agentTask.create({
-      data: {
-        tenantId: tenant.id,
-        runId: run.id,
-        agentId: agent.id,
-        name: `${agent.name} step`,
-        status: RunStatus.RUNNING,
-        input: { sharedContext },
-      },
-    });
-
-    if (agent.approvalRequired && env.APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS) {
-      await db.approval.create({
-        data: {
-          tenantId: tenant.id,
-          runId: run.id,
-          actionType: "agent_step",
-          summary: `Approve ${agent.name} to contribute to workflow: ${request.goal}`,
-          payload: { agentId: agent.id, taskId: task.id, sharedContext },
-          requestedBy: executionContext?.actorId ?? "system",
-        },
-      });
-    }
-
-    try {
-      const response = await generateWithProvider({
-        provider: agent.modelProvider,
-        model: agent.modelName,
-        messages: [
-          { role: "system", content: agent.systemPrompt },
-          { role: "user", content: sharedContext },
-        ],
-      });
-
-      outputs[agent.slug] = response.text;
-      sharedContext += `\n\n${agent.name} output:\n${response.text}`;
-
-      await db.agentTask.update({
-        where: { id: task.id },
-        data: { status: RunStatus.SUCCEEDED, output: response },
-      });
-      await db.auditEvent.create({
-        data: {
-          tenantId: tenant.id,
-          runId: run.id,
-          actor: agent.slug,
-          action: "agent.completed",
-          metadata: {
-            provider: response.provider,
-            model: response.model,
-            tokens: response.tokens ?? null,
-            requestId: executionContext?.requestId ?? null,
-            initiatedBy: executionContext?.actorId ?? null,
-          },
-        },
-      });
-    } catch (error) {
-      await db.agentTask.update({
-        where: { id: task.id },
-        data: {
-          status: RunStatus.FAILED,
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-      await db.workflowRun.update({
-        where: { id: run.id },
-        data: {
-          status: RunStatus.FAILED,
-          error: error instanceof Error ? error.message : "Unknown error",
-          finishedAt: new Date(),
-        },
-      });
-      throw error;
-    }
+export async function resumeApprovedWorkflow(
+  approvalId: string,
+  actorId: string,
+  requestId: string,
+  generate: WorkflowModelGenerator = generateWithProvider,
+) {
+  const approval = await db.approval.findUnique({
+    where: { id: approvalId },
+    include: { run: { include: { workflow: true } }, tenant: true },
+  });
+  if (!approval) throw new Error("Approval not found");
+  if (approval.status !== ApprovalStatus.APPROVED) {
+    throw new Error("Approval is not approved");
+  }
+  if (approval.run.status !== RunStatus.WAITING_FOR_APPROVAL) {
+    throw new Error("Workflow is not waiting for approval");
   }
 
-  const completed = await db.workflowRun.update({
-    where: { id: run.id },
+  const payload = approvalPayload(approval.payload);
+  const slugs = workflowAgentSlugs(approval.run.workflow.graph);
+  const agents = await orderedAgents(approval.tenantId, slugs);
+  const agent = agents[payload.agentIndex];
+  if (!agent || agent.id !== payload.agentId) {
+    throw new Error("Approval agent does not match workflow graph");
+  }
+
+  await db.auditEvent.create({
     data: {
-      status: RunStatus.SUCCEEDED,
-      output: outputs,
-      finishedAt: new Date(),
+      tenantId: approval.tenantId,
+      runId: approval.runId,
+      actor: actorId,
+      action: "workflow.resumed",
+      metadata: { approvalId, requestId, taskId: payload.taskId },
     },
   });
 
-  await db.workflow.update({
-    where: { id: workflow.id },
-    data: { status: RunStatus.SUCCEEDED },
+  return advanceWorkflow({
+    tenant: approval.tenant,
+    workflow: approval.run.workflow,
+    run: approval.run,
+    agents,
+    startIndex: payload.agentIndex,
+    sharedContext: payload.sharedContext,
+    outputs: outputRecord(approval.run.output),
+    actorId,
+    requestId,
+    generate,
+    approvedTaskId: payload.taskId,
   });
-
-  return completed;
 }
