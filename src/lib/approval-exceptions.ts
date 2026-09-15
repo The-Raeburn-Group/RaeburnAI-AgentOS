@@ -1,8 +1,4 @@
-import {
-  ApprovalRisk,
-  ApprovalStatus,
-  type Prisma,
-} from "@prisma/client";
+import { ApprovalRisk, ApprovalStatus, type Prisma } from "@prisma/client";
 import { sweepApprovalEscalations } from "@/lib/approval-sla";
 import { db } from "@/lib/db";
 
@@ -102,9 +98,7 @@ export async function listApprovalExceptions(
     ...(approval.expiresAt
       ? { expiresAt: approval.expiresAt.toISOString() }
       : {}),
-    ...(approval.slaDueAt
-      ? { slaDueAt: approval.slaDueAt.toISOString() }
-      : {}),
+    ...(approval.slaDueAt ? { slaDueAt: approval.slaDueAt.toISOString() } : {}),
     ...(approval.escalationOwner
       ? { escalationOwner: approval.escalationOwner }
       : {}),
