@@ -1,0 +1,23 @@
+name: Prettier Preview
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  format-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format flagged files
+        run: npx prettier --write src/app/approvals/page.tsx src/lib/approval-sla.ts src/lib/env.ts docs/approval-sla-escalation.md
+      - name: Print canonical diff
+        run: git diff -- src/app/approvals/page.tsx src/lib/approval-sla.ts src/lib/env.ts docs/approval-sla-escalation.md
