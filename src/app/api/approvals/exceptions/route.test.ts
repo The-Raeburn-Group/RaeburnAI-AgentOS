@@ -35,7 +35,9 @@ describe("approval exception feed route", () => {
 
   it("rejects an invalid Chain service token", async () => {
     vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "0123456789abcdefghijklmnop");
-    const response = await GET(request({ token: "definitely-wrong-token-value" }));
+    const response = await GET(
+      request({ token: "definitely-wrong-token-value" }),
+    );
 
     expect(response.status).toBe(401);
     expect(listApprovalExceptions).not.toHaveBeenCalled();
