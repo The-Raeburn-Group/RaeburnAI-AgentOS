@@ -128,12 +128,15 @@ export default async function ApprovalsPage({
   ]);
 
   pending.sort((left, right) => {
-    const escalation = Number(Boolean(right.escalatedAt)) - Number(Boolean(left.escalatedAt));
+    const escalation =
+      Number(Boolean(right.escalatedAt)) - Number(Boolean(left.escalatedAt));
     if (escalation) return escalation;
     const risk = riskRank[left.risk] - riskRank[right.risk];
     return risk || left.createdAt.getTime() - right.createdAt.getTime();
   });
-  const escalatedPending = pending.filter((approval) => approval.escalatedAt).length;
+  const escalatedPending = pending.filter(
+    (approval) => approval.escalatedAt,
+  ).length;
 
   return (
     <main className="shell">
@@ -148,7 +151,8 @@ export default async function ApprovalsPage({
             </strong>
             . Pending work cannot continue past an approval checkpoint until an
             authorised decision is recorded. SLA reconciliation runs before the
-            queue is displayed so overdue items are escalated or expired fail-closed.
+            queue is displayed so overdue items are escalated or expired
+            fail-closed.
           </p>
         </div>
         <div className="approval-header-actions">
@@ -177,8 +181,9 @@ export default async function ApprovalsPage({
           <div>
             <h2>Needs attention</h2>
             <p>
-              Escalated items are shown first. High and critical requests prevent
-              self-approval by the original requester. Rejections require an audit note.
+              Escalated items are shown first. High and critical requests
+              prevent self-approval by the original requester. Rejections
+              require an audit note.
             </p>
           </div>
           <span className="pill">
@@ -218,10 +223,16 @@ export default async function ApprovalsPage({
                     ) : null}
                   </div>
                   <div style={{ display: "grid", gap: 4, textAlign: "right" }}>
-                    <strong className={expired ? "deadline expired" : "deadline"}>
+                    <strong
+                      className={expired ? "deadline expired" : "deadline"}
+                    >
                       {expiryLabel(approval.expiresAt)}
                     </strong>
-                    <span className={approval.escalatedAt ? "deadline expired" : "deadline"}>
+                    <span
+                      className={
+                        approval.escalatedAt ? "deadline expired" : "deadline"
+                      }
+                    >
                       {slaLabel(approval.slaDueAt, approval.escalatedAt)}
                     </span>
                   </div>
@@ -238,7 +249,10 @@ export default async function ApprovalsPage({
                   <span>Requested: {formatDate(approval.createdAt)}</span>
                   <span>Expires: {formatDate(approval.expiresAt)}</span>
                   <span>SLA due: {formatDate(approval.slaDueAt)}</span>
-                  <span>Escalation owner: {approval.escalationOwner ?? "Not assigned"}</span>
+                  <span>
+                    Escalation owner:{" "}
+                    {approval.escalationOwner ?? "Not assigned"}
+                  </span>
                 </div>
 
                 <details>
@@ -249,13 +263,16 @@ export default async function ApprovalsPage({
                 {approval.escalatedAt ? (
                   <p className="decision-warning">
                     This request breached its decision SLA and is assigned to{" "}
-                    <strong>{approval.escalationOwner ?? "the escalation owner"}</strong>.
+                    <strong>
+                      {approval.escalationOwner ?? "the escalation owner"}
+                    </strong>
+                    .
                   </p>
                 ) : null}
                 {expired ? (
                   <p className="decision-warning">
-                    This approval has passed its deadline. SLA reconciliation will
-                    expire and cancel the waiting workflow.
+                    This approval has passed its deadline. SLA reconciliation
+                    will expire and cancel the waiting workflow.
                   </p>
                 ) : null}
                 {selfDecisionBlocked ? (
