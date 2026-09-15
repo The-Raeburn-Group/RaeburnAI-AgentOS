@@ -10,7 +10,9 @@ const tenantAId = "exception-feed-tenant-a";
 const tenantBId = "exception-feed-tenant-b";
 
 async function cleanFixtures() {
-  await db.tenant.deleteMany({ where: { id: { in: [tenantAId, tenantBId] } } });
+  await db.tenant.deleteMany({
+    where: { id: { in: [tenantAId, tenantBId] } },
+  });
 }
 
 async function createWorkflowFixture(tenantId: string, suffix: string) {
@@ -128,7 +130,9 @@ describeWithDatabase("approval exception feed", () => {
       escalationOwner: "admin",
       workflowName: "Exception workflow A-critical",
     });
-    expect(exceptions.map((item) => item.id)).not.toContain("exception-feed-b-critical");
+    expect(exceptions.map((item) => item.id)).not.toContain(
+      "exception-feed-b-critical",
+    );
   });
 
   it("rejects invalid limits before querying the queue", async () => {
@@ -136,7 +140,11 @@ describeWithDatabase("approval exception feed", () => {
       listApprovalExceptions({ tenantId: tenantAId, reconcile: false, limit: 0 }),
     ).rejects.toThrow("invalid_exception_limit");
     await expect(
-      listApprovalExceptions({ tenantId: tenantAId, reconcile: false, limit: 201 }),
+      listApprovalExceptions({
+        tenantId: tenantAId,
+        reconcile: false,
+        limit: 201,
+      }),
     ).rejects.toThrow("invalid_exception_limit");
   });
 });
