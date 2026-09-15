@@ -1,4 +1,5 @@
 import { ApprovalRisk, ApprovalStatus, type Tenant } from "@prisma/client";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   hasPermission,
@@ -136,9 +137,9 @@ export default async function ApprovalsPage({
             <strong>{pending.length}</strong>
             <span>Pending decisions</span>
           </span>
-          <a className="secondary-button" href="/">
+          <Link className="secondary-button" href="/">
             Back to dashboard
-          </a>
+          </Link>
         </div>
       </section>
 
