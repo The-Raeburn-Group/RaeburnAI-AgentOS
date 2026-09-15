@@ -29,6 +29,7 @@ jobs:
           --health-retries 20
     env:
       DATABASE_URL: postgresql://agentos:agentos@localhost:5432/agentos?schema=public
+      AGENTOS_RESTORE_DATABASE_URL: postgresql://agentos:agentos@localhost:5432/agentos_restore?schema=public
       NEXTAUTH_SECRET: test-secret-for-ci-only-change-in-prod
       RAEBURN_CHAIN_SERVICE_TOKEN: test-chain-service-token-for-ci-only
       OLLAMA_BASE_URL: http://localhost:11434
@@ -49,5 +50,31 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          pg_dump --version
+          pg_restore --version
+      - name: Seed deterministic two-tenant recovery fixture
+        run: npm run dr:seed
+      - name: Create manifest-verified logical backup
+        run: npm run dr:backup
+      - name: Create isolated restore database
+        env:
+          PGPASSWORD: agentos
+        run: createdb --host localhost --port 5432 --username agentos agentos_restore
+      - name: Restore backup into isolated database
+        env:
+          DATABASE_URL: ${{ env.AGENTOS_RESTORE_DATABASE_URL }}
+        run: npm run dr:restore
+      - name: Prove restored Prisma migration state is forward-safe
+        env:
+          DATABASE_URL: ${{ env.AGENTOS_RESTORE_DATABASE_URL }}
+        run: npm run db:migrate
+      - name: Verify restored tenant, run, memory, approval and audit state
+        env:
+          DATABASE_URL: ${{ env.AGENTOS_RESTORE_DATABASE_URL }}
+        run: npm run dr:verify
       - run: npm run build
       - run: docker build -t raeburnai-agentos .
