@@ -11,6 +11,10 @@ export interface ChainServiceContext {
   executionId?: string;
 }
 
+export interface AuthenticateChainServiceOptions {
+  requireGovernedExecution?: boolean;
+}
+
 export type ChainServiceAuthResult =
   | { ok: true; context: ChainServiceContext }
   | { ok: false; response: NextResponse };
@@ -65,6 +69,7 @@ export function requireChainServiceToken(request: Request) {
 
 export function authenticateChainServiceRequest(
   request: Request,
+  options: AuthenticateChainServiceOptions = {},
 ): ChainServiceAuthResult {
   const tokenFailure = requireChainServiceToken(request);
   if (tokenFailure) return { ok: false, response: tokenFailure };
@@ -85,6 +90,9 @@ export function authenticateChainServiceRequest(
 
   if (governedHeaders !== 0 && governedHeaders !== 3) {
     return invalidContext("Incomplete governed Chain execution context");
+  }
+  if (options.requireGovernedExecution && governedHeaders !== 3) {
+    return invalidContext("Governed Chain execution context required");
   }
   if (approvalId && !UUID_PATTERN.test(approvalId)) {
     return invalidContext("Invalid Chain approval ID");
