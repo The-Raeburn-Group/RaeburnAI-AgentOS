@@ -76,7 +76,7 @@ describe("authenticateChainServiceRequest", () => {
     }
   });
 
-  it("returns only the tenant and actor context supplied by authenticated Chain", () => {
+  it("accepts ordinary authenticated Chain context when governance is not required", () => {
     process.env.RAEBURN_CHAIN_SERVICE_TOKEN = "expected-token";
 
     const result = authenticateChainServiceRequest(
@@ -100,5 +100,114 @@ describe("authenticateChainServiceRequest", () => {
         roles: ["operator", "auditor"],
       },
     });
+  });
+
+  it("fails closed when a governed endpoint receives no governed execution context", async () => {
+    process.env.RAEBURN_CHAIN_SERVICE_TOKEN = "expected-token";
+
+    const result = authenticateChainServiceRequest(
+      new Request("http://localhost/api/workflows/run", {
+        headers: {
+          authorization: "Bearer expected-token",
+          "x-tenant-id": "tenant-a",
+          "x-actor-id": "user-123",
+          "x-request-id": "request-456",
+        },
+      }),
+      { requireGovernedExecution: true },
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(400);
+      await expect(result.response.json()).resolves.toEqual({
+        error: "Governed Chain execution context required",
+      });
+    }
+  });
+
+  it("rejects partial governed execution provenance", async () => {
+    process.env.RAEBURN_CHAIN_SERVICE_TOKEN = "expected-token";
+
+    const result = authenticateChainServiceRequest(
+      new Request("http://localhost/api/workflows/run", {
+        headers: {
+          authorization: "Bearer expected-token",
+          "x-tenant-id": "tenant-a",
+          "x-actor-id": "user-123",
+          "x-request-id": "request-456",
+          "x-raeburn-approval-id": "11111111-1111-4111-8111-111111111111",
+        },
+      }),
+      { requireGovernedExecution: true },
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(400);
+      await expect(result.response.json()).resolves.toEqual({
+        error: "Incomplete governed Chain execution context",
+      });
+    }
+  });
+
+  it("accepts complete validated governed execution provenance", () => {
+    process.env.RAEBURN_CHAIN_SERVICE_TOKEN = "expected-token";
+
+    const result = authenticateChainServiceRequest(
+      new Request("http://localhost/api/workflows/run", {
+        headers: {
+          authorization: "Bearer expected-token",
+          "x-tenant-id": "tenant-a",
+          "x-actor-id": "user-123",
+          "x-request-id": "request-456",
+          "x-roles": "operator,auditor",
+          "x-raeburn-approval-id": "11111111-1111-4111-8111-111111111111",
+          "idempotency-key": "idem-agentos-workflow-001",
+          "x-raeburn-execution-id": "22222222-2222-4222-8222-222222222222",
+        },
+      }),
+      { requireGovernedExecution: true },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      context: {
+        tenantId: "tenant-a",
+        actorId: "user-123",
+        requestId: "request-456",
+        roles: ["operator", "auditor"],
+        approvalId: "11111111-1111-4111-8111-111111111111",
+        idempotencyKey: "idem-agentos-workflow-001",
+        executionId: "22222222-2222-4222-8222-222222222222",
+      },
+    });
+  });
+
+  it("rejects malformed governed identifiers", async () => {
+    process.env.RAEBURN_CHAIN_SERVICE_TOKEN = "expected-token";
+
+    const result = authenticateChainServiceRequest(
+      new Request("http://localhost/api/workflows/run", {
+        headers: {
+          authorization: "Bearer expected-token",
+          "x-tenant-id": "tenant-a",
+          "x-actor-id": "user-123",
+          "x-request-id": "request-456",
+          "x-raeburn-approval-id": "not-a-uuid",
+          "idempotency-key": "idem-agentos-workflow-001",
+          "x-raeburn-execution-id": "22222222-2222-4222-8222-222222222222",
+        },
+      }),
+      { requireGovernedExecution: true },
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(400);
+      await expect(result.response.json()).resolves.toEqual({
+        error: "Invalid Chain approval ID",
+      });
+    }
   });
 });
