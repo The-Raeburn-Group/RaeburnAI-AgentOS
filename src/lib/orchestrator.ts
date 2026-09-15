@@ -305,7 +305,11 @@ async function advanceWorkflow(options: AdvanceWorkflowOptions) {
     }),
   ]);
 
-  for (let index = options.startIndex; index < options.agents.length; index += 1) {
+  for (
+    let index = options.startIndex;
+    index < options.agents.length;
+    index += 1
+  ) {
     if (index >= env.MAX_AGENT_STEPS) break;
     const agent = options.agents[index];
     if (!agent) throw new Error("Workflow agent is missing");
@@ -348,7 +352,9 @@ async function advanceWorkflow(options: AdvanceWorkflowOptions) {
         actorId: options.actorId,
         requestId: options.requestId,
       });
-      return db.workflowRun.findUniqueOrThrow({ where: { id: options.run.id } });
+      return db.workflowRun.findUniqueOrThrow({
+        where: { id: options.run.id },
+      });
     }
 
     const response = await executeAgentTask({

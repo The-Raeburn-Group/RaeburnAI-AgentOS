@@ -2,10 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { HumanAuthError, requireHumanPermission } from "@/lib/admin-auth";
-import {
-  ApprovalDecisionError,
-  decideWorkflowApproval,
-} from "@/lib/approvals";
+import { ApprovalDecisionError, decideWorkflowApproval } from "@/lib/approvals";
 import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 import { apiError, rateLimit } from "@/lib/http";
 
@@ -89,7 +86,8 @@ export async function POST(
     const tenant = await requireHumanTenant(identity);
     const { id } = await context.params;
     const { payload, formRequest } = await parseDecision(request);
-    const requestId = request.headers.get("x-request-id")?.trim() || randomUUID();
+    const requestId =
+      request.headers.get("x-request-id")?.trim() || randomUUID();
 
     const approval = await decideWorkflowApproval({
       approvalId: id,

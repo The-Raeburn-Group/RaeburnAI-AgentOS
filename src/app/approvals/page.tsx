@@ -57,7 +57,9 @@ function TenantDenied() {
     <main className="shell">
       <section className="section card">
         <h1>Tenant access denied.</h1>
-        <p>The verified identity is not mapped to an existing AgentOS tenant.</p>
+        <p>
+          The verified identity is not mapped to an existing AgentOS tenant.
+        </p>
       </section>
     </main>
   );
@@ -122,7 +124,9 @@ export default async function ApprovalsPage({
           <h1>Approval &amp; exception inbox</h1>
           <p>
             Tenant <strong>{tenant.slug}</strong> · signed in as{" "}
-            <strong>{identity.name ?? identity.email ?? identity.actorId}</strong>
+            <strong>
+              {identity.name ?? identity.email ?? identity.actorId}
+            </strong>
             . Pending work cannot continue past an approval checkpoint until an
             authorised decision is recorded.
           </p>
@@ -153,7 +157,9 @@ export default async function ApprovalsPage({
               requester. Rejections require an audit note.
             </p>
           </div>
-          <span className="pill">{canDecide ? "Decision access" : "Read only"}</span>
+          <span className="pill">
+            {canDecide ? "Decision access" : "Read only"}
+          </span>
         </div>
 
         <div className="approval-list">
@@ -168,13 +174,16 @@ export default async function ApprovalsPage({
               (approval.risk === ApprovalRisk.HIGH ||
                 approval.risk === ApprovalRisk.CRITICAL) &&
               approval.requestedBy === identity.actorId;
-            const decisionAllowed = canDecide && !expired && !selfDecisionBlocked;
+            const decisionAllowed =
+              canDecide && !expired && !selfDecisionBlocked;
 
             return (
               <article className="approval-card" key={approval.id}>
                 <div className="approval-card-topline">
                   <div>
-                    <span className={`risk-badge risk-${approval.risk.toLowerCase()}`}>
+                    <span
+                      className={`risk-badge risk-${approval.risk.toLowerCase()}`}
+                    >
                       {approval.risk}
                     </span>
                     <span className="status-badge status-pending">PENDING</span>
@@ -209,8 +218,8 @@ export default async function ApprovalsPage({
                 ) : null}
                 {selfDecisionBlocked ? (
                   <p className="decision-warning">
-                    Separation of duties: you requested this high-risk action and
-                    cannot approve or reject it yourself.
+                    Separation of duties: you requested this high-risk action
+                    and cannot approve or reject it yourself.
                   </p>
                 ) : null}
 
@@ -263,7 +272,9 @@ export default async function ApprovalsPage({
             <article className="approval-card compact" key={approval.id}>
               <div className="approval-card-topline">
                 <div>
-                  <span className={`risk-badge risk-${approval.risk.toLowerCase()}`}>
+                  <span
+                    className={`risk-badge risk-${approval.risk.toLowerCase()}`}
+                  >
                     {approval.risk}
                   </span>
                   <span

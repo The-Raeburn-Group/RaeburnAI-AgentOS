@@ -1,8 +1,4 @@
-import {
-  ApprovalRisk,
-  ApprovalStatus,
-  RunStatus,
-} from "@prisma/client";
+import { ApprovalRisk, ApprovalStatus, RunStatus } from "@prisma/client";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApprovalDecisionError, decideWorkflowApproval } from "@/lib/approvals";
 import { db } from "@/lib/db";
