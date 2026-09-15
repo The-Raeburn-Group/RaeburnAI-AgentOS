@@ -1,13 +1,6 @@
-import { ApprovalRisk, ApprovalStatus, type Prisma } from "@prisma/client";
+import { ApprovalStatus, type ApprovalRisk, type Prisma } from "@prisma/client";
 import { sweepApprovalEscalations } from "@/lib/approval-sla";
 import { db } from "@/lib/db";
-
-const riskRank: Record<ApprovalRisk, number> = {
-  CRITICAL: 0,
-  HIGH: 1,
-  MEDIUM: 2,
-  LOW: 3,
-};
 
 export interface ApprovalExceptionRecord {
   id: string;
@@ -64,21 +57,13 @@ export async function listApprovalExceptions(
   const approvals = await db.approval.findMany({
     where: { tenantId, status: ApprovalStatus.PENDING },
     include: { run: { include: { workflow: true } } },
-    orderBy: { createdAt: "asc" },
+    orderBy: [
+      { escalatedAt: { sort: "desc", nulls: "last" } },
+      { risk: "desc" },
+      { slaDueAt: { sort: "asc", nulls: "last" } },
+      { createdAt: "asc" },
+    ],
     take: limit,
-  });
-
-  approvals.sort((left, right) => {
-    const escalation =
-      Number(Boolean(right.escalatedAt)) - Number(Boolean(left.escalatedAt));
-    if (escalation) return escalation;
-    const risk = riskRank[left.risk] - riskRank[right.risk];
-    if (risk) return risk;
-    const leftSla = left.slaDueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
-    const rightSla = right.slaDueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
-    return (
-      leftSla - rightSla || left.createdAt.getTime() - right.createdAt.getTime()
-    );
   });
 
   return approvals.map((approval) => ({
