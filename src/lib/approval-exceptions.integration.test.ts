@@ -82,7 +82,7 @@ async function seedFixtures() {
         status: ApprovalStatus.PENDING,
         risk: ApprovalRisk.HIGH,
         requestedBy: "operator-a",
-        createdAt: new Date("2026-09-15T15:16:00.000Z"),
+        createdAt: new Date("2026-09-15T15:14:00.000Z"),
         expiresAt,
         slaDueAt: new Date("2026-09-15T16:00:00.000Z"),
         escalationOwner: "approver",
@@ -133,6 +133,17 @@ describeWithDatabase("approval exception feed", () => {
     expect(exceptions.map((item) => item.id)).not.toContain(
       "exception-feed-b-critical",
     );
+  });
+
+  it("applies escalation and risk priority before the response limit", async () => {
+    const exceptions = await listApprovalExceptions({
+      tenantId: tenantAId,
+      reconcile: false,
+      limit: 1,
+    });
+
+    expect(exceptions).toHaveLength(1);
+    expect(exceptions[0]?.id).toBe("exception-feed-a-critical");
   });
 
   it("rejects invalid limits before querying the queue", async () => {
