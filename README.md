@@ -69,22 +69,22 @@ docker compose up --build
 
 Key environment variables include:
 
-| Variable | Purpose |
-|---|---|
-| `APP_URL` | Public application URL |
-| `NEXTAUTH_URL` | Authentication callback base URL |
-| `NEXTAUTH_SECRET` | Authentication/session secret |
-| `ENCRYPTION_KEY` | Application encryption key placeholder |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `OPENAI_API_KEY` | Optional OpenAI model key |
-| `OPENROUTER_API_KEY` | Optional OpenRouter model key |
-| `OLLAMA_BASE_URL` | Optional local model endpoint |
-| `DEFAULT_MODEL_PROVIDER` | Default model provider |
-| `DEFAULT_MODEL` | Default model name |
-| `APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS` | Approval control for external actions |
-| `MAX_AGENT_STEPS` | Workflow step limit |
-| `LOG_LEVEL` | Logging level |
-| `METRICS_ENABLED` | Metrics endpoint control |
+| Variable                                 | Purpose                                |
+| ---------------------------------------- | -------------------------------------- |
+| `APP_URL`                                | Public application URL                 |
+| `NEXTAUTH_URL`                           | Authentication callback base URL       |
+| `NEXTAUTH_SECRET`                        | Authentication/session secret          |
+| `ENCRYPTION_KEY`                         | Application encryption key placeholder |
+| `DATABASE_URL`                           | PostgreSQL connection string           |
+| `OPENAI_API_KEY`                         | Optional OpenAI model key              |
+| `OPENROUTER_API_KEY`                     | Optional OpenRouter model key          |
+| `OLLAMA_BASE_URL`                        | Optional local model endpoint          |
+| `DEFAULT_MODEL_PROVIDER`                 | Default model provider                 |
+| `DEFAULT_MODEL`                          | Default model name                     |
+| `APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS` | Approval control for external actions  |
+| `MAX_AGENT_STEPS`                        | Workflow step limit                    |
+| `LOG_LEVEL`                              | Logging level                          |
+| `METRICS_ENABLED`                        | Metrics endpoint control               |
 
 See `.env.example` for the complete current configuration.
 
