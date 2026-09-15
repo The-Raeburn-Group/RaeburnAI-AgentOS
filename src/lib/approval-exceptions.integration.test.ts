@@ -137,7 +137,11 @@ describeWithDatabase("approval exception feed", () => {
 
   it("rejects invalid limits before querying the queue", async () => {
     await expect(
-      listApprovalExceptions({ tenantId: tenantAId, reconcile: false, limit: 0 }),
+      listApprovalExceptions({
+        tenantId: tenantAId,
+        reconcile: false,
+        limit: 0,
+      }),
     ).rejects.toThrow("invalid_exception_limit");
     await expect(
       listApprovalExceptions({
