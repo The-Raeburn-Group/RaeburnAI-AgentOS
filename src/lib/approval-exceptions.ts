@@ -19,7 +19,7 @@ export interface ApprovalExceptionRecord {
   actionType: string;
   summary: string;
   risk: ApprovalRisk;
-  status: ApprovalStatus.PENDING;
+  status: "PENDING";
   requestedBy: string;
   payload: Prisma.JsonValue;
   createdAt: string;
