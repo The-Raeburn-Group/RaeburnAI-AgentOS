@@ -25,6 +25,14 @@ The approval inbox performs tenant-scoped reconciliation before rendering so an 
 
 A deployment scheduler may call the endpoint periodically. The endpoint does not accept a tenant from the request body or query string.
 
+## Service exception feed
+
+`GET /api/approvals/exceptions` exposes the current pending approval/exception queue to authenticated RaeburnAI-Chain services. It uses the same service-token and trusted tenant/actor/request context as the sweep endpoint and never accepts a tenant selector from the query string.
+
+Before returning records, the feed reconciles the authenticated tenant so hard-expired approvals are cancelled and newly overdue approvals are escalated. Results are sorted with escalated work first, then by risk and SLA urgency. Each record includes workflow identity, action summary, risk, requester, evidence payload, expiry, SLA deadline and escalation ownership so Chain can build a cross-module operations queue without bypassing AgentOS tenant controls.
+
+The optional `limit` query parameter accepts 1-200 records and defaults to 100. The feed is read-only from Chain's perspective: it does not approve, reject or execute gated work.
+
 ## Default policy
 
 Defaults are intentionally stricter as risk increases:
@@ -44,4 +52,4 @@ The hard authorization lifetime remains separately controlled by `APPROVAL_TTL_M
 
 The approval inbox shows escalated requests first and surfaces SLA status, escalation level and escalation owner. Audit events retain the request ID used by the sweep so an escalation or expiry can be correlated with service logs and Chain traces.
 
-Repository-level tests cover SLA escalation without execution, automatic expiry/cancellation, idempotent repeated sweeps, authenticated tenant scoping and service-token failure paths. Live scheduler cadence, paging/notification integrations and cross-service staging remain deployment concerns rather than repository-level claims.
+Repository-level tests cover SLA escalation without execution, automatic expiry/cancellation, idempotent repeated sweeps, authenticated tenant scoping, service-token failure paths, exception-feed tenant isolation and escalated-first ordering. Live scheduler cadence, paging/notification integrations and cross-service staging remain deployment concerns rather than repository-level claims.
