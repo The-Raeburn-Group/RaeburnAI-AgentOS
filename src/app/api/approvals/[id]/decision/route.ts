@@ -9,10 +9,20 @@ import {
 import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 import { apiError, rateLimit } from "@/lib/http";
 
-const DecisionSchema = z.object({
-  decision: z.enum(["approve", "reject"]),
-  note: z.string().trim().max(2000).optional(),
-});
+const DecisionSchema = z
+  .object({
+    decision: z.enum(["approve", "reject"]),
+    note: z.string().trim().max(2000).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.decision === "reject" && (!value.note || value.note.length < 3)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["note"],
+        message: "A rejection reason is required.",
+      });
+    }
+  });
 
 function authError(error: unknown) {
   if (error instanceof TenantAccessError) {
