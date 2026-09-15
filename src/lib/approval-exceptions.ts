@@ -1,4 +1,8 @@
-import { ApprovalRisk, ApprovalStatus, type Prisma } from "@prisma/client";
+import {
+  ApprovalRisk,
+  ApprovalStatus,
+  type Prisma,
+} from "@prisma/client";
 import { sweepApprovalEscalations } from "@/lib/approval-sla";
 import { db } from "@/lib/db";
 
@@ -76,7 +80,9 @@ export async function listApprovalExceptions(
     if (risk) return risk;
     const leftSla = left.slaDueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
     const rightSla = right.slaDueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
-    return leftSla - rightSla || left.createdAt.getTime() - right.createdAt.getTime();
+    return (
+      leftSla - rightSla || left.createdAt.getTime() - right.createdAt.getTime()
+    );
   });
 
   return approvals.map((approval) => ({
@@ -93,8 +99,12 @@ export async function listApprovalExceptions(
     requestedBy: approval.requestedBy,
     payload: approval.payload,
     createdAt: approval.createdAt.toISOString(),
-    ...(approval.expiresAt ? { expiresAt: approval.expiresAt.toISOString() } : {}),
-    ...(approval.slaDueAt ? { slaDueAt: approval.slaDueAt.toISOString() } : {}),
+    ...(approval.expiresAt
+      ? { expiresAt: approval.expiresAt.toISOString() }
+      : {}),
+    ...(approval.slaDueAt
+      ? { slaDueAt: approval.slaDueAt.toISOString() }
+      : {}),
     ...(approval.escalationOwner
       ? { escalationOwner: approval.escalationOwner }
       : {}),
