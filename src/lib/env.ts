@@ -13,6 +13,7 @@ const envSchema = z.object({
     .default("ollama"),
   DEFAULT_MODEL: z.string().default("llama3.1"),
   APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS: z.coerce.boolean().default(true),
+  APPROVAL_TTL_MINUTES: z.coerce.number().int().min(5).max(10080).default(60),
   MAX_AGENT_STEPS: z.coerce.number().int().positive().default(12),
   MAX_WORKFLOW_RUNTIME_SECONDS: z.coerce.number().int().positive().default(900),
   METRICS_ENABLED: z.coerce.boolean().default(true),
