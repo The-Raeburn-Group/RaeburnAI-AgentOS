@@ -161,25 +161,31 @@ model McpServer {
 }
 
 model Approval {
-  id           String         @id @default(uuid())
-  tenantId     String
-  runId        String
-  actionType   String
-  summary      String
-  payload      Json
-  status       ApprovalStatus @default(PENDING)
-  risk         ApprovalRisk   @default(HIGH)
-  requestedBy  String
-  decidedBy    String?
-  decisionNote String?
-  createdAt    DateTime       @default(now())
-  expiresAt    DateTime?
-  decidedAt    DateTime?
-  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  run          WorkflowRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  id              String         @id @default(uuid())
+  tenantId        String
+  runId           String
+  actionType      String
+  summary         String
+  payload         Json
+  status          ApprovalStatus @default(PENDING)
+  risk            ApprovalRisk   @default(HIGH)
+  requestedBy     String
+  decidedBy       String?
+  decisionNote    String?
+  createdAt       DateTime       @default(now())
+  expiresAt       DateTime?
+  decidedAt       DateTime?
+  slaDueAt        DateTime?
+  escalationOwner String?
+  escalationLevel Int            @default(0)
+  escalatedAt     DateTime?
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run             WorkflowRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status, risk, createdAt])
   @@index([tenantId, status, expiresAt])
+  @@index([tenantId, status, slaDueAt])
+  @@index([tenantId, status, escalationLevel])
 }
 
 model AuditEvent {
