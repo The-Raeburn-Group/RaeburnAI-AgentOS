@@ -1,8 +1,11 @@
 import { ApprovalRisk, ApprovalStatus, RunStatus } from "@prisma/client";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApprovalDecisionError, decideWorkflowApproval } from "@/lib/approvals";
+import { decideWorkflowApproval } from "@/lib/approvals";
 import { db } from "@/lib/db";
-import { runWorkflow } from "@/lib/orchestrator";
+import {
+  runWorkflow,
+  type WorkflowModelGenerator,
+} from "@/lib/orchestrator";
 
 const databaseUrl = process.env.DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -41,7 +44,7 @@ async function seedFixtures() {
   });
 }
 
-async function createWaitingRun(generate: ReturnType<typeof vi.fn>) {
+async function createWaitingRun(generate: WorkflowModelGenerator) {
   const run = await runWorkflow(
     {
       tenantSlug: "ignored-by-trusted-context",
@@ -106,9 +109,7 @@ describeWithDatabase("approval-gated workflow execution", () => {
         decision: "approve",
         generate,
       }),
-    ).rejects.toMatchObject<Partial<ApprovalDecisionError>>({
-      code: "approval_not_found",
-    });
+    ).rejects.toMatchObject({ code: "approval_not_found" });
 
     await expect(
       decideWorkflowApproval({
@@ -119,9 +120,7 @@ describeWithDatabase("approval-gated workflow execution", () => {
         decision: "approve",
         generate,
       }),
-    ).rejects.toMatchObject<Partial<ApprovalDecisionError>>({
-      code: "approval_self_decision_forbidden",
-    });
+    ).rejects.toMatchObject({ code: "approval_self_decision_forbidden" });
     expect(generate).not.toHaveBeenCalled();
 
     const decided = await decideWorkflowApproval({
@@ -220,9 +219,7 @@ describeWithDatabase("approval-gated workflow execution", () => {
         decision: "approve",
         generate,
       }),
-    ).rejects.toMatchObject<Partial<ApprovalDecisionError>>({
-      code: "approval_expired",
-    });
+    ).rejects.toMatchObject({ code: "approval_expired" });
 
     expect(generate).not.toHaveBeenCalled();
     const [expired, cancelledRun] = await Promise.all([
