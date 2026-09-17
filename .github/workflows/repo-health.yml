@@ -5,14 +5,21 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   documentation:
     name: Documentation check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Check required documentation
         run: |
           test -f README.md
           test -f docs/ECOSYSTEM.md
+          test -f docs/software-supply-chain.md
