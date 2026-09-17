@@ -13,6 +13,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:16-alpine
@@ -37,13 +38,19 @@ jobs:
       DEFAULT_MODEL: llama3.1
       CI: true
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm audit --audit-level=high
+      - name: Install deterministic dependencies
+        run: npm ci
+      - name: Validate software supply-chain policy
+        run: npm run validate:supply-chain
+      - name: Enforce zero High/Critical dependency gate
+        run: npm audit --audit-level=high
       - run: npm run db:generate
       - run: npm run db:migrate
       - run: npm run format:check
@@ -77,4 +84,12 @@ jobs:
           DATABASE_URL: ${{ env.AGENTOS_RESTORE_DATABASE_URL }}
         run: npm run dr:verify
       - run: npm run build
-      - run: docker build -t raeburnai-agentos .
+      - name: Build deterministic container image
+        run: docker build -t raeburnai-agentos:${{ github.sha }} .
+      - name: Scan container for High/Critical vulnerabilities
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: raeburnai-agentos:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
