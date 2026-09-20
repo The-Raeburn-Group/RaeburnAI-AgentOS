@@ -159,6 +159,22 @@ function privileged(context: MemoryExecutionContext): boolean {
   );
 }
 
+function ownerKeyFor(subjectId: string | undefined): string {
+  return subjectId ?? "__shared__";
+}
+
+function enforcePreferenceOwnership(
+  request: MemoryWriteRequest,
+  context: MemoryExecutionContext,
+): void {
+  if (
+    request.kind === "user_preference" &&
+    request.subjectId !== context.actorId
+  ) {
+    throw new MemoryServiceError("memory_subject_forbidden");
+  }
+}
+
 function enforceSubjectAccess(
   subjectId: string | null | undefined,
   context: MemoryExecutionContext,
@@ -188,6 +204,7 @@ export async function writeMemory(
 ): Promise<Memory> {
   const request = MemoryWriteRequestSchema.parse(requestInput);
   const tenantId = await tenantIdFor(context.tenantReference);
+  enforcePreferenceOwnership(request, context);
   enforceSubjectAccess(request.subjectId, context);
 
   const ttlSeconds = ttlSecondsFor(request);
@@ -218,14 +235,16 @@ export async function writeMemory(
   const memory = await db.$transaction(async (tx) => {
     const stored = await tx.memory.upsert({
       where: {
-        tenantId_scope_key: {
+        tenantId_scope_ownerKey_key: {
           tenantId,
           scope: request.scope,
+          ownerKey: ownerKeyFor(request.subjectId),
           key: request.key,
         },
       },
       update: {
         kind: request.kind,
+        ownerKey: ownerKeyFor(request.subjectId),
         subjectId: request.subjectId ?? null,
         content: sanitized.content,
         metadata: inputJson(metadata),
@@ -240,6 +259,7 @@ export async function writeMemory(
         scope: request.scope,
         kind: request.kind,
         key: request.key,
+        ownerKey: ownerKeyFor(request.subjectId),
         subjectId: request.subjectId ?? null,
         content: sanitized.content,
         metadata: inputJson(metadata),
@@ -288,6 +308,13 @@ export async function readMemory(
       tenantId,
       scope: key.scope,
       key: key.key,
+      ...(key.scope === "user"
+        ? {
+            ownerKey: context.actorId,
+          }
+        : {
+            ownerKey: "__shared__",
+          }),
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
   });
@@ -307,9 +334,10 @@ export async function deleteMemory(
   return db.$transaction(async (tx) => {
     const existing = await tx.memory.findUnique({
       where: {
-        tenantId_scope_key: {
+        tenantId_scope_ownerKey_key: {
           tenantId,
           scope: key.scope,
+          ownerKey: key.scope === "user" ? context.actorId : "__shared__",
           key: key.key,
         },
       },
