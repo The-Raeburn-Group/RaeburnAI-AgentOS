@@ -21,7 +21,6 @@ function memoryError(error: unknown) {
   if (error instanceof MemoryServiceError) {
     switch (error.code) {
       case "tenant_not_found":
-      case "memory_not_found":
         return NextResponse.json({ error: error.code }, { status: 404 });
       case "memory_subject_forbidden":
         return NextResponse.json({ error: error.code }, { status: 403 });
