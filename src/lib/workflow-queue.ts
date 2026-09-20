@@ -138,8 +138,7 @@ export async function enqueueWorkflowJob(
   const tenant = await resolveTenantReference(context.tenantReference);
   if (!tenant) throw new WorkflowQueueError("tenant_not_found");
 
-  const maxAttempts =
-    options.maxAttempts ?? env.WORKFLOW_JOB_MAX_ATTEMPTS;
+  const maxAttempts = options.maxAttempts ?? env.WORKFLOW_JOB_MAX_ATTEMPTS;
   const normalizedContext = {
     tenantReference: tenant.id,
     actorId: context.actorId,
@@ -438,9 +437,7 @@ async function markWorkflowJobFailed(
       attempt: updated.attempts,
       maxAttempts: updated.maxAttempts,
       error: message,
-      ...(exhausted
-        ? {}
-        : { availableAt: updated.availableAt.toISOString() }),
+      ...(exhausted ? {} : { availableAt: updated.availableAt.toISOString() }),
     },
   });
   return updated;
@@ -470,12 +467,7 @@ export async function processNextWorkflowJob(
         workflowRequest: WorkflowRunRequest,
         executionContext: WorkflowExecutionContext,
         generate?: WorkflowModelGenerator,
-      ) =>
-        runWorkflow(
-          workflowRequest,
-          executionContext,
-          generate,
-        ));
+      ) => runWorkflow(workflowRequest, executionContext, generate));
     const result = await execute(
       request,
       {
@@ -491,7 +483,10 @@ export async function processNextWorkflowJob(
       ...(result.id ? { runId: result.id } : {}),
     });
   } catch (error) {
-    if (error instanceof WorkflowQueueError && error.code === "job_lease_lost") {
+    if (
+      error instanceof WorkflowQueueError &&
+      error.code === "job_lease_lost"
+    ) {
       throw error;
     }
     return markWorkflowJobFailed(job, options.workerId, error);
