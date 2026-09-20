@@ -47,10 +47,30 @@ const envSchema = z.object({
   MAX_AGENT_STEPS: z.coerce.number().int().positive().default(12),
   MAX_WORKFLOW_RUNTIME_SECONDS: z.coerce.number().int().positive().default(900),
   WORKFLOW_JOB_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(3),
-  WORKFLOW_JOB_LEASE_SECONDS: z.coerce.number().int().min(5).max(86400).default(1200),
-  WORKFLOW_JOB_BACKOFF_SECONDS: z.coerce.number().int().min(1).max(3600).default(5),
-  WORKFLOW_JOB_BACKOFF_MAX_SECONDS: z.coerce.number().int().min(1).max(86400).default(900),
-  WORKFLOW_JOB_POLL_MS: z.coerce.number().int().min(100).max(60000).default(1000),
+  WORKFLOW_JOB_LEASE_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(86400)
+    .default(1200),
+  WORKFLOW_JOB_BACKOFF_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(3600)
+    .default(5),
+  WORKFLOW_JOB_BACKOFF_MAX_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(86400)
+    .default(900),
+  WORKFLOW_JOB_POLL_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(60000)
+    .default(1000),
   METRICS_ENABLED: z.coerce.boolean().default(true),
   LOG_LEVEL: z.string().default("info"),
 });
