@@ -74,15 +74,16 @@ describeWithDatabase("durable memory policy", () => {
     expect(memory.content).not.toContain("alice@example.com");
     expect(memory.content).not.toContain("super-secret-key-123");
     expect(JSON.stringify(memory.metadata)).not.toContain("raw-token-value");
-    expect(memory.sensitivity).toBe("personal");
+    expect(memory.sensitivity).toBe("sensitive");
     expect(memory.policyVersion).toBe("raeburnai.memory-policy.v1");
     expect(memory.expiresAt).toBeInstanceOf(Date);
 
     const persisted = await db.memory.findUniqueOrThrow({
       where: {
-        tenantId_scope_key: {
+        tenantId_scope_ownerKey_key: {
           tenantId: tenantAId,
           scope: "session",
+          ownerKey: "__shared__",
           key: "session:alpha",
         },
       },
@@ -147,6 +148,28 @@ describeWithDatabase("durable memory policy", () => {
     );
     expect(saved.subjectId).toBe("user-a");
     expect(saved.kind).toBe("user_preference");
+
+    const secondUser = await writeMemory(
+      {
+        scope: "user",
+        kind: "user_preference",
+        key: "preference:timezone",
+        subjectId: "user-b",
+        content: "Europe/Paris",
+        explicitConsent: true,
+      },
+      context(tenantAId, "user-b"),
+    );
+    expect(secondUser.subjectId).toBe("user-b");
+    expect(
+      await db.memory.count({
+        where: {
+          tenantId: tenantAId,
+          scope: "user",
+          key: "preference:timezone",
+        },
+      }),
+    ).toBe(2);
   });
 
   it("upserts deterministically and keeps same keys isolated between tenants", async () => {
@@ -289,12 +312,12 @@ describeWithDatabase("durable memory policy", () => {
       {
         scope: "user",
         kind: "user_preference",
-        key: "preference:language:user-b",
+        key: "preference:language",
         subjectId: "user-b",
         content: "French",
         explicitConsent: true,
       },
-      context(tenantAId, "privacy-operator", ["privacy.admin"]),
+      context(tenantAId, "user-b"),
     );
 
     const own = await listSubjectMemories({ subjectId: "user-a" }, context());
