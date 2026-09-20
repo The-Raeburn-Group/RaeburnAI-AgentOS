@@ -278,10 +278,7 @@ describeWithDatabase("durable memory policy", () => {
     });
 
     expect(
-      await readMemory(
-        { scope: "session", key: "session:expired" },
-        context(),
-      ),
+      await readMemory({ scope: "session", key: "session:expired" }, context()),
     ).toBeNull();
 
     const purged = await purgeExpiredMemories(tenantAId);
