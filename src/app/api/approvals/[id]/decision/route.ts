@@ -48,6 +48,8 @@ function decisionError(error: unknown) {
       return NextResponse.json({ error: error.code }, { status: 404 });
     case "approval_self_decision_forbidden":
       return NextResponse.json({ error: error.code }, { status: 403 });
+    case "approval_rejection_reason_required":
+      return NextResponse.json({ error: error.code }, { status: 400 });
     case "approval_expired":
       return NextResponse.json({ error: error.code }, { status: 410 });
     case "approval_already_decided":
