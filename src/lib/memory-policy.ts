@@ -35,11 +35,13 @@ const HIGH_RISK_LABELS = new Set([
   "trade_union",
 ]);
 
-const CREDENTIAL_KEY = /^(?:api[_-]?key|authorization|cookie|password|refresh[_-]?token|secret|token)$/i;
+const CREDENTIAL_KEY =
+  /^(?:api[_-]?key|authorization|cookie|password|refresh[_-]?token|secret|token)$/i;
 const EMAIL_KEY = /^(?:email|email_address)$/i;
 const PHONE_KEY = /^(?:mobile|mobile_number|phone|phone_number|telephone)$/i;
 const PAYMENT_KEY = /^(?:card|card_number|credit_card|debit_card|pan)$/i;
-const NATIONAL_ID_KEY = /^(?:national_id|national_insurance|ni_number|social_security|ssn)$/i;
+const NATIONAL_ID_KEY =
+  /^(?:national_id|national_insurance|ni_number|social_security|ssn)$/i;
 const HIGH_RISK_KEY =
   /(?:^|_)(?:biometric|criminal(?:_record)?|diagnosis|genetic|health|medical|political(?:_opinion)?|race|ethnicity|religion|sex_life|sexual_orientation|trade_union)(?:$|_)/i;
 
@@ -67,7 +69,10 @@ export interface SanitizedMemoryCandidate {
   sensitivityLabels: string[];
 }
 
-function recordFinding(findings: MutableFindings, type: MemoryFindingType): void {
+function recordFinding(
+  findings: MutableFindings,
+  type: MemoryFindingType,
+): void {
   findings.counts.set(type, (findings.counts.get(type) ?? 0) + 1);
 }
 
@@ -106,10 +111,7 @@ function luhnValid(digits: string): boolean {
   return sum % 10 === 0;
 }
 
-function redactPaymentCards(
-  value: string,
-  findings: MutableFindings,
-): string {
+function redactPaymentCards(value: string, findings: MutableFindings): string {
   return value.replace(CARD_PATTERN, (candidate) => {
     const digits = candidate.replace(/[^0-9]/g, "");
     if (!luhnValid(digits)) return candidate;
@@ -118,10 +120,7 @@ function redactPaymentCards(
   });
 }
 
-function redactCredentials(
-  value: string,
-  findings: MutableFindings,
-): string {
+function redactCredentials(value: string, findings: MutableFindings): string {
   let next = redactPattern(
     value,
     BEARER_PATTERN,
@@ -150,13 +149,10 @@ function redactCredentials(
     "credential",
     findings,
   );
-  return next.replace(
-    SECRET_ASSIGNMENT_PATTERN,
-    (_match, label: string) => {
-      recordFinding(findings, "credential");
-      return `${label}=[REDACTED:CREDENTIAL]`;
-    },
-  );
+  return next.replace(SECRET_ASSIGNMENT_PATTERN, (_match, label: string) => {
+    recordFinding(findings, "credential");
+    return `${label}=[REDACTED:CREDENTIAL]`;
+  });
 }
 
 function sanitizeString(value: string, findings: MutableFindings): string {
@@ -213,10 +209,7 @@ function findingForMetadataKey(key: string): MemoryFindingType | undefined {
   return undefined;
 }
 
-function sanitizeJson(
-  value: JsonValue,
-  findings: MutableFindings,
-): JsonValue {
+function sanitizeJson(value: JsonValue, findings: MutableFindings): JsonValue {
   if (typeof value === "string") return sanitizeString(value, findings);
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeJson(item, findings));
@@ -272,7 +265,9 @@ export function sanitizeMemoryCandidate(input: {
   const content = sanitizeString(input.content, findings);
   const metadataValue = sanitizeJson(input.metadata, findings);
   const metadata =
-    metadataValue && typeof metadataValue === "object" && !Array.isArray(metadataValue)
+    metadataValue &&
+    typeof metadataValue === "object" &&
+    !Array.isArray(metadataValue)
       ? metadataValue
       : {};
   const findingTypes = [...findings.counts.keys()].sort();
