@@ -43,10 +43,15 @@ Before enabling any MCP server:
 
 ## Multi-tenant memory
 
-- Memory must always be scoped by tenant.
-- Avoid storing raw secrets, passwords or unnecessary personal data.
-- Use retention windows for sensitive workflows.
-- Add redaction before memory writes where appropriate.
+- Memory is always tenant-owned and normal application writes go through the policy-enforced memory service.
+- Subject-owned records use `user` scope and an owner-specific deterministic key namespace.
+- User-preference memory requires explicit consent and authenticated self ownership.
+- Credentials and recognised direct identifiers are redacted before persistence; private keys and
+  explicit/structured special-category personal data are denied by default.
+- Session/episodic memory requires provenance and every normal write receives a bounded expiry.
+- Subject export/delete hooks support the memory-domain portion of privacy requests.
+- Run `npm run memory:purge` on a supervised cadence and alert on `agentos_memory_expired_total`.
+- See [Durable Memory Policy](./MEMORY.md) for the complete contract and known limits.
 
 ## Production controls
 
