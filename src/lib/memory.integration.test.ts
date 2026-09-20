@@ -346,4 +346,35 @@ describeWithDatabase("durable memory policy", () => {
       }),
     ).toBeGreaterThan(0);
   });
+
+  it("rejects invalid owner and preference state at the PostgreSQL boundary", async () => {
+    await expect(
+      db.memory.create({
+        data: {
+          tenantId: tenantAId,
+          scope: "workspace",
+          kind: "user_preference",
+          key: "invalid:preference",
+          ownerKey: "__shared__",
+          content: "Must not persist",
+          metadata: {},
+          provenance: {},
+          sensitivity: "general",
+          policyVersion: "raeburnai.memory-policy.v1",
+          embedding: [],
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      }),
+    ).rejects.toThrow();
+
+    expect(
+      await db.memory.count({
+        where: {
+          tenantId: tenantAId,
+          key: "invalid:preference",
+        },
+      }),
+    ).toBe(0);
+  });
+
 });
