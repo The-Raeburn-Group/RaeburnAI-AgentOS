@@ -8,7 +8,9 @@ import {
 } from "@/lib/memory";
 import { authenticateChainServiceRequest } from "@/lib/service-auth";
 
-function serviceContext(authentication: ReturnType<typeof authenticateChainServiceRequest>) {
+function serviceContext(
+  authentication: ReturnType<typeof authenticateChainServiceRequest>,
+) {
   if (!authentication.ok) return null;
   return {
     tenantReference: authentication.context.tenantId,
@@ -29,7 +31,10 @@ function privacyError(error: unknown) {
     return NextResponse.json({ error: error.code }, { status: 400 });
   }
   if (error instanceof ZodError) {
-    return NextResponse.json({ error: "Invalid subject request" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid subject request" },
+      { status: 400 },
+    );
   }
   return null;
 }
