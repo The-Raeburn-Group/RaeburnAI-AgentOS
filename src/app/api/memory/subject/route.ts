@@ -30,7 +30,7 @@ function privacyError(error: unknown) {
     }
     return NextResponse.json({ error: error.code }, { status: 400 });
   }
-  if (error instanceof ZodError) {
+  if (error instanceof ZodError || error instanceof SyntaxError) {
     return NextResponse.json(
       { error: "Invalid subject request" },
       { status: 400 },
@@ -58,6 +58,7 @@ export async function GET(request: Request) {
         scope: memory.scope,
         kind: memory.kind,
         key: memory.key,
+        subjectId: memory.subjectId,
         content: memory.content,
         metadata: memory.metadata,
         provenance: memory.provenance,
