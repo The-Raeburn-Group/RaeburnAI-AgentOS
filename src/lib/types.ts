@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 export const AgentManifestSchema = z.object({
-  schemaVersion: z.literal("raeburnai.agent-manifest.v1").default("raeburnai.agent-manifest.v1"),
+  schemaVersion: z
+    .literal("raeburnai.agent-manifest.v1")
+    .default("raeburnai.agent-manifest.v1"),
   name: z.string().min(2),
   slug: z.string().regex(/^[a-z0-9-]+$/),
   version: z.string().default("0.1.0"),
@@ -59,7 +61,10 @@ export const WorkflowRunRequestSchema = z
     mode: z
       .enum(["sequential", "parallel", "adjudicated", "evidence"])
       .default("sequential"),
-    adjudicator: z.string().regex(/^[a-z0-9-]+$/).optional(),
+    adjudicator: z
+      .string()
+      .regex(/^[a-z0-9-]+$/)
+      .optional(),
     strictness: z.enum(["standard", "high", "regulated"]).default("standard"),
     input: z.record(JsonValueSchema).default({}),
   })
