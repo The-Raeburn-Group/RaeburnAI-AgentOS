@@ -114,7 +114,7 @@ function validEvidenceJson() {
 function generator(
   adjudicationText = validEvidenceJson(),
 ): WorkflowModelGenerator {
-  return vi.fn(async ({ messages }) => {
+  return vi.fn(async ({ messages }: Parameters<WorkflowModelGenerator>[0]) => {
     const system = messages.find(
       (message) => message.role === "system",
     )?.content;
