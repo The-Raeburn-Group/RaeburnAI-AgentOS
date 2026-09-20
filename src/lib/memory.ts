@@ -39,7 +39,12 @@ export const MemoryWriteRequestSchema = z
   .object({
     scope: MemoryScopeSchema,
     kind: MemoryKindSchema.default("context"),
-    key: z.string().trim().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/),
+    key: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .regex(/^[A-Za-z0-9._:-]+$/),
     subjectId: z.string().trim().min(1).max(256).optional(),
     content: z.string().min(1).max(50_000),
     metadata: z.record(JsonValueSchema).default({}),
@@ -104,7 +109,12 @@ export type MemoryWriteRequest = z.infer<typeof MemoryWriteRequestSchema>;
 
 export const MemoryKeySchema = z.object({
   scope: MemoryScopeSchema,
-  key: z.string().trim().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/),
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .regex(/^[A-Za-z0-9._:-]+$/),
 });
 export type MemoryKey = z.infer<typeof MemoryKeySchema>;
 
