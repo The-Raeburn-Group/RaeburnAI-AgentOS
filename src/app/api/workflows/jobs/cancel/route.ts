@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, rateLimit } from "@/lib/http";
 import { authenticateChainServiceRequest } from "@/lib/service-auth";
-import {
-  WorkflowQueueError,
-  cancelWorkflowJob,
-} from "@/lib/workflow-queue";
+import { WorkflowQueueError, cancelWorkflowJob } from "@/lib/workflow-queue";
 
 function queueError(error: WorkflowQueueError) {
   if (error.code === "job_not_found" || error.code === "tenant_not_found") {
@@ -35,7 +32,10 @@ export async function POST(request: Request) {
       body.reason !== undefined &&
       (typeof body.reason !== "string" || body.reason.length > 500)
     ) {
-      return NextResponse.json({ error: "Invalid cancellation reason" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid cancellation reason" },
+        { status: 400 },
+      );
     }
 
     const job = await cancelWorkflowJob({
