@@ -26,7 +26,9 @@ describe("memory redaction policy", () => {
     expect(result.content).not.toContain("4111 1111 1111 1111");
     expect(result.content).not.toContain("ghp_123456789012345678901234567890");
     expect(JSON.stringify(result.metadata)).not.toContain("alice@example.com");
-    expect(JSON.stringify(result.metadata)).not.toContain("very-secret-access-token");
+    expect(JSON.stringify(result.metadata)).not.toContain(
+      "very-secret-access-token",
+    );
     expect(result.findingTypes).toEqual(
       expect.arrayContaining([
         "credential",
@@ -61,7 +63,6 @@ describe("memory redaction policy", () => {
       new MemoryPolicyError("high_risk_personal_data_not_allowed"),
     );
   });
-
 
   it("denies structured special-category fields even when the caller omits labels", () => {
     expect(() =>
