@@ -28,7 +28,7 @@ function memoryError(error: unknown) {
         return NextResponse.json({ error: error.code }, { status: 400 });
     }
   }
-  if (error instanceof ZodError) {
+  if (error instanceof ZodError || error instanceof SyntaxError) {
     return NextResponse.json(
       { error: "Invalid memory payload" },
       { status: 400 },
