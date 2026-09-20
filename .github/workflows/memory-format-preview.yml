@@ -1,0 +1,24 @@
+name: Memory Format Preview
+
+on:
+  push:
+    branches:
+      - feat/memory-redaction-policy
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Print exact Prettier diff
+        run: |
+          npx prettier src/app/api/memory/route.ts src/app/api/memory/subject/route.test.ts src/app/api/memory/subject/route.ts src/lib/memory-policy.test.ts src/lib/memory-policy.ts src/lib/memory.integration.test.ts src/lib/memory.ts docs/MEMORY.md --write
+          git diff -- src/app/api/memory/route.ts src/app/api/memory/subject/route.test.ts src/app/api/memory/subject/route.ts src/lib/memory-policy.test.ts src/lib/memory-policy.ts src/lib/memory.integration.test.ts src/lib/memory.ts docs/MEMORY.md
