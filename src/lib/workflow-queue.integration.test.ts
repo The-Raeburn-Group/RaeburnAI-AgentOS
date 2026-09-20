@@ -43,6 +43,8 @@ function context(requestId = "queue-request-1") {
     tenantReference: tenantId,
     actorId: "chain-service",
     requestId,
+    approvalId: "approval-queue-test",
+    executionId: "execution-queue-test",
   };
 }
 
@@ -63,15 +65,21 @@ describeWithDatabase("durable workflow queue", () => {
     );
 
     expect(duplicate.id).toBe(first.id);
+    expect(first.context).toMatchObject({
+      approvalId: "approval-queue-test",
+      executionId: "execution-queue-test",
+    });
     expect(await db.workflowJob.count({ where: { tenantId } })).toBe(1);
-    expect(
-      await db.auditEvent.count({
-        where: {
-          tenantId,
-          action: "workflow.job.enqueued",
-        },
-      }),
-    ).toBe(1);
+    const enqueueAudit = await db.auditEvent.findFirstOrThrow({
+      where: {
+        tenantId,
+        action: "workflow.job.enqueued",
+      },
+    });
+    expect(enqueueAudit.metadata).toMatchObject({
+      chainApprovalId: "approval-queue-test",
+      chainExecutionId: "execution-queue-test",
+    });
 
     await expect(
       enqueueWorkflowJob(
