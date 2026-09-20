@@ -78,7 +78,9 @@ describe("approval decision route", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(mocks.requireHumanPermission).toHaveBeenCalledWith("approval.decide");
+    expect(mocks.requireHumanPermission).toHaveBeenCalledWith(
+      "approval.decide",
+    );
     expect(mocks.decideWorkflowApproval).toHaveBeenCalledWith({
       approvalId: "approval-1",
       tenantId: "tenant-a",
