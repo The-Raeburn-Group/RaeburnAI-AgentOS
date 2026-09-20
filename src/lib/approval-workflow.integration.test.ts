@@ -443,7 +443,9 @@ describeWithDatabase("approval-gated workflow execution", () => {
       }),
     ]);
 
-    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+    expect(
+      outcomes.filter((outcome) => outcome.status === "fulfilled"),
+    ).toHaveLength(1);
     const rejected = outcomes.find((outcome) => outcome.status === "rejected");
     expect(rejected).toBeDefined();
     if (rejected?.status === "rejected") {
@@ -474,5 +476,4 @@ describeWithDatabase("approval-gated workflow execution", () => {
       expect(generate).not.toHaveBeenCalled();
     }
   });
-
 });
