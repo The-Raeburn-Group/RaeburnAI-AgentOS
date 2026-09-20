@@ -324,12 +324,17 @@ describeWithDatabase("durable memory policy", () => {
       listSubjectMemories({ subjectId: "user-b" }, context()),
     ).rejects.toBeInstanceOf(MemoryServiceError);
 
+    const userBCount = await db.memory.count({
+      where: { tenantId: tenantAId, subjectId: "user-b" },
+    });
+    expect(userBCount).toBeGreaterThan(0);
+
     const deleted = await deleteSubjectMemories(
       { subjectId: "user-b" },
       context(tenantAId, "privacy-operator", ["privacy.admin"]),
       "verified_dsar_delete",
     );
-    expect(deleted).toBe(1);
+    expect(deleted).toBe(userBCount);
     expect(
       await db.memory.count({
         where: { tenantId: tenantAId, subjectId: "user-b" },
