@@ -88,7 +88,8 @@ export const WorkflowRunRequestSchema = z
     }
   });
 
-export type WorkflowRunRequest = z.infer<typeof WorkflowRunRequestSchema>;
+export type WorkflowRunRequestInput = z.input<typeof WorkflowRunRequestSchema>;
+export type WorkflowRunRequest = z.output<typeof WorkflowRunRequestSchema>;
 
 export type ProviderMessage = {
   role: "system" | "user" | "assistant";
