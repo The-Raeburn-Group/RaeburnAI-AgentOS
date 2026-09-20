@@ -452,11 +452,47 @@ async function executeCollaborativeWorkflow(options: {
     requestId: options.requestId,
     generate: options.generate,
   });
-  const adjudication = parseAdjudicationResult(
-    adjudicatorResponse.text,
-    options.request.mode,
-    options.request.strictness,
-  );
+  let adjudication;
+  try {
+    adjudication = parseAdjudicationResult(
+      adjudicatorResponse.text,
+      options.request.mode,
+      options.request.strictness,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Invalid adjudication result";
+    await db.$transaction([
+      db.workflowRun.update({
+        where: { id: options.run.id },
+        data: {
+          status: RunStatus.FAILED,
+          error: message,
+          finishedAt: new Date(),
+        },
+      }),
+      db.workflow.update({
+        where: { id: options.workflow.id },
+        data: { status: RunStatus.FAILED },
+      }),
+      db.auditEvent.create({
+        data: {
+          tenantId: options.tenant.id,
+          runId: options.run.id,
+          actor: options.actorId,
+          action: "workflow.adjudication.rejected",
+          metadata: {
+            requestId: options.requestId,
+            mode: options.request.mode,
+            strictness: options.request.strictness,
+            adjudicator: options.adjudicator.slug,
+            error: message,
+          },
+        },
+      }),
+    ]);
+    throw error;
+  }
 
   const finalOutputs = {
     ...outputs,
@@ -630,6 +666,27 @@ export async function runWorkflow(
   const agents = await orderedAgents(tenant.id, agentSlugs);
   const primaryAgents = agents.slice(0, plan.primaryAgents.length);
   const adjudicator = plan.adjudicator ? agents.at(-1) : undefined;
+
+  if (plan.mode !== "sequential") {
+    const controlledAgents = [
+      ...primaryAgents,
+      ...(adjudicator ? [adjudicator] : []),
+    ];
+    const approvalBound = controlledAgents.filter(
+      (agent) =>
+        agent.approvalRequired && env.APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS,
+    );
+    if (approvalBound.length > 0) {
+      throw new Error(
+        `Collaborative execution cannot bypass approval-required agents: ${approvalBound
+          .map((agent) => agent.slug)
+          .join(", ")}`,
+      );
+    }
+    if (primaryAgents.length > env.MAX_AGENT_STEPS) {
+      throw new Error("Collaborative workflow exceeds MAX_AGENT_STEPS");
+    }
+  }
 
   const workflow = await db.workflow.create({
     data: {
