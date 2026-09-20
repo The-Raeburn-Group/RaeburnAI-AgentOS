@@ -320,8 +320,13 @@ export async function cancelWorkflowJob(options: {
   }
   if (job.status === WorkflowJobStatus.CANCELLED) return job;
 
-  const cancelled = await db.workflowJob.update({
-    where: { id: job.id },
+  const transition = await db.workflowJob.updateMany({
+    where: {
+      id: job.id,
+      status: {
+        in: [WorkflowJobStatus.QUEUED, WorkflowJobStatus.RUNNING],
+      },
+    },
     data: {
       status: WorkflowJobStatus.CANCELLED,
       lockedAt: null,
@@ -330,15 +335,22 @@ export async function cancelWorkflowJob(options: {
       lastError: options.reason ?? "cancelled",
     },
   });
+  const latest = await db.workflowJob.findUniqueOrThrow({
+    where: { id: job.id },
+  });
+  if (transition.count !== 1) {
+    if (latest.status === WorkflowJobStatus.CANCELLED) return latest;
+    throw new WorkflowQueueError("job_not_cancellable");
+  }
   await auditJob({
-    job: cancelled,
+    job: latest,
     actor: options.actorId,
     action: "workflow.job.cancelled",
     metadata: {
       reason: options.reason ?? "cancelled",
     },
   });
-  return cancelled;
+  return latest;
 }
 
 async function markWorkflowJobSucceeded(options: {
