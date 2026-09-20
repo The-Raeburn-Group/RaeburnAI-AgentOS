@@ -41,6 +41,8 @@ export async function POST(request: Request) {
         tenantReference: authentication.context.tenantId,
         actorId: authentication.context.actorId,
         requestId: authentication.context.requestId,
+        approvalId,
+        executionId,
       },
       idempotencyKey,
     );
