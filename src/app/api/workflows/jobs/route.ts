@@ -4,10 +4,7 @@ import { apiError, rateLimit } from "@/lib/http";
 import { resolveTenantReference } from "@/lib/human-tenant";
 import { authenticateChainServiceRequest } from "@/lib/service-auth";
 import { WorkflowRunRequestSchema } from "@/lib/types";
-import {
-  WorkflowQueueError,
-  enqueueWorkflowJob,
-} from "@/lib/workflow-queue";
+import { WorkflowQueueError, enqueueWorkflowJob } from "@/lib/workflow-queue";
 
 function queueError(error: WorkflowQueueError) {
   if (error.code === "idempotency_conflict") {
