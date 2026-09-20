@@ -40,6 +40,8 @@ const EMAIL_KEY = /^(?:email|email_address)$/i;
 const PHONE_KEY = /^(?:mobile|mobile_number|phone|phone_number|telephone)$/i;
 const PAYMENT_KEY = /^(?:card|card_number|credit_card|debit_card|pan)$/i;
 const NATIONAL_ID_KEY = /^(?:national_id|national_insurance|ni_number|social_security|ssn)$/i;
+const HIGH_RISK_KEY =
+  /(?:^|_)(?:biometric|criminal(?:_record)?|diagnosis|genetic|health|medical|political(?:_opinion)?|race|ethnicity|religion|sex_life|sexual_orientation|trade_union)(?:$|_)/i;
 
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,63}\b/gi;
 const NI_PATTERN = /\b[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b/gi;
@@ -187,6 +189,21 @@ function sanitizeString(value: string, findings: MutableFindings): string {
   return next;
 }
 
+function assertNoStructuredHighRiskData(value: JsonValue): void {
+  if (Array.isArray(value)) {
+    value.forEach(assertNoStructuredHighRiskData);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+
+  for (const [key, item] of Object.entries(value)) {
+    if (HIGH_RISK_KEY.test(key) && item !== null) {
+      throw new MemoryPolicyError("high_risk_personal_data_not_allowed");
+    }
+    assertNoStructuredHighRiskData(item);
+  }
+}
+
 function findingForMetadataKey(key: string): MemoryFindingType | undefined {
   if (CREDENTIAL_KEY.test(key)) return "credential";
   if (PAYMENT_KEY.test(key)) return "payment_card";
@@ -250,6 +267,7 @@ export function sanitizeMemoryCandidate(input: {
     throw new MemoryPolicyError("high_risk_personal_data_not_allowed");
   }
 
+  assertNoStructuredHighRiskData(input.metadata);
   const findings: MutableFindings = { counts: new Map() };
   const content = sanitizeString(input.content, findings);
   const metadataValue = sanitizeJson(input.metadata, findings);
