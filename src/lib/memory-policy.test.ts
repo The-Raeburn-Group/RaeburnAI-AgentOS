@@ -62,6 +62,22 @@ describe("memory redaction policy", () => {
     );
   });
 
+
+  it("denies structured special-category fields even when the caller omits labels", () => {
+    expect(() =>
+      sanitizeMemoryCandidate({
+        content: "A structured profile was supplied.",
+        metadata: {
+          profile: {
+            health_status: "private",
+          },
+        },
+      }),
+    ).toThrowError(
+      new MemoryPolicyError("high_risk_personal_data_not_allowed"),
+    );
+  });
+
   it("does not redact ordinary numbers that do not satisfy a detector invariant", () => {
     const result = sanitizeMemoryCandidate({
       content: "Order 123456789 and project 20260920 remain searchable.",
