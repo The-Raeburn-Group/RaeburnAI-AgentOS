@@ -138,9 +138,9 @@ describe("expert collaboration contracts", () => {
       unresolvedRisks: ["Contradiction search not completed."],
     });
 
-    expect(() =>
-      parseAdjudicationResult(response, "evidence", "high"),
-    ).toThrow("requires contradiction search");
+    expect(() => parseAdjudicationResult(response, "evidence", "high")).toThrow(
+      "requires contradiction search",
+    );
   });
 
   it("tells the adjudicator not to invent evidence or certainty", () => {
@@ -159,7 +159,9 @@ describe("expert collaboration contracts", () => {
       ],
     });
 
-    expect(prompt).toContain("Do not invent agreement, evidence, citations or certainty");
+    expect(prompt).toContain(
+      "Do not invent agreement, evidence, citations or certainty",
+    );
     expect(prompt).toContain(EVIDENCE_PROTOCOL_VERSION);
     expect(prompt).toContain("at least 2 source(s)");
   });
