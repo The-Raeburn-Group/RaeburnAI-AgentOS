@@ -41,10 +41,7 @@ function context(id = "approval-a") {
   return { params: Promise.resolve({ id }) };
 }
 
-function jsonRequest(
-  body: unknown,
-  requestId = "approval-decision-request-1",
-) {
+function jsonRequest(body: unknown, requestId = "approval-decision-request-1") {
   return new Request(
     "http://localhost:3000/api/approvals/approval-a/decision",
     {
