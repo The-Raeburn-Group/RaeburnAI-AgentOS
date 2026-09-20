@@ -8,7 +8,7 @@ describe("memory redaction policy", () => {
   it("redacts credentials and direct identifiers from content and nested metadata", () => {
     const result = sanitizeMemoryCandidate({
       content:
-        "Email alice@example.com, phone +44 7700 900123, NI QQ 12 34 56 C, " +
+        "Email alice@example.com, phone +44 7700 900123, NI AB 12 34 56 C, " +
         "card 4111 1111 1111 1111, token ghp_123456789012345678901234567890.",
       metadata: {
         profile: {
@@ -22,7 +22,7 @@ describe("memory redaction policy", () => {
 
     expect(result.content).not.toContain("alice@example.com");
     expect(result.content).not.toContain("+44 7700 900123");
-    expect(result.content).not.toContain("QQ 12 34 56 C");
+    expect(result.content).not.toContain("AB 12 34 56 C");
     expect(result.content).not.toContain("4111 1111 1111 1111");
     expect(result.content).not.toContain("ghp_123456789012345678901234567890");
     expect(JSON.stringify(result.metadata)).not.toContain("alice@example.com");
