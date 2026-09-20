@@ -1,0 +1,23 @@
+name: Queue Format Preview 2
+
+on:
+  push:
+    branches:
+      - feat/durable-workflow-queue
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: |
+          npx prettier src/lib/workflow-queue.ts --write
+          git diff -- src/lib/workflow-queue.ts
