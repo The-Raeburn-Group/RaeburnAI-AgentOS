@@ -104,10 +104,7 @@ function canonicalJson(value: unknown): string {
   if (value && typeof value === "object") {
     return `{${Object.entries(value as Record<string, unknown>)
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(
-        ([key, item]) =>
-          `${JSON.stringify(key)}:${canonicalJson(item)}`,
-      )
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
       .join(",")}}`;
   }
   return JSON.stringify(value) ?? "null";
@@ -126,10 +123,7 @@ export function buildCollaborationPlan(
 ): CollaborationPlan {
   const mode = request.mode;
   const adjudicator = request.adjudicator;
-  if (
-    (mode === "adjudicated" || mode === "evidence") &&
-    !adjudicator
-  ) {
+  if ((mode === "adjudicated" || mode === "evidence") && !adjudicator) {
     throw new Error(`${mode} workflow requires an adjudicator`);
   }
   if (adjudicator && request.agents.includes(adjudicator)) {
@@ -190,8 +184,7 @@ export function adjudicationPrompt(options: {
     `Strictness: ${request.strictness}`,
     "Independent expert contributions:",
     ...contributions.map(
-      (contribution) =>
-        `--- ${contribution.agent} ---\n${contribution.text}`,
+      (contribution) => `--- ${contribution.agent} ---\n${contribution.text}`,
     ),
   ].join("\n\n");
 }
@@ -226,10 +219,14 @@ export function parseAdjudicationResult(
         "High-assurance evidence workflow requires contradiction search",
       );
     }
-    const requiredSources = strictness === "regulated" ? 2 : strictness === "high" ? 1 : 0;
+    const requiredSources =
+      strictness === "regulated" ? 2 : strictness === "high" ? 1 : 0;
     if (requiredSources > 0) {
       for (const claim of result.claims) {
-        if (claim.support === "supports" && claim.sourceIds.length < requiredSources) {
+        if (
+          claim.support === "supports" &&
+          claim.sourceIds.length < requiredSources
+        ) {
           throw new Error(
             `Evidence claim requires at least ${requiredSources} source(s)`,
           );
