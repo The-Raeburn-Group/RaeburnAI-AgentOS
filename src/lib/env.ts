@@ -71,6 +71,18 @@ const envSchema = z.object({
     .min(100)
     .max(60000)
     .default(1000),
+  MEMORY_DEFAULT_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(31536000)
+    .default(2592000),
+  MEMORY_MAX_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(31536000)
+    .default(31536000),
   METRICS_ENABLED: z.coerce.boolean().default(true),
   LOG_LEVEL: z.string().default("info"),
 });
