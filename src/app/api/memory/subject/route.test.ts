@@ -100,4 +100,23 @@ describe("subject memory privacy API", () => {
     );
     await expect(response.json()).resolves.toEqual({ deletedCount: 3 });
   });
+
+  it("rejects malformed subject-delete JSON without invoking erasure", async () => {
+    vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "memory-test-token");
+
+    const response = await DELETE(
+      new Request("http://localhost:3000/api/memory/subject", {
+        method: "DELETE",
+        headers: headers(),
+        body: "{not-json",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.deleteSubjectMemories).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid subject request",
+    });
+  });
+
 });
