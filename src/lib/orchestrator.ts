@@ -9,6 +9,13 @@ import {
   type WorkflowRun,
 } from "@prisma/client";
 import { approvalSlaDueAt, approvalSlaPolicy } from "@/lib/approval-sla";
+import {
+  adjudicationPrompt,
+  buildCollaborationPlan,
+  expertStagePrompt,
+  parseAdjudicationResult,
+  type ExpertContribution,
+} from "@/lib/collaboration";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { resolveTenantReference } from "@/lib/human-tenant";
@@ -299,6 +306,201 @@ async function executeAgentTask(options: {
   }
 }
 
+async function executeCollaborativeWorkflow(options: {
+  tenant: Tenant;
+  workflow: Workflow;
+  run: WorkflowRun;
+  primaryAgents: Agent[];
+  adjudicator?: Agent;
+  request: WorkflowRunRequest;
+  actorId: string;
+  requestId: string;
+  generate: WorkflowModelGenerator;
+}) {
+  const controlledAgents = [
+    ...options.primaryAgents,
+    ...(options.adjudicator ? [options.adjudicator] : []),
+  ];
+  const approvalBound = controlledAgents.filter(
+    (agent) =>
+      agent.approvalRequired && env.APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS,
+  );
+  if (approvalBound.length > 0) {
+    throw new Error(
+      `Collaborative execution cannot bypass approval-required agents: ${approvalBound
+        .map((agent) => agent.slug)
+        .join(", ")}`,
+    );
+  }
+
+  if (options.primaryAgents.length > env.MAX_AGENT_STEPS) {
+    throw new Error("Collaborative workflow exceeds MAX_AGENT_STEPS");
+  }
+
+  const stagePrompt = expertStagePrompt(options.request);
+  const tasks = await Promise.all(
+    options.primaryAgents.map((agent) =>
+      db.agentTask.create({
+        data: {
+          tenantId: options.tenant.id,
+          runId: options.run.id,
+          agentId: agent.id,
+          name: `${agent.name} independent expert step`,
+          status: RunStatus.QUEUED,
+          input: {
+            collaborationMode: options.request.mode,
+            strictness: options.request.strictness,
+            sharedContext: stagePrompt,
+          },
+        },
+      }),
+    ),
+  );
+
+  const responses = await Promise.all(
+    options.primaryAgents.map((agent, index) => {
+      const task = tasks[index];
+      if (!task) throw new Error("Collaborative task is missing");
+      return executeAgentTask({
+        tenant: options.tenant,
+        workflow: options.workflow,
+        run: options.run,
+        taskId: task.id,
+        agent,
+        sharedContext: stagePrompt,
+        actorId: options.actorId,
+        requestId: options.requestId,
+        generate: options.generate,
+      });
+    }),
+  );
+
+  const contributions: ExpertContribution[] = options.primaryAgents.map(
+    (agent, index) => ({
+      agent: agent.slug,
+      text: responses[index]?.text ?? "",
+    }),
+  );
+  const outputs = Object.fromEntries(
+    contributions.map((contribution) => [
+      contribution.agent,
+      contribution.text,
+    ]),
+  );
+
+  if (options.request.mode === "parallel") {
+    const completed = await db.$transaction(async (tx) => {
+      const completedRun = await tx.workflowRun.update({
+        where: { id: options.run.id },
+        data: {
+          status: RunStatus.SUCCEEDED,
+          output: outputs,
+          finishedAt: new Date(),
+        },
+      });
+      await tx.workflow.update({
+        where: { id: options.workflow.id },
+        data: { status: RunStatus.SUCCEEDED },
+      });
+      await tx.auditEvent.create({
+        data: {
+          tenantId: options.tenant.id,
+          runId: options.run.id,
+          actor: options.actorId,
+          action: "workflow.collaboration.completed",
+          metadata: {
+            requestId: options.requestId,
+            mode: options.request.mode,
+            primaryAgents: options.primaryAgents.map((agent) => agent.slug),
+          },
+        },
+      });
+      return completedRun;
+    });
+    return completed;
+  }
+
+  if (!options.adjudicator) {
+    throw new Error("Collaborative workflow adjudicator is missing");
+  }
+
+  const adjudicatorTask = await db.agentTask.create({
+    data: {
+      tenantId: options.tenant.id,
+      runId: options.run.id,
+      agentId: options.adjudicator.id,
+      name: `${options.adjudicator.name} adjudication step`,
+      status: RunStatus.QUEUED,
+      input: {
+        collaborationMode: options.request.mode,
+        strictness: options.request.strictness,
+        contributions,
+      },
+    },
+  });
+  const adjudicatorResponse = await executeAgentTask({
+    tenant: options.tenant,
+    workflow: options.workflow,
+    run: options.run,
+    taskId: adjudicatorTask.id,
+    agent: options.adjudicator,
+    sharedContext: adjudicationPrompt({
+      request: options.request,
+      contributions,
+    }),
+    actorId: options.actorId,
+    requestId: options.requestId,
+    generate: options.generate,
+  });
+  const adjudication = parseAdjudicationResult(
+    adjudicatorResponse.text,
+    options.request.mode,
+    options.request.strictness,
+  );
+
+  const finalOutputs = {
+    ...outputs,
+    [options.adjudicator.slug]: adjudicatorResponse.text,
+  };
+  const completed = await db.$transaction(async (tx) => {
+    const completedRun = await tx.workflowRun.update({
+      where: { id: options.run.id },
+      data: {
+        status: RunStatus.SUCCEEDED,
+        output: finalOutputs,
+        finishedAt: new Date(),
+      },
+    });
+    await tx.workflow.update({
+      where: { id: options.workflow.id },
+      data: { status: RunStatus.SUCCEEDED },
+    });
+    await tx.auditEvent.create({
+      data: {
+        tenantId: options.tenant.id,
+        runId: options.run.id,
+        actor: options.actorId,
+        action: "workflow.adjudication.completed",
+        metadata: {
+          requestId: options.requestId,
+          mode: options.request.mode,
+          strictness: options.request.strictness,
+          adjudicator: options.adjudicator.slug,
+          confidence: adjudication.confidence,
+          conflicts: adjudication.conflicts.length,
+          claims: adjudication.claims.length,
+          sources: adjudication.sources.length,
+          contradictionSearchPerformed:
+            adjudication.contradictionSearchPerformed,
+        },
+      },
+    });
+    return completedRun;
+  });
+
+  return completed;
+}
+
 async function advanceWorkflow(options: AdvanceWorkflowOptions) {
   let sharedContext = options.sharedContext;
   const outputs = { ...options.outputs };
@@ -420,7 +622,14 @@ export async function runWorkflow(
   generate: WorkflowModelGenerator = generateWithProvider,
 ) {
   const tenant = await resolveWorkflowTenant(request, executionContext);
-  const agents = await orderedAgents(tenant.id, request.agents);
+  const plan = buildCollaborationPlan(request);
+  const agentSlugs = [
+    ...plan.primaryAgents,
+    ...(plan.adjudicator ? [plan.adjudicator] : []),
+  ];
+  const agents = await orderedAgents(tenant.id, agentSlugs);
+  const primaryAgents = agents.slice(0, plan.primaryAgents.length);
+  const adjudicator = plan.adjudicator ? agents.at(-1) : undefined;
 
   const workflow = await db.workflow.create({
     data: {
@@ -428,7 +637,13 @@ export async function runWorkflow(
       name: request.name,
       goal: request.goal,
       status: RunStatus.RUNNING,
-      graph: { agents: request.agents, mode: "sequential" },
+      graph: {
+        contractVersion: plan.contractVersion,
+        agents: plan.primaryAgents,
+        mode: plan.mode,
+        strictness: plan.strictness,
+        ...(plan.adjudicator ? { adjudicator: plan.adjudicator } : {}),
+      },
     },
   });
 
@@ -459,11 +674,25 @@ export async function runWorkflow(
     },
   });
 
+  if (plan.mode !== "sequential") {
+    return executeCollaborativeWorkflow({
+      tenant,
+      workflow,
+      run,
+      primaryAgents,
+      ...(adjudicator ? { adjudicator } : {}),
+      request,
+      actorId,
+      requestId,
+      generate,
+    });
+  }
+
   return advanceWorkflow({
     tenant,
     workflow,
     run,
-    agents,
+    agents: primaryAgents,
     startIndex: 0,
     sharedContext: `Goal: ${request.goal}\nInput: ${JSON.stringify(request.input)}`,
     outputs: {},
