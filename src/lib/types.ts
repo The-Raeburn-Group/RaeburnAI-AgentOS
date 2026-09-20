@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const AgentManifestSchema = z.object({
+  schemaVersion: z
+    .literal("raeburnai.agent-manifest.v1")
+    .default("raeburnai.agent-manifest.v1"),
   name: z.string().min(2),
   slug: z.string().regex(/^[a-z0-9-]+$/),
   version: z.string().default("0.1.0"),
@@ -10,6 +13,18 @@ export const AgentManifestSchema = z.object({
   modelName: z.string().default("llama3.1"),
   marketplaceTags: z.array(z.string()).default([]),
   requiredTools: z.array(z.string()).default([]),
+  domains: z.array(z.string().min(1)).default([]),
+  capabilities: z.array(z.string().min(1)).default([]),
+  retrievalCollections: z.array(z.string().min(1)).default([]),
+  evalSuites: z.array(z.string().min(1)).default([]),
+  riskTier: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  evidencePolicy: z
+    .object({
+      requireSources: z.boolean().default(false),
+      preferPrimarySources: z.boolean().default(true),
+      contradictionSearch: z.boolean().default(false),
+    })
+    .default({}),
   approvalRequired: z.boolean().default(true),
   memoryScope: z
     .enum(["agent", "workflow", "workspace", "tenant"])
@@ -37,15 +52,44 @@ export const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   ]),
 );
 
-export const WorkflowRunRequestSchema = z.object({
-  tenantSlug: z.string().default("default"),
-  name: z.string().default("Untitled workflow"),
-  goal: z.string().min(5),
-  agents: z.array(z.string()).min(1),
-  input: z.record(JsonValueSchema).default({}),
-});
+export const WorkflowRunRequestSchema = z
+  .object({
+    tenantSlug: z.string().default("default"),
+    name: z.string().default("Untitled workflow"),
+    goal: z.string().min(5),
+    agents: z.array(z.string().regex(/^[a-z0-9-]+$/)).min(1),
+    mode: z
+      .enum(["sequential", "parallel", "adjudicated", "evidence"])
+      .default("sequential"),
+    adjudicator: z
+      .string()
+      .regex(/^[a-z0-9-]+$/)
+      .optional(),
+    strictness: z.enum(["standard", "high", "regulated"]).default("standard"),
+    input: z.record(JsonValueSchema).default({}),
+  })
+  .superRefine((value, context) => {
+    if (
+      (value.mode === "adjudicated" || value.mode === "evidence") &&
+      !value.adjudicator
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["adjudicator"],
+        message: `${value.mode} workflows require an adjudicator`,
+      });
+    }
+    if (value.adjudicator && value.agents.includes(value.adjudicator)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["adjudicator"],
+        message: "Adjudicator must not duplicate a primary expert",
+      });
+    }
+  });
 
-export type WorkflowRunRequest = z.infer<typeof WorkflowRunRequestSchema>;
+export type WorkflowRunRequestInput = z.input<typeof WorkflowRunRequestSchema>;
+export type WorkflowRunRequest = z.output<typeof WorkflowRunRequestSchema>;
 
 export type ProviderMessage = {
   role: "system" | "user" | "assistant";

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { HumanAuthError, requireHumanPermission } from "@/lib/admin-auth";
+import { agentManifestDigest } from "@/lib/collaboration";
 import { db } from "@/lib/db";
 import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 import { apiError, rateLimit } from "@/lib/http";
@@ -50,6 +51,14 @@ export async function POST(request: Request) {
     const identity = await requireHumanPermission("agent.write");
     const tenant = await requireHumanTenant(identity);
     const manifest = AgentManifestSchema.parse(await request.json());
+    const manifestDigest = agentManifestDigest(manifest);
+    const storedManifest = {
+      ...manifest,
+      integrity: {
+        algorithm: "sha256",
+        digest: manifestDigest,
+      },
+    };
     const agent = await db.agent.upsert({
       where: {
         tenantId_slug_version: {
@@ -68,7 +77,7 @@ export async function POST(request: Request) {
         requiredTools: manifest.requiredTools,
         approvalRequired: manifest.approvalRequired,
         memoryScope: manifest.memoryScope,
-        manifest,
+        manifest: storedManifest,
       },
       create: {
         tenantId: tenant.id,
@@ -83,7 +92,7 @@ export async function POST(request: Request) {
         requiredTools: manifest.requiredTools,
         approvalRequired: manifest.approvalRequired,
         memoryScope: manifest.memoryScope,
-        manifest,
+        manifest: storedManifest,
       },
     });
     await db.auditEvent.create({
@@ -97,6 +106,8 @@ export async function POST(request: Request) {
           agentId: agent.id,
           agentSlug: agent.slug,
           agentVersion: agent.version,
+          manifestContractVersion: manifest.schemaVersion,
+          manifestDigest,
           roles: identity.roles,
         },
       },
@@ -104,6 +115,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         agent,
+        manifestDigest,
         actor: {
           actorId: identity.actorId,
           tenantId: tenant.id,
