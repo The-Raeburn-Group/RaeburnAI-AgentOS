@@ -20,7 +20,12 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { resolveTenantReference } from "@/lib/human-tenant";
 import { generateWithProvider } from "@/lib/providers";
-import type { ProviderResponse, WorkflowRunRequest } from "@/lib/types";
+import {
+  WorkflowRunRequestSchema,
+  type ProviderResponse,
+  type WorkflowRunRequest,
+  type WorkflowRunRequestInput,
+} from "@/lib/types";
 
 export interface WorkflowExecutionContext {
   tenantReference: string;
@@ -420,7 +425,8 @@ async function executeCollaborativeWorkflow(options: {
     return completed;
   }
 
-  if (!options.adjudicator) {
+  const adjudicator = options.adjudicator;
+  if (!adjudicator) {
     throw new Error("Collaborative workflow adjudicator is missing");
   }
 
@@ -428,8 +434,8 @@ async function executeCollaborativeWorkflow(options: {
     data: {
       tenantId: options.tenant.id,
       runId: options.run.id,
-      agentId: options.adjudicator.id,
-      name: `${options.adjudicator.name} adjudication step`,
+      agentId: adjudicator.id,
+      name: `${adjudicator.name} adjudication step`,
       status: RunStatus.QUEUED,
       input: {
         collaborationMode: options.request.mode,
@@ -443,7 +449,7 @@ async function executeCollaborativeWorkflow(options: {
     workflow: options.workflow,
     run: options.run,
     taskId: adjudicatorTask.id,
-    agent: options.adjudicator,
+    agent: adjudicator,
     sharedContext: adjudicationPrompt({
       request: options.request,
       contributions,
@@ -485,7 +491,7 @@ async function executeCollaborativeWorkflow(options: {
             requestId: options.requestId,
             mode: options.request.mode,
             strictness: options.request.strictness,
-            adjudicator: options.adjudicator.slug,
+            adjudicator: adjudicator.slug,
             error: message,
           },
         },
@@ -496,7 +502,7 @@ async function executeCollaborativeWorkflow(options: {
 
   const finalOutputs = {
     ...outputs,
-    [options.adjudicator.slug]: adjudicatorResponse.text,
+    [adjudicator.slug]: adjudicatorResponse.text,
   };
   const completed = await db.$transaction(async (tx) => {
     const completedRun = await tx.workflowRun.update({
@@ -521,7 +527,7 @@ async function executeCollaborativeWorkflow(options: {
           requestId: options.requestId,
           mode: options.request.mode,
           strictness: options.request.strictness,
-          adjudicator: options.adjudicator.slug,
+          adjudicator: adjudicator.slug,
           confidence: adjudication.confidence,
           conflicts: adjudication.conflicts.length,
           claims: adjudication.claims.length,
@@ -653,10 +659,11 @@ async function advanceWorkflow(options: AdvanceWorkflowOptions) {
 }
 
 export async function runWorkflow(
-  request: WorkflowRunRequest,
+  requestInput: WorkflowRunRequestInput,
   executionContext?: WorkflowExecutionContext,
   generate: WorkflowModelGenerator = generateWithProvider,
 ) {
+  const request = WorkflowRunRequestSchema.parse(requestInput);
   const tenant = await resolveWorkflowTenant(request, executionContext);
   const plan = buildCollaborationPlan(request);
   const agentSlugs = [
