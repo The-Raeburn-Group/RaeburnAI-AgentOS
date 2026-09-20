@@ -144,15 +144,22 @@ model Memory {
   id          String   @id @default(uuid())
   tenantId    String
   scope       String
+  kind        String   @default("context")
   key         String
+  subjectId   String?
   content     String
   metadata    Json
+  provenance  Json
+  sensitivity String   @default("general")
+  policyVersion String @default("raeburnai.memory-policy.v1")
   embedding   Float[]  @default([])
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   expiresAt   DateTime?
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, scope, key])
+  @@index([tenantId, subjectId, kind])
   @@index([tenantId, expiresAt])
 }
 
