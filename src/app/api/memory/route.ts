@@ -30,7 +30,10 @@ function memoryError(error: unknown) {
     }
   }
   if (error instanceof ZodError) {
-    return NextResponse.json({ error: "Invalid memory payload" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid memory payload" },
+      { status: 400 },
+    );
   }
   return null;
 }
@@ -52,7 +55,10 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   try {
-    const memory = await writeMemory(await request.json(), executionContext(authentication)!);
+    const memory = await writeMemory(
+      await request.json(),
+      executionContext(authentication)!,
+    );
     return NextResponse.json(
       {
         memory: {
