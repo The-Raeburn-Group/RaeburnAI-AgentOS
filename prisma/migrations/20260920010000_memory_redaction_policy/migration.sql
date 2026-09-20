@@ -22,6 +22,27 @@ BEGIN
   END IF;
 END $$;
 
+ALTER TABLE "Memory"
+  ADD CONSTRAINT "Memory_scope_check"
+    CHECK ("scope" IN ('session', 'workflow', 'agent', 'workspace', 'tenant', 'user')),
+  ADD CONSTRAINT "Memory_kind_check"
+    CHECK ("kind" IN ('context', 'session_state', 'user_preference', 'tenant_context', 'episode')),
+  ADD CONSTRAINT "Memory_sensitivity_check"
+    CHECK ("sensitivity" IN ('general', 'personal', 'sensitive')),
+  ADD CONSTRAINT "Memory_owner_subject_check"
+    CHECK (
+      ("subjectId" IS NULL AND "ownerKey" = '__shared__')
+      OR
+      ("subjectId" IS NOT NULL AND "scope" = 'user' AND "ownerKey" = "subjectId")
+    ),
+  ADD CONSTRAINT "Memory_user_preference_check"
+    CHECK (
+      "kind" <> 'user_preference'
+      OR ("scope" = 'user' AND "subjectId" IS NOT NULL)
+    ),
+  ADD CONSTRAINT "Memory_tenant_context_check"
+    CHECK ("kind" <> 'tenant_context' OR "scope" = 'tenant');
+
 CREATE UNIQUE INDEX "Memory_tenantId_scope_ownerKey_key_key"
   ON "Memory"("tenantId", "scope", "ownerKey", "key");
 
