@@ -36,6 +36,14 @@ enum ApprovalRisk {
   CRITICAL
 }
 
+enum WorkflowJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
 model Tenant {
   id          String       @id @default(uuid())
   name        String
@@ -50,6 +58,7 @@ model Tenant {
   mcpServers  McpServer[]
   approvals   Approval[]
   auditEvents AuditEvent[]
+  jobs        WorkflowJob[]
 }
 
 model Agent {
@@ -106,6 +115,7 @@ model WorkflowRun {
   tasks       AgentTask[]
   approvals   Approval[]
   events      AuditEvent[]
+  job         WorkflowJob?
 
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
@@ -201,4 +211,31 @@ model AuditEvent {
 
   @@index([tenantId, createdAt])
   @@index([runId, createdAt])
+}
+
+model WorkflowJob {
+  id             String            @id @default(uuid())
+  tenantId       String
+  idempotencyKey String
+  payloadHash    String
+  request        Json
+  context        Json
+  status         WorkflowJobStatus @default(QUEUED)
+  attempts       Int               @default(0)
+  maxAttempts    Int               @default(3)
+  availableAt    DateTime          @default(now())
+  lockedAt       DateTime?
+  leaseExpiresAt DateTime?
+  lockedBy       String?
+  lastError      String?
+  runId          String?           @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run            WorkflowRun?      @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([status, availableAt])
+  @@index([tenantId, status])
+  @@index([status, leaseExpiresAt])
 }
