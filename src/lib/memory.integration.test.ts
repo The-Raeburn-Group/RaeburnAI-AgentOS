@@ -376,5 +376,4 @@ describeWithDatabase("durable memory policy", () => {
       }),
     ).toBe(0);
   });
-
 });
