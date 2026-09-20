@@ -169,6 +169,68 @@ describeWithDatabase("approval-gated workflow execution", () => {
     );
   });
 
+  it("allows exactly one winner when two approvers race the same pending decision", async () => {
+    const generate = vi.fn(async () => ({
+      text: "single approved execution",
+      provider: "test",
+      model: "test-model",
+      tokens: 5,
+    }));
+    const { run, approval } = await createWaitingRun(generate);
+
+    const results = await Promise.allSettled([
+      decideWorkflowApproval({
+        approvalId: approval.id,
+        tenantId: tenantAId,
+        actorId: "approver-a",
+        requestId: "decision-race-a",
+        decision: "approve",
+        note: "Approver A reviewed the evidence.",
+        generate,
+      }),
+      decideWorkflowApproval({
+        approvalId: approval.id,
+        tenantId: tenantAId,
+        actorId: "approver-b",
+        requestId: "decision-race-b",
+        decision: "approve",
+        note: "Approver B reviewed the evidence.",
+        generate,
+      }),
+    ]);
+
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+    const rejected = results.find((result) => result.status === "rejected");
+    expect(rejected).toMatchObject({
+      status: "rejected",
+      reason: { code: "approval_already_decided" },
+    });
+    expect(generate).toHaveBeenCalledTimes(1);
+
+    const [decided, completedRun, auditEvents] = await Promise.all([
+      db.approval.findUniqueOrThrow({ where: { id: approval.id } }),
+      db.workflowRun.findUniqueOrThrow({ where: { id: run.id } }),
+      db.auditEvent.findMany({
+        where: { tenantId: tenantAId, runId: run.id },
+      }),
+    ]);
+
+    expect(decided.status).toBe(ApprovalStatus.APPROVED);
+    expect(["approver-a", "approver-b"]).toContain(decided.decidedBy);
+    expect(completedRun.status).toBe(RunStatus.SUCCEEDED);
+    expect(
+      auditEvents.filter((event) => event.action === "approval.approved"),
+    ).toHaveLength(1);
+    expect(
+      auditEvents.filter((event) => event.action === "workflow.resumed"),
+    ).toHaveLength(1);
+    expect(
+      auditEvents.filter((event) => event.action === "agent.completed"),
+    ).toHaveLength(1);
+  });
+
   it("cancels the waiting workflow when an approver rejects it", async () => {
     const generate = vi.fn(async () => ({
       text: "must not execute",
