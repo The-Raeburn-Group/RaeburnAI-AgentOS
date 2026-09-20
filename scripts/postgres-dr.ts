@@ -8,6 +8,7 @@ import {
   ApprovalStatus,
   PrismaClient,
   RunStatus,
+  WorkflowJobStatus,
 } from "@prisma/client";
 
 const MANIFEST_SCHEMA = "agentos.postgres.backup-manifest.v1";
@@ -116,6 +117,7 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       mcpServers,
       approvals,
       auditEvents,
+      workflowJobs,
       migrations,
     ] = await Promise.all([
       prisma.tenant.findMany({ orderBy: { id: "asc" } }),
@@ -127,6 +129,7 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       prisma.mcpServer.findMany({ orderBy: { id: "asc" } }),
       prisma.approval.findMany({ orderBy: { id: "asc" } }),
       prisma.auditEvent.findMany({ orderBy: { id: "asc" } }),
+      prisma.workflowJob.findMany({ orderBy: { id: "asc" } }),
       prisma.$queryRaw<
         Array<{
           migration_name: string;
@@ -154,6 +157,7 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
         McpServer: fingerprintRows(mcpServers),
         Approval: fingerprintRows(approvals),
         AuditEvent: fingerprintRows(auditEvents),
+        WorkflowJob: fingerprintRows(workflowJobs),
       },
     };
   } finally {
@@ -456,6 +460,36 @@ async function seedRecoveryFixture(): Promise<void> {
           action: "dr.fixture.created",
           metadata: { tenantId, fixture: true, approvalPreserved: true },
           createdAt,
+        },
+      });
+
+      await prisma.workflowJob.create({
+        data: {
+          id: `00000000-0000-4000-8000-00000000${suffix}901`,
+          tenantId,
+          idempotencyKey: `dr-queue-${suffix}-0001`,
+          payloadHash:
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          request: {
+            tenantSlug: "ignored",
+            name: `DR queued workflow ${suffix.toUpperCase()}`,
+            goal: "Survive logical backup and restore as durable queued work.",
+            agents: ["dr-agent"],
+            mode: "sequential",
+            strictness: "standard",
+            input: { tenant: suffix, fixture: true },
+          },
+          context: {
+            tenantReference: tenantId,
+            actorId: `queue-actor-${suffix}`,
+            requestId: `dr-queue-request-${suffix}`,
+          },
+          status: WorkflowJobStatus.QUEUED,
+          attempts: 0,
+          maxAttempts: 3,
+          availableAt: createdAt,
+          createdAt,
+          updatedAt: createdAt,
         },
       });
     }
