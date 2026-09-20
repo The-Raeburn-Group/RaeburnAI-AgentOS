@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, rateLimit } from "@/lib/http";
+import { resolveTenantReference } from "@/lib/human-tenant";
 import { authenticateChainServiceRequest } from "@/lib/service-auth";
 import { WorkflowRunRequestSchema } from "@/lib/types";
 import {
@@ -83,10 +84,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "jobId is required" }, { status: 400 });
   }
 
+  const tenant = await resolveTenantReference(authentication.context.tenantId);
+  if (!tenant) {
+    return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+  }
+
   const job = await db.workflowJob.findFirst({
     where: {
       id: jobId,
-      tenantId: authentication.context.tenantId,
+      tenantId: tenant.id,
     },
     select: {
       id: true,
