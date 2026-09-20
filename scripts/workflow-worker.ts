@@ -2,8 +2,7 @@ import { env } from "../src/lib/env";
 import { processNextWorkflowJob } from "../src/lib/workflow-queue";
 
 const workerId =
-  process.env.WORKFLOW_WORKER_ID ??
-  `workflow-worker-${process.pid}`;
+  process.env.WORKFLOW_WORKER_ID ?? `workflow-worker-${process.pid}`;
 
 let stopping = false;
 
