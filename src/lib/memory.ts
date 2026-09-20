@@ -59,6 +59,13 @@ export const MemoryWriteRequestSchema = z
         message: "user-scoped memory requires subjectId",
       });
     }
+    if (value.subjectId && value.scope !== "user") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["subjectId"],
+        message: "subject-owned memory must use user scope",
+      });
+    }
     if (value.kind === "user_preference") {
       if (value.scope !== "user") {
         context.addIssue({
@@ -126,9 +133,7 @@ export class MemoryServiceError extends Error {
     public readonly code:
       | "tenant_not_found"
       | "memory_ttl_exceeds_policy"
-      | "memory_subject_forbidden"
-      | "memory_subject_required"
-      | "memory_not_found",
+      | "memory_subject_forbidden",
   ) {
     super(code);
     this.name = "MemoryServiceError";
