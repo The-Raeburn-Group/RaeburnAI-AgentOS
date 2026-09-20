@@ -152,7 +152,8 @@ model Memory {
   expiresAt   DateTime?
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, scope, key])
+  @@unique([tenantId, scope, key])
+  @@index([tenantId, expiresAt])
 }
 
 model McpServer {
