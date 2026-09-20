@@ -233,9 +233,11 @@ describeWithDatabase("durable workflow queue", () => {
     expect(cancelled.status).toBe(WorkflowJobStatus.CANCELLED);
 
     unblock?.();
-    await expect(processing).rejects.toMatchObject<Partial<WorkflowQueueError>>({
-      code: "job_lease_lost",
-    });
+    await expect(processing).rejects.toMatchObject<Partial<WorkflowQueueError>>(
+      {
+        code: "job_lease_lost",
+      },
+    );
 
     const final = await db.workflowJob.findUniqueOrThrow({
       where: { id: queued.id },
