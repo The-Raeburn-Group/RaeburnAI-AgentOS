@@ -110,7 +110,7 @@ function canonicalJson(value: unknown): string {
       )
       .join(",")}}`;
   }
-  return JSON.stringify(value);
+  return JSON.stringify(value) ?? "null";
 }
 
 export function agentManifestDigest(manifest: AgentManifest): string {
