@@ -52,10 +52,9 @@ describe("subject memory privacy API", () => {
     ]);
 
     const response = await GET(
-      new Request(
-        "http://localhost:3000/api/memory/subject?subjectId=user-a",
-        { headers: headers() },
-      ),
+      new Request("http://localhost:3000/api/memory/subject?subjectId=user-a", {
+        headers: headers(),
+      }),
     );
 
     expect(response.status).toBe(200);
