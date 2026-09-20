@@ -26,6 +26,8 @@ const QueueContextSchema = z.object({
   tenantReference: z.string().min(1),
   actorId: z.string().min(1),
   requestId: z.string().min(1),
+  approvalId: z.string().min(1).optional(),
+  executionId: z.string().min(1).optional(),
 });
 export type WorkflowQueueContext = z.infer<typeof QueueContextSchema>;
 
@@ -143,11 +145,15 @@ export async function enqueueWorkflowJob(
     tenantReference: tenant.id,
     actorId: context.actorId,
     requestId: context.requestId,
+    ...(context.approvalId ? { approvalId: context.approvalId } : {}),
+    ...(context.executionId ? { executionId: context.executionId } : {}),
   };
   const digest = payloadDigest({
     contractVersion: WORKFLOW_QUEUE_CONTRACT_VERSION,
     tenantId: tenant.id,
     actorId: context.actorId,
+    approvalId: context.approvalId ?? null,
+    executionId: context.executionId ?? null,
     request,
   });
 
@@ -170,6 +176,12 @@ export async function enqueueWorkflowJob(
         idempotencyKey: normalizedKey,
         maxAttempts,
         requestId: context.requestId,
+        ...(context.approvalId
+          ? { chainApprovalId: context.approvalId }
+          : {}),
+        ...(context.executionId
+          ? { chainExecutionId: context.executionId }
+          : {}),
       },
     });
     return job;
