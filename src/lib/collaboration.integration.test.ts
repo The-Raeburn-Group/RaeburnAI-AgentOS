@@ -111,9 +111,13 @@ function validEvidenceJson() {
   });
 }
 
-function generator(adjudicationText = validEvidenceJson()): WorkflowModelGenerator {
+function generator(
+  adjudicationText = validEvidenceJson(),
+): WorkflowModelGenerator {
   return vi.fn(async ({ messages }) => {
-    const system = messages.find((message) => message.role === "system")?.content;
+    const system = messages.find(
+      (message) => message.role === "system",
+    )?.content;
     if (system === "SYSTEM_EXPERT_A") {
       return {
         text: "Expert A independent finding",
