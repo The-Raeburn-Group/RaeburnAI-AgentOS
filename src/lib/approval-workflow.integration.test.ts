@@ -383,4 +383,97 @@ describeWithDatabase("approval-gated workflow execution", () => {
     expect(untouched.escalatedAt).toBeNull();
     expect(untouched.escalationLevel).toBe(0);
   });
+
+  it("enforces rejection audit reasons in the core service, not only the HTTP route", async () => {
+    const generate = vi.fn(async () => ({
+      text: "must not execute",
+      provider: "test",
+      model: "test-model",
+    }));
+    const { run, approval } = await createWaitingRun(generate);
+
+    await expect(
+      decideWorkflowApproval({
+        approvalId: approval.id,
+        tenantId: tenantAId,
+        actorId: "approver-a",
+        requestId: "decision-reject-no-reason",
+        decision: "reject",
+        generate,
+      }),
+    ).rejects.toMatchObject({
+      code: "approval_rejection_reason_required",
+    });
+
+    const [stillPending, waitingRun] = await Promise.all([
+      db.approval.findUniqueOrThrow({ where: { id: approval.id } }),
+      db.workflowRun.findUniqueOrThrow({ where: { id: run.id } }),
+    ]);
+    expect(stillPending.status).toBe(ApprovalStatus.PENDING);
+    expect(waitingRun.status).toBe(RunStatus.WAITING_FOR_APPROVAL);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("allows exactly one terminal decision when approvers race", async () => {
+    const generate = vi.fn(async () => ({
+      text: "approved race output",
+      provider: "test",
+      model: "test-model",
+    }));
+    const { run, approval } = await createWaitingRun(generate);
+
+    const outcomes = await Promise.allSettled([
+      decideWorkflowApproval({
+        approvalId: approval.id,
+        tenantId: tenantAId,
+        actorId: "approver-a",
+        requestId: "decision-race-approve",
+        decision: "approve",
+        note: "Approved after evidence review.",
+        generate,
+      }),
+      decideWorkflowApproval({
+        approvalId: approval.id,
+        tenantId: tenantAId,
+        actorId: "approver-b",
+        requestId: "decision-race-reject",
+        decision: "reject",
+        note: "Rejected because the evidence is insufficient.",
+        generate,
+      }),
+    ]);
+
+    expect(
+      outcomes.filter((outcome) => outcome.status === "fulfilled"),
+    ).toHaveLength(1);
+    const rejected = outcomes.find((outcome) => outcome.status === "rejected");
+    expect(rejected).toBeDefined();
+    if (rejected?.status === "rejected") {
+      expect(rejected.reason).toMatchObject({
+        code: "approval_already_decided",
+      });
+    }
+
+    const [decided, finalRun, decisionAudit] = await Promise.all([
+      db.approval.findUniqueOrThrow({ where: { id: approval.id } }),
+      db.workflowRun.findUniqueOrThrow({ where: { id: run.id } }),
+      db.auditEvent.findMany({
+        where: {
+          tenantId: tenantAId,
+          runId: run.id,
+          action: { in: ["approval.approved", "approval.rejected"] },
+        },
+      }),
+    ]);
+    expect(decisionAudit).toHaveLength(1);
+
+    if (decided.status === ApprovalStatus.APPROVED) {
+      expect(finalRun.status).toBe(RunStatus.SUCCEEDED);
+      expect(generate).toHaveBeenCalledTimes(1);
+    } else {
+      expect(decided.status).toBe(ApprovalStatus.REJECTED);
+      expect(finalRun.status).toBe(RunStatus.CANCELLED);
+      expect(generate).not.toHaveBeenCalled();
+    }
+  });
 });

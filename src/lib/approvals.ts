@@ -13,6 +13,7 @@ export class ApprovalDecisionError extends Error {
       | "approval_not_found"
       | "approval_already_decided"
       | "approval_self_decision_forbidden"
+      | "approval_rejection_reason_required"
       | "approval_expired",
   ) {
     super(code);
@@ -60,6 +61,14 @@ export async function decideWorkflowApproval(options: {
   note?: string;
   generate?: WorkflowModelGenerator;
 }) {
+  const decisionNote = options.note?.trim();
+  if (
+    options.decision === "reject" &&
+    (!decisionNote || decisionNote.length < 3 || decisionNote.length > 2000)
+  ) {
+    throw new ApprovalDecisionError("approval_rejection_reason_required");
+  }
+
   const approval = await db.approval.findFirst({
     where: { id: options.approvalId, tenantId: options.tenantId },
     include: { run: { include: { workflow: true } } },
@@ -128,7 +137,7 @@ export async function decideWorkflowApproval(options: {
     data: {
       status,
       decidedBy: options.actorId,
-      decisionNote: options.note?.trim() || null,
+      decisionNote: decisionNote || null,
       decidedAt: now,
     },
   });
@@ -149,7 +158,7 @@ export async function decideWorkflowApproval(options: {
         approvalId: approval.id,
         requestId: options.requestId,
         risk: approval.risk,
-        note: options.note?.trim() || null,
+        note: decisionNote || null,
       },
     },
   });
