@@ -118,5 +118,4 @@ describe("subject memory privacy API", () => {
       error: "Invalid subject request",
     });
   });
-
 });
