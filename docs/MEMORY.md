@@ -5,13 +5,13 @@ directly to the Prisma `Memory` table in normal application flows.
 
 ## Memory kinds
 
-| Kind | Intended scope | Required control |
-| --- | --- | --- |
-| `session_state` | `session` | Provenance + expiry |
-| `user_preference` | `user` | Explicit consent + self ownership |
-| `tenant_context` | `tenant` | Tenant boundary + expiry |
-| `episode` | `workflow` or other non-user scope | Provenance + expiry |
-| `context` | agent/workspace/tenant | Tenant boundary + expiry |
+| Kind              | Intended scope                     | Required control                  |
+| ----------------- | ---------------------------------- | --------------------------------- |
+| `session_state`   | `session`                          | Provenance + expiry               |
+| `user_preference` | `user`                             | Explicit consent + self ownership |
+| `tenant_context`  | `tenant`                           | Tenant boundary + expiry          |
+| `episode`         | `workflow` or other non-user scope | Provenance + expiry               |
+| `context`         | agent/workspace/tenant             | Tenant boundary + expiry          |
 
 Subject-owned memory is permitted only in `user` scope. Deterministic keys include an internal
 owner key, so two users can both have `preference:timezone` without overwriting one another.
