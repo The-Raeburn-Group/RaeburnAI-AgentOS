@@ -29,18 +29,30 @@ export async function GET() {
     const identity = await requireHumanPermission("metrics.read");
     const tenant = await requireHumanTenant(identity);
 
-    const [runCounts, approvalCounts] = await Promise.all([
-      db.workflowRun.groupBy({
-        by: ["status"],
-        where: { tenantId: tenant.id },
-        _count: true,
-      }),
-      db.approval.groupBy({
-        by: ["status"],
-        where: { tenantId: tenant.id },
-        _count: true,
-      }),
-    ]);
+    const [runCounts, approvalCounts, memoryCounts, expiredMemories] =
+      await Promise.all([
+        db.workflowRun.groupBy({
+          by: ["status"],
+          where: { tenantId: tenant.id },
+          _count: true,
+        }),
+        db.approval.groupBy({
+          by: ["status"],
+          where: { tenantId: tenant.id },
+          _count: true,
+        }),
+        db.memory.groupBy({
+          by: ["kind", "sensitivity"],
+          where: { tenantId: tenant.id },
+          _count: true,
+        }),
+        db.memory.count({
+          where: {
+            tenantId: tenant.id,
+            expiresAt: { lte: new Date() },
+          },
+        }),
+      ]);
 
     const registry = new Registry();
     collectDefaultMetrics({ register: registry });
@@ -56,6 +68,17 @@ export async function GET() {
       labelNames: ["status"],
       registers: [registry],
     });
+    const memories = new Gauge({
+      name: "agentos_memory_records_total",
+      help: "Tenant durable memory records by kind and sensitivity",
+      labelNames: ["kind", "sensitivity"],
+      registers: [registry],
+    });
+    const memoryExpired = new Gauge({
+      name: "agentos_memory_expired_total",
+      help: "Tenant durable memory records awaiting expiry purge",
+      registers: [registry],
+    });
 
     runCounts.forEach((row) =>
       workflowRuns.set({ status: row.status }, row._count),
@@ -63,6 +86,13 @@ export async function GET() {
     approvalCounts.forEach((row) =>
       approvals.set({ status: row.status }, row._count),
     );
+    memoryCounts.forEach((row) =>
+      memories.set(
+        { kind: row.kind, sensitivity: row.sensitivity },
+        row._count,
+      ),
+    );
+    memoryExpired.set(expiredMemories);
 
     return new NextResponse(await registry.metrics(), {
       headers: {
