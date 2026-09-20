@@ -140,4 +140,23 @@ describe("memory API", () => {
       "user corrected preference",
     );
   });
+
+  it("rejects malformed JSON without reaching the memory service", async () => {
+    vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "memory-test-token");
+
+    const response = await POST(
+      new Request("http://localhost:3000/api/memory", {
+        method: "POST",
+        headers: headers(),
+        body: "{not-json",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.writeMemory).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid memory payload",
+    });
+  });
+
 });
