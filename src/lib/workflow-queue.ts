@@ -176,9 +176,7 @@ export async function enqueueWorkflowJob(
         idempotencyKey: normalizedKey,
         maxAttempts,
         requestId: context.requestId,
-        ...(context.approvalId
-          ? { chainApprovalId: context.approvalId }
-          : {}),
+        ...(context.approvalId ? { chainApprovalId: context.approvalId } : {}),
         ...(context.executionId
           ? { chainExecutionId: context.executionId }
           : {}),
