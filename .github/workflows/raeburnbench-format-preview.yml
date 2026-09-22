@@ -1,0 +1,24 @@
+name: RaeburnBench Format Preview
+
+on:
+  push:
+    branches:
+      - feat/raeburnbench-core
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Print exact Prettier diff
+        run: |
+          npx prettier src/lib/dataset-provenance.ts src/lib/dataset-provenance.test.ts src/lib/raeburnbench.ts src/lib/raeburnbench.test.ts scripts/raeburnbench.ts docs/RAEBURNBENCH.md --write
+          git diff -- src/lib/dataset-provenance.ts src/lib/dataset-provenance.test.ts src/lib/raeburnbench.ts src/lib/raeburnbench.test.ts scripts/raeburnbench.ts docs/RAEBURNBENCH.md
