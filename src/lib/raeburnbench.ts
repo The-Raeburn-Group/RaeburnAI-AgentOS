@@ -6,12 +6,10 @@ import {
   type DatasetRecord,
 } from "@/lib/dataset-provenance";
 
-export const RAEBURNBENCH_CORPUS_VERSION =
-  "raeburnbench.corpus.v1" as const;
+export const RAEBURNBENCH_CORPUS_VERSION = "raeburnbench.corpus.v1" as const;
 export const RAEBURNBENCH_CANDIDATE_VERSION =
   "raeburnbench.candidate.v1" as const;
-export const RAEBURNBENCH_RESULT_VERSION =
-  "raeburnbench.result.v1" as const;
+export const RAEBURNBENCH_RESULT_VERSION = "raeburnbench.result.v1" as const;
 
 export const RaeburnBenchSuiteSchema = z.enum([
   "domain",
@@ -86,7 +84,10 @@ export const RaeburnBenchCaseSchema = z
     }
     if (value.grader.type === "citation") {
       const available = new Set(value.record.evidence.map((item) => item.id));
-      for (const [index, sourceId] of value.grader.requiredSourceIds.entries()) {
+      for (const [
+        index,
+        sourceId,
+      ] of value.grader.requiredSourceIds.entries()) {
         if (!available.has(sourceId)) {
           context.addIssue({
             code: z.ZodIssueCode.custom,
@@ -178,9 +179,7 @@ export const RaeburnBenchCandidateSchema = z
       ids.add(output.caseId);
     }
   });
-export type RaeburnBenchCandidate = z.infer<
-  typeof RaeburnBenchCandidateSchema
->;
+export type RaeburnBenchCandidate = z.infer<typeof RaeburnBenchCandidateSchema>;
 
 const CaseResultSchema = z.object({
   caseId: z.string(),
@@ -364,7 +363,9 @@ function unsignedResult(result: RaeburnBenchResult) {
   return unsigned;
 }
 
-export function verifyRaeburnBenchResultIntegrity(input: unknown): RaeburnBenchResult {
+export function verifyRaeburnBenchResultIntegrity(
+  input: unknown,
+): RaeburnBenchResult {
   const result = RaeburnBenchResultSchema.parse(input);
   if (sha256(unsignedResult(result)) !== result.artifactDigest) {
     throw new RaeburnBenchError("baseline_integrity_invalid");
@@ -406,9 +407,7 @@ export function evaluateRaeburnBench(
       ),
     ]),
   ) as z.infer<typeof SuiteThresholdsSchema>;
-  const overallScore = rounded(
-    mean(caseResults.map((result) => result.score)),
-  );
+  const overallScore = rounded(mean(caseResults.map((result) => result.score)));
 
   const absoluteFailures: string[] = [];
   if (overallScore < corpus.thresholds.overall) {
@@ -443,9 +442,7 @@ export function evaluateRaeburnBench(
     for (const suite of RaeburnBenchSuiteSchema.options) {
       if (
         suiteScores[suite] <
-        rounded(
-          baseline.suiteScores[suite] - corpus.thresholds.maxRegression,
-        )
+        rounded(baseline.suiteScores[suite] - corpus.thresholds.maxRegression)
       ) {
         regressionFailures.push(
           `${suite} score regressed from ${baseline.suiteScores[suite]} to ${suiteScores[suite]}`,
@@ -483,7 +480,9 @@ export function evaluateRaeburnBench(
   };
 }
 
-export function serializeRaeburnBenchResult(result: RaeburnBenchResult): string {
+export function serializeRaeburnBenchResult(
+  result: RaeburnBenchResult,
+): string {
   return `${JSON.stringify(result, null, 2)}\n`;
 }
 
