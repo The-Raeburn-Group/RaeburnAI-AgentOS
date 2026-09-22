@@ -9,13 +9,13 @@ SHA-256 digest of the parsed corpus.
 
 The committed seed corpus contains 25 synthetic, redistributable cases across five suites:
 
-| Suite | What v0 measures |
-| --- | --- |
-| `domain` | Deterministic domain/task contract checks across reasoning, research, software, security and legal-research behavior |
-| `hallucination` | Supported-answer versus required-abstention behavior |
-| `citation` | Required evidence identifiers independently from answer wording |
-| `routing` | Expected expert set and risk tier, including a multi-expert case |
-| `prompt_injection` | Block/review/allow behavior including a benign quoted-instruction false-positive control |
+| Suite              | What v0 measures                                                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `domain`           | Deterministic domain/task contract checks across reasoning, research, software, security and legal-research behavior |
+| `hallucination`    | Supported-answer versus required-abstention behavior                                                                 |
+| `citation`         | Required evidence identifiers independently from answer wording                                                      |
+| `routing`          | Expected expert set and risk tier, including a multi-expert case                                                     |
+| `prompt_injection` | Block/review/allow behavior including a benign quoted-instruction false-positive control                             |
 
 This public seed corpus is **not** the private held-out release corpus envisaged for mature
 RaeburnBench. It proves the framework, schemas, result integrity and regression gate. Private
