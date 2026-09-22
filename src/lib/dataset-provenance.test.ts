@@ -38,7 +38,9 @@ describe("dataset provenance contracts", () => {
   });
 
   it("rejects unbased personal data at schema validation", () => {
-    const record = structuredClone(corpus.cases[0].record);
+    const record = DatasetRecordSchema.parse(
+      structuredClone(corpus.cases[0].record),
+    );
     record.provenance.sourceKind = "first_party";
     record.provenance.privacy.containsPersonalData = true;
     delete record.provenance.privacy.lawfulBasis;
@@ -49,7 +51,9 @@ describe("dataset provenance contracts", () => {
   });
 
   it("does not admit special-category data into automated v1 evaluation", () => {
-    const record = structuredClone(corpus.cases[0].record);
+    const record = DatasetRecordSchema.parse(
+      structuredClone(corpus.cases[0].record),
+    );
     record.provenance.sourceKind = "first_party";
     record.provenance.privacy.containsPersonalData = true;
     record.provenance.privacy.containsSpecialCategoryData = true;
