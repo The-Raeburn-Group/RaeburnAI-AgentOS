@@ -406,7 +406,9 @@ export function evaluateRaeburnBench(
       ),
     ]),
   ) as z.infer<typeof SuiteThresholdsSchema>;
-  const overallScore = rounded(mean(caseResults.map((result) => result.score));
+  const overallScore = rounded(
+    mean(caseResults.map((result) => result.score)),
+  );
 
   const absoluteFailures: string[] = [];
   if (overallScore < corpus.thresholds.overall) {
