@@ -359,7 +359,8 @@ function parseCorpus(input: unknown): RaeburnBenchCorpus {
 }
 
 function unsignedResult(result: RaeburnBenchResult) {
-  const { artifactDigest: _artifactDigest, ...unsigned } = result;
+  const { artifactDigest, ...unsigned } = result;
+  void artifactDigest;
   return unsigned;
 }
 
