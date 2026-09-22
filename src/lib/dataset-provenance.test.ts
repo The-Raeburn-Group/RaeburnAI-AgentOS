@@ -56,9 +56,7 @@ describe("dataset provenance contracts", () => {
     record.provenance.privacy.lawfulBasis = "documented-test-basis";
 
     expect(() => assertEvaluationRecordAdmissible(record)).toThrowError(
-      new DatasetAdmissibilityError(
-        "special_category_data_not_permitted",
-      ),
+      new DatasetAdmissibilityError("special_category_data_not_permitted"),
     );
   });
 });
