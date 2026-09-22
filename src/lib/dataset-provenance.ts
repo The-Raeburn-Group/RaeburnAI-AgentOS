@@ -149,9 +149,7 @@ function requirePurpose(
     throw new DatasetAdmissibilityError("license_not_permitted");
   }
   if (record.provenance.privacy.containsSpecialCategoryData) {
-    throw new DatasetAdmissibilityError(
-      "special_category_data_not_permitted",
-    );
+    throw new DatasetAdmissibilityError("special_category_data_not_permitted");
   }
   if (
     record.provenance.privacy.containsPersonalData &&
@@ -162,7 +160,9 @@ function requirePurpose(
   return record;
 }
 
-export function assertEvaluationRecordAdmissible(input: unknown): DatasetRecord {
+export function assertEvaluationRecordAdmissible(
+  input: unknown,
+): DatasetRecord {
   return requirePurpose(parsedRecord(input), "evaluation");
 }
 
