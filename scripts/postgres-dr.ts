@@ -411,12 +411,31 @@ async function seedRecoveryFixture(): Promise<void> {
         data: {
           id: `00000000-0000-4000-8000-00000000${suffix}501`,
           tenantId,
-          scope: "workspace",
+          scope: "tenant",
+          kind: "tenant_context",
           key: "dr-recovery-fixture",
           content: `tenant-${suffix}-memory`,
-          metadata: { classification: "restricted", fixture: true },
-          embedding: [0.125, 0.25, 0.5],
+          metadata: {
+            fixture: true,
+            _memoryPolicy: {
+              version: "raeburnai.memory-policy.v1",
+              classification: "general",
+              findingTypes: [],
+              redactionCount: 0,
+              sensitivityLabels: [],
+            },
+          },
+          provenance: {
+            sourceType: "system",
+            sourceId: `dr-fixture-${suffix}`,
+            recordedAt: createdAt.toISOString(),
+          },
+          sensitivity: "general",
+          policyVersion: "raeburnai.memory-policy.v1",
+          embedding: [],
           createdAt,
+          updatedAt: createdAt,
+          expiresAt: new Date("2026-10-15T00:00:00.000Z"),
         },
       });
 
