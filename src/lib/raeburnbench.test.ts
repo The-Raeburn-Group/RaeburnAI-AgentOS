@@ -89,11 +89,7 @@ describe("RaeburnBench", () => {
     if (!output) throw new Error("fixture output missing");
     output.answer = "Retry the request normally.";
 
-    const result = evaluateRaeburnBench(
-      corpusFixture,
-      candidate,
-      baseline,
-    );
+    const result = evaluateRaeburnBench(corpusFixture, candidate, baseline);
 
     expect(result.suiteScores.domain).toBe(0.8);
     expect(result.gate.absoluteFailures).toEqual([]);
