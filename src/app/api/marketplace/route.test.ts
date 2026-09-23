@@ -42,9 +42,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-function manifest(
-  overrides: Partial<AgentManifest> = {},
-): AgentManifest {
+function manifest(overrides: Partial<AgentManifest> = {}): AgentManifest {
   return AgentManifestSchema.parse({
     schemaVersion: "raeburnai.agent-manifest.v1",
     name: "Raeburn Research",
@@ -138,7 +136,9 @@ describe("marketplace verified-version immutability", () => {
     const changed = manifest({
       systemPrompt: "A changed prompt that has not been re-verified.",
     });
-    mocks.agentFindUnique.mockResolvedValue(storedAgent(approved, AgentStatus.VERIFIED));
+    mocks.agentFindUnique.mockResolvedValue(
+      storedAgent(approved, AgentStatus.VERIFIED),
+    );
 
     const response = await postManifest(changed);
 
@@ -180,7 +180,11 @@ describe("marketplace verified-version immutability", () => {
     const draft = manifest();
     const changed = manifest({ description: "Reviewed draft description." });
     const before = storedAgent(draft, AgentStatus.DRAFT);
-    const after = storedAgent(changed, AgentStatus.DRAFT, new Date("2026-09-23T11:01:00.000Z"));
+    const after = storedAgent(
+      changed,
+      AgentStatus.DRAFT,
+      new Date("2026-09-23T11:01:00.000Z"),
+    );
     mocks.agentFindUnique
       .mockResolvedValueOnce(before)
       .mockResolvedValueOnce(after);
