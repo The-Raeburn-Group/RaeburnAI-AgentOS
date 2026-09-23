@@ -10,7 +10,10 @@ import { apiError, rateLimit } from "@/lib/http";
 
 function authError(error: unknown) {
   if (error instanceof TenantAccessError) {
-    return NextResponse.json(\n      { error: "tenant_access_denied" },\n      { status: 403 },\n    );
+    return NextResponse.json(
+      { error: "tenant_access_denied" },
+      { status: 403 },
+    );
   }
   if (!(error instanceof HumanAuthError)) return undefined;
   if (error.code === "auth_unconfigured") {
@@ -55,7 +58,9 @@ export async function POST(
   const limited = rateLimit(request, 30, 60_000);
   if (limited) return limited;
 
-  if (\n    !(request.headers.get("content-type") ?? "").includes("application/json")\n  ) {
+  if (
+    !(request.headers.get("content-type") ?? "").includes("application/json")
+  ) {
     return NextResponse.json(
       { error: "application_json_required" },
       { status: 415 },
@@ -79,6 +84,10 @@ export async function POST(
     );
     return NextResponse.json({ candidate, requestId });
   } catch (error) {
-    return (\n      authError(error) ??\n      candidateError(error) ??\n      apiError(error, "evaluation.candidates.review")\n    );
+    return (
+      authError(error) ??
+      candidateError(error) ??
+      apiError(error, "evaluation.candidates.review")
+    );
   }
 }
