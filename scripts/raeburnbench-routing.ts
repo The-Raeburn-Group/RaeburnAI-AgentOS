@@ -18,7 +18,7 @@ for (const benchmarkCase of corpusFixture.cases) {
   );
   if (!output) {
     throw new Error(
-      \`reference candidate is missing routing case: \${benchmarkCase.record.id}\`,
+      `reference candidate is missing routing case: ${benchmarkCase.record.id}`,
     );
   }
 
@@ -42,7 +42,7 @@ const routingCases = result.caseResults.filter(
 const failedCases = routingCases.filter((caseResult) => !caseResult.passed);
 
 process.stdout.write(
-  \`\${JSON.stringify(
+  `${JSON.stringify(
     {
       candidate: result.candidate,
       corpusDigest: result.corpus.digest,
@@ -51,7 +51,7 @@ process.stdout.write(
     },
     null,
     2,
-  )}\n\`,
+  )}\n`,
 );
 
 if (
