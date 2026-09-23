@@ -202,7 +202,6 @@ export function projectFailureAuditEvent(event: FailureEvent) {
   const safe = safeFailurePayload(event, detail);
   const fingerprint = sha256({
     tenantId: event.tenantId,
-    runId: event.runId,
     sourceAction: event.action,
     failureKind: kind,
     summary: safe.summary,
