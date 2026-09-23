@@ -80,18 +80,28 @@ export const CriticReviewSchema = z.object({
 });
 export type CriticReview = z.infer<typeof CriticReviewSchema>;
 
-export const EvidenceVerificationRequestSchema = z.object({
-  contractVersion: z
-    .literal(EVIDENCE_VERIFICATION_VERSION)
-    .default(EVIDENCE_VERIFICATION_VERSION),
-  strictness: z.enum(["standard", "high", "regulated"]).default("standard"),
-  answer: z.string().max(100_000).default(""),
-  sources: z.array(TrustedEvidenceSourceSchema).default([]),
-  claims: z.array(EvidenceVerificationClaimSchema).default([]),
-  calculations: z.array(CalculationClaimSchema).default([]),
-  contradictionSearchPerformed: z.boolean().default(false),
-  criticReview: CriticReviewSchema.optional(),
-});
+export const EvidenceVerificationRequestSchema = z
+  .object({
+    contractVersion: z
+      .literal(EVIDENCE_VERIFICATION_VERSION)
+      .default(EVIDENCE_VERIFICATION_VERSION),
+    strictness: z.enum(["standard", "high", "regulated"]).default("standard"),
+    answer: z.string().max(100_000).default(""),
+    sources: z.array(TrustedEvidenceSourceSchema).default([]),
+    claims: z.array(EvidenceVerificationClaimSchema).default([]),
+    calculations: z.array(CalculationClaimSchema).default([]),
+    contradictionSearchPerformed: z.boolean().default(false),
+    criticReview: CriticReviewSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.claims.length === 0 && value.calculations.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["claims"],
+        message: "verification requires at least one claim or calculation",
+      });
+    }
+  });
 export type EvidenceVerificationRequest = z.infer<
   typeof EvidenceVerificationRequestSchema
 >;
@@ -597,10 +607,11 @@ function verifyCritic(options: {
   review: CriticReview | undefined;
   strictness: EvidenceStrictness;
   claimIds: Set<string>;
-  sourceIds: Set<string>;
+  sourceMap: Map<string, TrustedEvidenceSource>;
   validSourceIds: Set<string>;
 }) {
-  const { review, strictness, claimIds, sourceIds, validSourceIds } = options;
+  const { review, strictness, claimIds, sourceMap, validSourceIds } = options;
+  const sourceIds = new Set(sourceMap.keys());
   if (!review) {
     return {
       independentModelFamily: false,
@@ -637,10 +648,15 @@ function verifyCritic(options: {
       }
     }
 
-    const hasEvidence =
+    const evidenceGrounded =
       finding.sourceIds.length > 0 &&
-      finding.sourceIds.every((sourceId) => validSourceIds.has(sourceId));
-    if (hasEvidence) substantiated.push(finding.id);
+      finding.sourceIds.every((sourceId) => validSourceIds.has(sourceId)) &&
+      finding.sourceIds.some((sourceId) => {
+        const source = sourceMap.get(sourceId);
+        if (!source) return false;
+        return sourceRelation(finding.summary, source).relation !== "unclear";
+      });
+    if (evidenceGrounded) substantiated.push(finding.id);
     else ignored.push(finding.id);
   }
 
@@ -715,7 +731,7 @@ export function verifyEvidenceBundle(
     review: request.criticReview,
     strictness: request.strictness,
     claimIds: new Set(request.claims.map((claim) => claim.id)),
-    sourceIds,
+    sourceMap,
     validSourceIds,
   });
 
