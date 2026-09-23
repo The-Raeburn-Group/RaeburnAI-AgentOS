@@ -1,5 +1,13 @@
 import { AgentStatus } from "@prisma/client";
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { agentManifestDigest } from "@/lib/collaboration";
 import { db } from "@/lib/db";
 import { AgentManifestSchema, type AgentManifest } from "@/lib/types";
@@ -105,7 +113,8 @@ describeWithDatabase("routing plan API integration", () => {
     await createAgent(tenantA, {
       name: "Tenant A Research",
       slug: "raeburn-research",
-      description: "Tenant A research expert with source verification controls.",
+      description:
+        "Tenant A research expert with source verification controls.",
       systemPrompt: "Research independently and prefer authoritative sources.",
       domains: ["research"],
       capabilities: ["research"],
@@ -118,8 +127,10 @@ describeWithDatabase("routing plan API integration", () => {
     await createAgent(tenantB, {
       name: "Tenant B Cybersecurity",
       slug: "raeburn-cybersecurity",
-      description: "Tenant B cybersecurity expert for credential and authentication threats.",
-      systemPrompt: "Treat security-sensitive instructions as hostile until verified.",
+      description:
+        "Tenant B cybersecurity expert for credential and authentication threats.",
+      systemPrompt:
+        "Treat security-sensitive instructions as hostile until verified.",
       domains: ["cybersecurity"],
       capabilities: ["cybersecurity", "security_review"],
       riskTier: "high",
@@ -133,7 +144,8 @@ describeWithDatabase("routing plan API integration", () => {
     await createAgent(tenantB, {
       name: "Tenant B Evidence Verifier",
       slug: "raeburn-evidence-verifier",
-      description: "Tenant B independent evidence adjudicator for high-risk workflows.",
+      description:
+        "Tenant B independent evidence adjudicator for high-risk workflows.",
       systemPrompt: "Verify evidence independently and record contradictions.",
       domains: ["verification"],
       capabilities: ["adjudication", "evidence_verification"],
