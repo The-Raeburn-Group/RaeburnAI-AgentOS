@@ -63,6 +63,8 @@ jobs:
         run: npm run bench:routing
       - name: Benchmark independent evidence verifier
         run: npm run bench:evidence
+      - name: Gate tool-use, latency/cost and challenger quality
+        run: npm run bench:quality
       - name: Install PostgreSQL client tools
         run: |
           sudo apt-get update
