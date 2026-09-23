@@ -248,9 +248,7 @@ function normalizedText(value: string): string {
 }
 
 function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^$(){}|[\]\\]/g, "\\function includesPhrase(answer: string, phrase: string): boolean {
-  return normalizedText(answer).includes(normalizedText(phrase));
-}");
+  return value.replace(/[.*+?^$(){}|[\]\\]/g, "\\$&");
 }
 
 function includesPhrase(answer: string, phrase: string): boolean {
@@ -259,7 +257,7 @@ function includesPhrase(answer: string, phrase: string): boolean {
   if (!normalizedPhrase) return false;
 
   if (/^[a-z0-9]+(?: [a-z0-9]+)*$/.test(normalizedPhrase)) {
-    const pattern = escapeRegex(normalizedPhrase).replace(/\\ /g, "\\s+");
+    const pattern = escapeRegex(normalizedPhrase).replace(/ /g, "\\s+");
     return new RegExp(
       `(?<![a-z0-9])${pattern}(?![a-z0-9])`,
       "i",
