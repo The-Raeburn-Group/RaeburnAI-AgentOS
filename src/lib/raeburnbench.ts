@@ -247,8 +247,26 @@ function normalizedText(value: string): string {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-function includesPhrase(answer: string, phrase: string): boolean {
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^$(){}|[\]\\]/g, "\\function includesPhrase(answer: string, phrase: string): boolean {
   return normalizedText(answer).includes(normalizedText(phrase));
+}");
+}
+
+function includesPhrase(answer: string, phrase: string): boolean {
+  const normalizedAnswer = normalizedText(answer);
+  const normalizedPhrase = normalizedText(phrase);
+  if (!normalizedPhrase) return false;
+
+  if (/^[a-z0-9]+(?: [a-z0-9]+)*$/.test(normalizedPhrase)) {
+    const pattern = escapeRegex(normalizedPhrase).replace(/\\ /g, "\\s+");
+    return new RegExp(
+      `(?<![a-z0-9])${pattern}(?![a-z0-9])`,
+      "i",
+    ).test(normalizedAnswer);
+  }
+
+  return normalizedAnswer.includes(normalizedPhrase);
 }
 
 function mean(values: number[]): number {
@@ -318,10 +336,19 @@ function evaluateCase(
         reason: `citation answer phrase missing: ${phrase}`,
       });
     }
+    const availableSourceIds = new Set(
+      benchmarkCase.record.evidence.map((item) => item.id),
+    );
     for (const sourceId of grader.requiredSourceIds) {
       checks.push({
         ok: output.citations.includes(sourceId),
         reason: `required citation missing: ${sourceId}`,
+      });
+    }
+    for (const sourceId of output.citations) {
+      checks.push({
+        ok: availableSourceIds.has(sourceId),
+        reason: `unsupported citation: ${sourceId}`,
       });
     }
   } else if (grader.type === "routing") {
