@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         tenantId: authentication.context.tenantId,
         status: EvaluationCandidateStatus.PENDING_REVIEW,
       },
-      orderBy: [{ severity: "desc" }, { occurrenceCount: "desc" }, { createdAt: "asc" }],
+      orderBy: [{ occurrenceCount: "desc" }, { createdAt: "asc" }],
       take: 100,
       select: {
         id: true,
