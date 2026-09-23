@@ -16,7 +16,12 @@ import { apiError, rateLimit } from "@/lib/http";
 
 const ListQuerySchema = z.object({
   status: z
-    .enum([\n      "quarantined",\n      "approved_evaluation",\n      "approved_training",\n      "rejected",\n    ])
+    .enum([
+      "quarantined",
+      "approved_evaluation",
+      "approved_training",
+      "rejected",
+    ])
     .optional(),
   trigger: z
     .enum([
@@ -49,7 +54,10 @@ const triggerMap = {
 
 function authError(error: unknown) {
   if (error instanceof TenantAccessError) {
-    return NextResponse.json(\n      { error: "tenant_access_denied" },\n      { status: 403 },\n    );
+    return NextResponse.json(
+      { error: "tenant_access_denied" },
+      { status: 403 },
+    );
   }
   if (!(error instanceof HumanAuthError)) return undefined;
   if (error.code === "auth_unconfigured") {
@@ -102,7 +110,11 @@ export async function GET(request: Request) {
     );
     return NextResponse.json({ tenantId: tenant.id, candidates });
   } catch (error) {
-    return (\n      authError(error) ??\n      candidateError(error) ??\n      apiError(error, "evaluation.candidates.list")\n    );
+    return (
+      authError(error) ??
+      candidateError(error) ??
+      apiError(error, "evaluation.candidates.list")
+    );
   }
 }
 
@@ -110,7 +122,9 @@ export async function POST(request: Request) {
   const limited = rateLimit(request, 60, 60_000);
   if (limited) return limited;
 
-  if (\n    !(request.headers.get("content-type") ?? "").includes("application/json")\n  ) {
+  if (
+    !(request.headers.get("content-type") ?? "").includes("application/json")
+  ) {
     return NextResponse.json(
       { error: "application_json_required" },
       { status: 415 },
@@ -132,6 +146,10 @@ export async function POST(request: Request) {
       { status: result.deduplicated ? 200 : 201 },
     );
   } catch (error) {
-    return (\n      authError(error) ??\n      candidateError(error) ??\n      apiError(error, "evaluation.candidates.capture")\n    );
+    return (
+      authError(error) ??
+      candidateError(error) ??
+      apiError(error, "evaluation.candidates.capture")
+    );
   }
 }
