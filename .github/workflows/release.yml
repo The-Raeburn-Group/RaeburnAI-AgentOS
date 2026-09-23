@@ -97,6 +97,7 @@ jobs:
           sha256sum \
             "${{ steps.package.outputs.artifact }}" \
             package-lock.json \
+            benchmarks/results/reference.v0.json \
             sbom.spdx.json \
             sbom.cdx.json \
             > SHA256SUMS
@@ -130,8 +131,9 @@ jobs:
           cat > TRUST-PACKAGE.txt <<'EOF'
           RaeburnAI AgentOS release trust package
 
-          Release publication is blocked by quality checks, High/Critical dependency findings,
-          High/Critical container findings, build failure or supply-chain policy drift.
+          Release publication is blocked by quality checks, RaeburnBench seed-baseline drift,
+          High/Critical dependency findings, High/Critical container findings, build failure
+          or supply-chain policy drift.
 
           Verify checksums:
             sha256sum -c SHA256SUMS
@@ -149,6 +151,7 @@ jobs:
           files: |
             ${{ steps.package.outputs.artifact }}
             SHA256SUMS
+            benchmarks/results/reference.v0.json
             sbom.spdx.json
             sbom.cdx.json
             release.tar.gz.sigstore
