@@ -258,10 +258,9 @@ function includesPhrase(answer: string, phrase: string): boolean {
 
   if (/^[a-z0-9]+(?: [a-z0-9]+)*$/.test(normalizedPhrase)) {
     const pattern = escapeRegex(normalizedPhrase).replace(/ /g, "\\s+");
-    return new RegExp(
-      `(?<![a-z0-9])${pattern}(?![a-z0-9])`,
-      "i",
-    ).test(normalizedAnswer);
+    return new RegExp(`(?<![a-z0-9])${pattern}(?![a-z0-9])`, "i").test(
+      normalizedAnswer,
+    );
   }
 
   return normalizedAnswer.includes(normalizedPhrase);
