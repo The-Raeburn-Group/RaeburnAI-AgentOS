@@ -19,7 +19,7 @@ describe("quality loop failure projection", () => {
     expect(projected.severity).toBe("high");
     expect(projected.summary).toContain("[REDACTED:EMAIL]");
     expect(projected.metadata).toMatchObject({
-      redactionCount: 1,
+      redactionCount: 2,
       sourceEventId: "event-1",
     });
     expect(projected.fingerprint).toMatch(/^[a-f0-9]{64}$/);
