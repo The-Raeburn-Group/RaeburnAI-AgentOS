@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   const limited = rateLimit(request, 120, 60_000);
   if (limited) return limited;
 
-  if (!(request.headers.get("content-type") ?? "").includes("application/json")) {
+  if (\n    !(request.headers.get("content-type") ?? "").includes("application/json")\n  ) {
     return NextResponse.json(
       { error: "application_json_required" },
       { status: 415 },
@@ -42,6 +42,6 @@ export async function POST(request: Request) {
       { status: result.deduplicated ? 200 : 201 },
     );
   } catch (error) {
-    return candidateError(error) ?? apiError(error, "evaluation.candidates.ingest");
+    return (\n      candidateError(error) ?? apiError(error, "evaluation.candidates.ingest")\n    );
   }
 }
