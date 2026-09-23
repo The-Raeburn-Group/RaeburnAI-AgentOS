@@ -57,6 +57,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Verify immutable RaeburnBench seed baseline
+        run: npm run bench:verify
       - name: Install PostgreSQL client tools
         run: |
           sudo apt-get update
