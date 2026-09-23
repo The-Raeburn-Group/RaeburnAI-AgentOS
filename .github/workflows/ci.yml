@@ -59,6 +59,8 @@ jobs:
       - run: npm test
       - name: Verify immutable RaeburnBench seed baseline
         run: npm run bench:verify
+      - name: Benchmark executable expert routing policy
+        run: npm run bench:routing
       - name: Install PostgreSQL client tools
         run: |
           sudo apt-get update
