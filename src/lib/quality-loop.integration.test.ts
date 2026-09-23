@@ -166,6 +166,46 @@ describeWithDatabase("durable quality loop", () => {
     });
   });
 
+
+  it("allows only one conflicting reviewer transition", async () => {
+    await db.auditEvent.create({
+      data: {
+        id: "quality-source-race",
+        tenantId,
+        actor: "agent-a",
+        action: "agent.failed",
+        metadata: { error: "provider request failed" },
+      },
+    });
+    await ingestFailureAuditEvents();
+    const candidate = await db.evaluationCandidate.findFirstOrThrow({
+      where: { tenantId },
+    });
+
+    const outcomes = await Promise.allSettled([
+      reviewEvaluationCandidate({
+        tenantId,
+        candidateId: candidate.id,
+        decision: "accept",
+        reviewer: "reviewer-a",
+      }),
+      reviewEvaluationCandidate({
+        tenantId,
+        candidateId: candidate.id,
+        decision: "reject",
+        reviewer: "reviewer-b",
+      }),
+    ]);
+
+    expect(outcomes.filter((item) => item.status === "fulfilled")).toHaveLength(1);
+    expect(outcomes.filter((item) => item.status === "rejected")).toHaveLength(1);
+    expect(
+      await db.auditEvent.count({
+        where: { tenantId, action: "quality.evaluation_candidate.reviewed" },
+      }),
+    ).toBe(1);
+  });
+
   it("keeps rejected candidates terminal", async () => {
     await db.auditEvent.create({
       data: {
