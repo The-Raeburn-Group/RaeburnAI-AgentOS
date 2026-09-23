@@ -281,7 +281,10 @@ describe("independent evidence verification", () => {
   });
 
   it("fails on a substantiated high-severity critic finding in high assurance mode", () => {
-    const trusted = source("s1", "The approved limit is 50.");
+    const trusted = source(
+      "s1",
+      "The approved limit is 50. A documented exception applies to emergency cases.",
+    );
     const result = verifyEvidenceBundle({
       strictness: "high",
       sources: [trusted],
@@ -298,7 +301,7 @@ describe("independent evidence verification", () => {
           id: "f1",
           category: "factuality",
           severity: "high",
-          summary: "The cited source identifies a material exception.",
+          summary: "A documented exception applies to emergency cases.",
           claimIds: ["c1"],
           sourceIds: ["s1"],
         },
@@ -341,6 +344,12 @@ describe("independent evidence verification", () => {
       passed: false,
       computedResult: 15,
     });
+  });
+
+  it("rejects an empty verification bundle instead of treating missing assertions as perfect scores", () => {
+    expect(() => verifyEvidenceBundle({})).toThrow(
+      "verification requires at least one claim or calculation",
+    );
   });
 
   it("rejects duplicate identifiers and unknown citation references", () => {
