@@ -32,7 +32,7 @@ const toolBenchmark = {
       maxCalls: 1,
     },
   ],
-} as const;
+};
 
 const toolCandidate = {
   candidate,
@@ -51,7 +51,7 @@ const performanceBenchmark = {
     { id: "perf.tool.001", maxLatencyMs: 2500, maxCostUsd: 0.03 },
     { id: "perf.evidence.001", maxLatencyMs: 5000, maxCostUsd: 0.08 },
   ],
-} as const;
+};
 
 const performanceCandidate = {
   candidate,
