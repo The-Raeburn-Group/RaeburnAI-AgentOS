@@ -42,6 +42,16 @@ describe("human RBAC", () => {
     expect(hasPermission(identity(["auditor"]), "audit.read")).toBe(true);
   });
 
+  it("separates evaluation capture, review and read permissions", () => {
+    expect(hasPermission(identity(["operator"]), "evaluation.capture")).toBe(true);
+    expect(hasPermission(identity(["operator"]), "evaluation.review")).toBe(false);
+    expect(hasPermission(identity(["approver"]), "evaluation.review")).toBe(true);
+    expect(hasPermission(identity(["auditor"]), "evaluation.read")).toBe(true);
+    expect(hasPermission(identity(["auditor"]), "evaluation.capture")).toBe(false);
+    expect(hasPermission(identity(["viewer"]), "evaluation.read")).toBe(false);
+  });
+
+
   it("requires all production OIDC session inputs", () => {
     expect(
       humanAuthConfigured({
