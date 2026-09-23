@@ -43,11 +43,19 @@ describe("human RBAC", () => {
   });
 
   it("separates evaluation capture, review and read permissions", () => {
-    expect(hasPermission(identity(["operator"]), "evaluation.capture")).toBe(\n      true,\n    );
-    expect(hasPermission(identity(["operator"]), "evaluation.review")).toBe(\n      false,\n    );
-    expect(hasPermission(identity(["approver"]), "evaluation.review")).toBe(\n      true,\n    );
+    expect(hasPermission(identity(["operator"]), "evaluation.capture")).toBe(
+      true,
+    );
+    expect(hasPermission(identity(["operator"]), "evaluation.review")).toBe(
+      false,
+    );
+    expect(hasPermission(identity(["approver"]), "evaluation.review")).toBe(
+      true,
+    );
     expect(hasPermission(identity(["auditor"]), "evaluation.read")).toBe(true);
-    expect(hasPermission(identity(["auditor"]), "evaluation.capture")).toBe(\n      false,\n    );
+    expect(hasPermission(identity(["auditor"]), "evaluation.capture")).toBe(
+      false,
+    );
     expect(hasPermission(identity(["viewer"]), "evaluation.read")).toBe(false);
   });
 
