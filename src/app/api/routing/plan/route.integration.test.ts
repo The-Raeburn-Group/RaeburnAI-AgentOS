@@ -85,7 +85,7 @@ function request(tenantId: string, goal: string) {
       authorization: "Bearer routing-integration-token",
       "x-tenant-id": tenantId,
       "x-actor-id": "chain-router",
-      "x-request-id": \`routing-\${tenantId}\`,
+      "x-request-id": `routing-${tenantId}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({ goal }),
