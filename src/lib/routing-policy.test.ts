@@ -58,6 +58,33 @@ describe("routing policy", () => {
     }
   });
 
+  it.each([
+    ["Deploy to production after reviewing the release.", "raeburn-software-engineering"],
+    ["Delete production data after the approved migration.", "raeburn-software-engineering"],
+    ["Disable security controls during incident recovery.", "raeburn-cybersecurity"],
+    ["Sign contract on behalf of the organisation.", "raeburn-legal-research"],
+    ["File court documents for the disputed contract.", "raeburn-legal-research"],
+    ["Prescribe medication for the patient.", "raeburn-health-research"],
+    ["Transfer funds between treasury accounts.", "raeburn-finance"],
+    ["Execute trade for the portfolio.", "raeburn-finance"],
+    ["Submit tax return to HMRC.", "raeburn-tax"],
+  ])(
+    "maps critical action %s to specialist %s rather than a generalist",
+    (goal, expectedExpert) => {
+      const plan = planExpertRoute({ goal }, experts);
+
+      expect(plan).toMatchObject({
+        riskTier: "critical",
+        mode: "evidence",
+        strictness: "regulated",
+        primaryAgents: [expectedExpert],
+        adjudicator: "raeburn-evidence-verifier",
+        requiresHumanApproval: true,
+      });
+      expect(plan.primaryAgents).not.toContain("raeburn-general-reasoning");
+    },
+  );
+
   it("requires independent evidence adjudication for high-risk routes", () => {
     const plan = planExpertRoute(
       {
