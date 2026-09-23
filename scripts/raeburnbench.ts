@@ -64,14 +64,13 @@ async function main(): Promise<void> {
   const result = evaluateRaeburnBench(corpus, candidate, baseline);
   const serialized = serializeRaeburnBenchResult(result);
 
-  if (options.out) {
-    const outputPath = resolve(options.out);
-    await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, serialized, "utf8");
+  const outputPath = options.out ? resolve(options.out) : undefined;
+  const expectedPath = options.verify ? resolve(options.verify) : undefined;
+  if (outputPath && expectedPath && outputPath === expectedPath) {
+    throw new Error("--out and --verify must reference different paths");
   }
 
-  if (options.verify) {
-    const expectedPath = resolve(options.verify);
+  if (expectedPath) {
     const expected = await readFile(expectedPath, "utf8");
     verifyRaeburnBenchResultIntegrity(JSON.parse(expected) as unknown);
     if (expected !== serialized) {
@@ -79,6 +78,11 @@ async function main(): Promise<void> {
         `benchmark artifact mismatch: regenerate ${options.verify} from the reviewed corpus/candidate`,
       );
     }
+  }
+
+  if (outputPath) {
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, serialized, "utf8");
   }
 
   process.stdout.write(serialized);
