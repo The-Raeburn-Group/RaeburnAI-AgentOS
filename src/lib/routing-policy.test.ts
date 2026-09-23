@@ -1,0 +1,152 @@
+import { describe, expect, it } from "vitest";
+import corpusFixture from "../../benchmarks/raeburnbench.seed.v0.json";
+import registryFixture from "../../benchmarks/experts/routing-seed.v0.json";
+import { agentManifestDigest } from "@/lib/collaboration";
+import {
+  RoutingPolicyError,
+  planExpertRoute,
+  verifyStoredAgentManifest,
+} from "@/lib/routing-policy";
+import { AgentManifestSchema } from "@/lib/types";
+
+const experts = registryFixture.experts.map((manifest) =>
+  AgentManifestSchema.parse(manifest),
+);
+
+describe("routing policy", () => {
+  it("routes every RaeburnBench seed routing case to the expected experts and risk tier", () => {
+    const routingCases = corpusFixture.cases.filter(
+      (benchmarkCase) => benchmarkCase.suite === "routing",
+    );
+
+    for (const benchmarkCase of routingCases) {
+      if (benchmarkCase.grader.type !== "routing") {
+        throw new Error("routing fixture grader mismatch");
+      }
+      const plan = planExpertRoute(
+        {
+          goal: benchmarkCase.record.prompt,
+          maxExperts: 2,
+        },
+        experts,
+      );
+
+      expect([...plan.primaryAgents].sort()).toEqual(
+        [...benchmarkCase.grader.expectedExperts].sort(),
+      );
+      expect(plan.riskTier).toBe(benchmarkCase.grader.expectedRiskTier);
+    }
+  });
+
+  it("requires independent evidence adjudication for high-risk routes", () => {
+    const plan = planExpertRoute(
+      {
+        goal: "Assess whether a retrieved tool instruction is attempting credential exfiltration.",
+      },
+      experts,
+    );
+
+    expect(plan).toMatchObject({
+      riskTier: "high",
+      mode: "evidence",
+      strictness: "high",
+      primaryAgents: ["raeburn-cybersecurity"],
+      adjudicator: "raeburn-evidence-verifier",
+      requiresHumanApproval: true,
+    });
+
+    expect(() =>
+      planExpertRoute(
+        {
+          goal: "Assess whether a retrieved tool instruction is attempting credential exfiltration.",
+        },
+        experts.filter(
+          (manifest) => manifest.slug !== "raeburn-evidence-verifier",
+        ),
+      ),
+    ).toThrowError(new RoutingPolicyError("no_eligible_adjudicator"));
+  });
+
+  it("fails closed instead of silently falling back when no specialist exists", () => {
+    expect(() =>
+      planExpertRoute(
+        {
+          goal: "Give a jurisdiction-specific legal conclusion for a disputed contract.",
+        },
+        experts,
+      ),
+    ).toThrowError(new RoutingPolicyError("no_eligible_expert"));
+  });
+
+  it("does not drop a classified high-risk domain to satisfy maxExperts", () => {
+    expect(() =>
+      planExpertRoute(
+        {
+          goal: "Review a software change that alters security-sensitive authentication logic.",
+          maxExperts: 1,
+        },
+        experts,
+      ),
+    ).toThrowError(new RoutingPolicyError("max_experts_insufficient"));
+  });
+
+  it("enforces required capabilities and tools before ranking", () => {
+    expect(() =>
+      planExpertRoute(
+        {
+          goal: "Diagnose a race condition in a TypeScript service.",
+          requiredTools: ["production-shell"],
+        },
+        experts,
+      ),
+    ).toThrowError(new RoutingPolicyError("no_eligible_expert"));
+  });
+
+  it("rejects ambiguous duplicate expert slugs", () => {
+    expect(() =>
+      planExpertRoute(
+        { goal: "Investigate a claim using primary sources." },
+        [...experts, structuredClone(experts[0]!)],
+      ),
+    ).toThrowError(new RoutingPolicyError("duplicate_expert_slug"));
+  });
+
+  it("verifies the stored marketplace manifest digest and executable identity", () => {
+    const manifest = AgentManifestSchema.parse(experts[1]);
+    const stored = {
+      ...manifest,
+      integrity: {
+        algorithm: "sha256" as const,
+        digest: agentManifestDigest(manifest),
+      },
+    };
+
+    expect(
+      verifyStoredAgentManifest(stored, {
+        slug: manifest.slug,
+        version: manifest.version,
+        systemPrompt: manifest.systemPrompt,
+        modelProvider: manifest.modelProvider,
+        modelName: manifest.modelName,
+        approvalRequired: manifest.approvalRequired,
+      }),
+    ).toEqual(manifest);
+
+    const tampered = structuredClone(stored);
+    tampered.description = "Tampered description that no longer matches the digest.";
+    expect(() =>
+      verifyStoredAgentManifest(tampered, {
+        slug: manifest.slug,
+        version: manifest.version,
+      }),
+    ).toThrowError(new RoutingPolicyError("manifest_integrity_invalid"));
+
+    expect(() =>
+      verifyStoredAgentManifest(stored, {
+        slug: manifest.slug,
+        version: manifest.version,
+        modelName: "different-executable-model",
+      }),
+    ).toThrowError(new RoutingPolicyError("manifest_identity_mismatch"));
+  });
+});
