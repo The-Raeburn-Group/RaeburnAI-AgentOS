@@ -149,6 +149,7 @@ export class EvaluationCandidateError extends Error {
       | "candidate_already_reviewed"
       | "candidate_review_conflict"
       | "special_category_data_not_allowed"
+      | "capture_sensitive_data_not_allowed"
       | "privacy_declaration_mismatch"
       | "approved_record_mismatch"
       | "approved_record_provenance_mismatch"
@@ -361,7 +362,7 @@ export async function captureEvaluationCandidate(
       throw new EvaluationCandidateError(
         error.code === "high_risk_personal_data_not_allowed"
           ? "special_category_data_not_allowed"
-          : "approved_record_requires_redaction",
+          : "capture_sensitive_data_not_allowed",
         error.message,
       );
     }
@@ -588,7 +589,7 @@ export async function reviewEvaluationCandidate(
         reviewedAt: now,
         approvedRecord: datasetRecord
           ? (datasetRecord as Prisma.InputJsonValue)
-          : Prisma.JsonNull,
+          : Prisma.DbNull,
         approvedRecordDigest: recordDigest ?? null,
       },
     });
@@ -605,7 +606,7 @@ export async function reviewEvaluationCandidate(
         note: review.note,
         datasetRecord: datasetRecord
           ? (datasetRecord as Prisma.InputJsonValue)
-          : Prisma.JsonNull,
+          : Prisma.DbNull,
         recordDigest: recordDigest ?? null,
         createdAt: now,
       },
@@ -674,7 +675,7 @@ export async function exportApprovedEvaluationRecordsJsonl(
     where: {
       tenantId,
       status,
-      approvedRecord: { not: Prisma.JsonNull },
+      approvedRecord: { not: Prisma.DbNull },
     },
     orderBy: [{ reviewedAt: "asc" }, { id: "asc" }],
   });
