@@ -59,7 +59,6 @@ describe("human RBAC", () => {
     expect(hasPermission(identity(["viewer"]), "evaluation.read")).toBe(false);
   });
 
-
   it("requires all production OIDC session inputs", () => {
     expect(
       humanAuthConfigured({
