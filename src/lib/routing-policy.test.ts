@@ -133,7 +133,7 @@ describe("routing policy", () => {
       () =>
         planExpertRoute(
           {
-            goal: "Give a jurisdiction-specific legal conclusion for a disputed contract.",
+            goal: "Run a public procurement supplier selection for a tender.",
           },
           experts,
         ),
