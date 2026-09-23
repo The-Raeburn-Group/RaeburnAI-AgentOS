@@ -72,6 +72,25 @@ export const DatasetEvidenceSchema = z.object({
   uri: z.string().url().optional(),
 });
 
+function isRealIsoCalendarDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+const IsoCalendarDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(isRealIsoCalendarDate, "date must be a real ISO calendar date");
+
 export const DatasetToolTraceSchema = z.object({
   tool: z.string().trim().min(1).max(128),
   action: z.string().trim().min(1).max(256),
@@ -88,7 +107,7 @@ export const DatasetRecordSchema = z
     task: z.string().trim().min(3).max(256),
     domain: z.string().regex(/^[a-z0-9][a-z0-9_-]{1,63}$/),
     jurisdiction: z.string().trim().min(2).max(32),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: IsoCalendarDateSchema,
     difficulty: z.enum(["easy", "medium", "hard", "expert"]),
     confidence: z.number().min(0).max(1),
     prompt: z.string().min(1).max(50_000),
