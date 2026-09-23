@@ -168,6 +168,37 @@ describeWithDatabase("evaluation candidate quarantine pipeline", () => {
     ).toBe(2);
   });
 
+  it("rejects direct identifiers or credentials embedded in provenance identifiers", async () => {
+    await expect(
+      captureEvaluationCandidate(
+        captureInput({
+          sourceRef: "opaque-safe-reference",
+          provenance: provenance({
+            sourceId: "alice@example.com",
+          }),
+        }),
+        context(tenantA, "quality-operator", "provenance-email"),
+      ),
+    ).rejects.toMatchObject({
+      code: "capture_sensitive_data_not_allowed",
+    });
+
+    await expect(
+      captureEvaluationCandidate(
+        captureInput({
+          sourceRef: "opaque-safe-reference",
+          provenance: provenance({
+            sourceUri:
+              "https://quality.example.test/case?token=super-secret-token-value",
+          }),
+        }),
+        context(tenantA, "quality-operator", "provenance-secret"),
+      ),
+    ).rejects.toMatchObject({
+      code: "capture_sensitive_data_not_allowed",
+    });
+  });
+
   it("fails closed on privacy declaration mismatch and special-category provenance", async () => {
     await expect(
       captureEvaluationCandidate(
