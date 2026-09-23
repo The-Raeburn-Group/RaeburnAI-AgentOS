@@ -564,14 +564,32 @@ async function seedRecoveryFixture(): Promise<void> {
         provenance,
       };
 
+      const approvedRecordDigest = createHash("sha256")
+        .update(JSON.stringify(canonicalize(approvedRecord)))
+        .digest("hex");
+      const candidateFingerprint = createHash("sha256")
+        .update(
+          JSON.stringify(
+            canonicalize({
+              trigger: "benchmark_failure",
+              task: approvedRecord.task,
+              domain: approvedRecord.domain,
+              prompt: approvedRecord.prompt,
+              observedOutput: approvedRecord.badAnswer,
+              provenance,
+            }),
+          ),
+        )
+        .digest("hex");
+      const sourceRefHash = createHash("sha256")
+        .update(`dr-eval-source-ref-${suffix}`)
+        .digest("hex");
+
       await prisma.evaluationCandidate.create({
         data: {
           id: candidateId,
           tenantId,
-          fingerprint:
-            suffix === "a"
-              ? "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-              : "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          fingerprint: candidateFingerprint,
           trigger: EvaluationCandidateTrigger.BENCHMARK_FAILURE,
           task: approvedRecord.task,
           domain: approvedRecord.domain,
@@ -588,10 +606,7 @@ async function seedRecoveryFixture(): Promise<void> {
           occurrenceCount: 1,
           status: EvaluationCandidateStatus.APPROVED_EVALUATION,
           approvedRecord,
-          approvedRecordDigest:
-            suffix === "a"
-              ? "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-              : "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          approvedRecordDigest,
           reviewedBy: `reviewer-${suffix}`,
           reviewedAt: createdAt,
           firstSeenAt: createdAt,
@@ -606,10 +621,7 @@ async function seedRecoveryFixture(): Promise<void> {
           id: `00000000-0000-4000-8000-00000000${suffix}a02`,
           tenantId,
           candidateId,
-          sourceRefHash:
-            suffix === "a"
-              ? "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-              : "abababababababababababababababababababababababababababababababab",
+          sourceRefHash,
           actorId: `eval-capture-${suffix}`,
           requestId: `dr-eval-request-${suffix}`,
           createdAt,
@@ -625,10 +637,7 @@ async function seedRecoveryFixture(): Promise<void> {
           decision: EvaluationReviewDecision.APPROVE_EVALUATION,
           note: "Deterministic disaster-recovery evaluation fixture.",
           datasetRecord: approvedRecord,
-          recordDigest:
-            suffix === "a"
-              ? "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-              : "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          recordDigest: approvedRecordDigest,
           createdAt,
         },
       });
