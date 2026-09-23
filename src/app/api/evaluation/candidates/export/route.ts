@@ -15,7 +15,7 @@ const QuerySchema = z.object({
 
 function authError(error: unknown) {
   if (error instanceof TenantAccessError) {
-    return NextResponse.json({ error: "tenant_access_denied" }, { status: 403 });
+    return NextResponse.json(\n      { error: "tenant_access_denied" },\n      { status: 403 },\n    );
   }
   if (!(error instanceof HumanAuthError)) return undefined;
   if (error.code === "auth_unconfigured") {
