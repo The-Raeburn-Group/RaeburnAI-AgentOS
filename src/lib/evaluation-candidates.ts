@@ -73,7 +73,10 @@ export const EvaluationCandidateCaptureSchema = z
     toolTrace: z.array(DatasetToolTraceSchema).max(100).default([]),
     metadata: z.record(JsonValueSchema).default({}),
     provenance: DatasetProvenanceSchema,
-    sensitivityLabels: z.array(z.string().trim().min(1).max(64)).max(20).default([]),
+    sensitivityLabels: z
+      .array(z.string().trim().min(1).max(64))
+      .max(20)
+      .default([]),
   })
   .superRefine((value, context) => {
     if (value.trigger === "human_correction" && !value.correction) {
