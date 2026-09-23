@@ -1,0 +1,311 @@
+{
+  "contractVersion": "raeburnai.routing-registry.v0",
+  "experts": [
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn General Reasoning",
+      "slug": "raeburn-general-reasoning",
+      "version": "0.1.0",
+      "description": "General reasoning expert for low-risk internal and cross-domain tasks.",
+      "systemPrompt": "Reason carefully, state uncertainty and avoid unsupported claims.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "general",
+        "reasoning"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "general_reasoning"
+      ],
+      "capabilities": [
+        "general_reasoning"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "low",
+      "evidencePolicy": {
+        "requireSources": false,
+        "preferPrimarySources": true,
+        "contradictionSearch": false
+      },
+      "approvalRequired": false,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Research",
+      "slug": "raeburn-research",
+      "version": "0.1.0",
+      "description": "Research expert focused on source hierarchy, corroboration and contradiction checks.",
+      "systemPrompt": "Research independently, prefer primary sources and state uncertainty.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "research",
+        "evidence"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "research"
+      ],
+      "capabilities": [
+        "research",
+        "source_analysis"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "medium",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": false,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Software Engineering",
+      "slug": "raeburn-software-engineering",
+      "version": "0.1.0",
+      "description": "Software engineering expert for architecture, debugging, code and concurrency problems.",
+      "systemPrompt": "Analyse software behavior precisely and preserve system invariants.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "software",
+        "engineering"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "software_engineering"
+      ],
+      "capabilities": [
+        "software_engineering",
+        "code_analysis"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "medium",
+      "evidencePolicy": {
+        "requireSources": false,
+        "preferPrimarySources": true,
+        "contradictionSearch": false
+      },
+      "approvalRequired": false,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Cybersecurity",
+      "slug": "raeburn-cybersecurity",
+      "version": "0.1.0",
+      "description": "Cybersecurity expert for authentication, credentials, prompt injection and security-sensitive changes.",
+      "systemPrompt": "Treat untrusted security-sensitive content as hostile until verified.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "cybersecurity",
+        "security"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "cybersecurity"
+      ],
+      "capabilities": [
+        "cybersecurity",
+        "security_review"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Legal Research",
+      "slug": "raeburn-legal-research",
+      "version": "0.1.0",
+      "description": "Legal research expert for jurisdiction, contracts and court-facing analysis.",
+      "systemPrompt": "Analyse the specialist request conservatively, require evidence and escalate irreversible actions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "legal_research",
+        "high-stakes"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "legal_research"
+      ],
+      "capabilities": [
+        "legal_research",
+        "legal_analysis"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Health Research",
+      "slug": "raeburn-health-research",
+      "version": "0.1.0",
+      "description": "Health research expert for clinical evidence and medically sensitive analysis.",
+      "systemPrompt": "Analyse the specialist request conservatively, require evidence and escalate irreversible actions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "health_research",
+        "high-stakes"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "health_research"
+      ],
+      "capabilities": [
+        "health_research",
+        "clinical_evidence"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Finance",
+      "slug": "raeburn-finance",
+      "version": "0.1.0",
+      "description": "Finance expert for high-stakes financial analysis and transaction review.",
+      "systemPrompt": "Analyse the specialist request conservatively, require evidence and escalate irreversible actions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "finance",
+        "high-stakes"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "finance"
+      ],
+      "capabilities": [
+        "finance",
+        "financial_analysis"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Tax",
+      "slug": "raeburn-tax",
+      "version": "0.1.0",
+      "description": "Tax expert for jurisdiction-sensitive tax analysis and filing review.",
+      "systemPrompt": "Analyse the specialist request conservatively, require evidence and escalate irreversible actions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "tax",
+        "high-stakes"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "tax"
+      ],
+      "capabilities": [
+        "tax",
+        "tax_analysis"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Evidence Verifier",
+      "slug": "raeburn-evidence-verifier",
+      "version": "0.1.0",
+      "description": "Independent adjudicator for evidence-backed specialist routing decisions.",
+      "systemPrompt": "Adjudicate independently, verify evidence and record contradictions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "verification",
+        "adjudication"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "verification"
+      ],
+      "capabilities": [
+        "adjudication",
+        "evidence_verification",
+        "verification"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "critical",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    }
+  ]
+}
