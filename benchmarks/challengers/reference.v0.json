@@ -1,0 +1,73 @@
+{
+  "candidate": { "id": "reference-fixture", "version": "0.1.0" },
+  "toolBenchmark": {
+    "contractVersion": "raeburnai.tool-benchmark.v1",
+    "benchmarkId": "tool-use-seed",
+    "version": "0.1.0",
+    "minimumScore": 1,
+    "cases": [
+      {
+        "id": "tool.knowledge.read.001",
+        "expectedCalls": [{ "tool": "knowledge", "action": "read", "succeeded": true }],
+        "forbiddenTools": ["payments"],
+        "maxCalls": 1
+      },
+      {
+        "id": "tool.search.query.001",
+        "expectedCalls": [{ "tool": "search", "action": "query", "succeeded": true }],
+        "forbiddenTools": ["payments"],
+        "maxCalls": 1
+      },
+      {
+        "id": "tool.records.read.001",
+        "expectedCalls": [{ "tool": "records", "action": "read", "succeeded": true }],
+        "forbiddenTools": ["records.write"],
+        "maxCalls": 1
+      },
+      {
+        "id": "tool.evidence.verify.001",
+        "expectedCalls": [{ "tool": "evidence", "action": "verify", "succeeded": true }],
+        "forbiddenTools": ["payments"],
+        "maxCalls": 1
+      },
+      {
+        "id": "tool.routing.plan.001",
+        "expectedCalls": [{ "tool": "routing", "action": "plan", "succeeded": true }],
+        "forbiddenTools": ["payments"],
+        "maxCalls": 1
+      }
+    ]
+  },
+  "toolCandidate": {
+    "candidate": { "id": "reference-fixture", "version": "0.1.0" },
+    "traces": [
+      { "caseId": "tool.knowledge.read.001", "calls": [{ "tool": "knowledge", "action": "read", "succeeded": true }] },
+      { "caseId": "tool.search.query.001", "calls": [{ "tool": "search", "action": "query", "succeeded": true }] },
+      { "caseId": "tool.records.read.001", "calls": [{ "tool": "records", "action": "read", "succeeded": true }] },
+      { "caseId": "tool.evidence.verify.001", "calls": [{ "tool": "evidence", "action": "verify", "succeeded": true }] },
+      { "caseId": "tool.routing.plan.001", "calls": [{ "tool": "routing", "action": "plan", "succeeded": true }] }
+    ]
+  },
+  "performanceBenchmark": {
+    "contractVersion": "raeburnai.performance-benchmark.v1",
+    "benchmarkId": "latency-cost-seed",
+    "version": "0.1.0",
+    "cases": [
+      { "id": "perf.general.001", "maxLatencyMs": 1000, "maxCostUsd": 0.01 },
+      { "id": "perf.tool.001", "maxLatencyMs": 2500, "maxCostUsd": 0.03 },
+      { "id": "perf.evidence.001", "maxLatencyMs": 5000, "maxCostUsd": 0.08 },
+      { "id": "perf.routing.001", "maxLatencyMs": 1500, "maxCostUsd": 0.02 },
+      { "id": "perf.multi.001", "maxLatencyMs": 8000, "maxCostUsd": 0.12 }
+    ]
+  },
+  "performanceCandidate": {
+    "candidate": { "id": "reference-fixture", "version": "0.1.0" },
+    "measurements": [
+      { "caseId": "perf.general.001", "latencyMs": 400, "costUsd": 0.002, "inputTokens": 250, "outputTokens": 80 },
+      { "caseId": "perf.tool.001", "latencyMs": 1200, "costUsd": 0.01, "inputTokens": 500, "outputTokens": 150 },
+      { "caseId": "perf.evidence.001", "latencyMs": 2400, "costUsd": 0.03, "inputTokens": 900, "outputTokens": 300 },
+      { "caseId": "perf.routing.001", "latencyMs": 600, "costUsd": 0.005, "inputTokens": 350, "outputTokens": 100 },
+      { "caseId": "perf.multi.001", "latencyMs": 4200, "costUsd": 0.06, "inputTokens": 1600, "outputTokens": 500 }
+    ]
+  }
+}
