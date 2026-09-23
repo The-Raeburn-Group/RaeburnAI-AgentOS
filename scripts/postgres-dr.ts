@@ -6,6 +6,9 @@ import { dirname } from "node:path";
 import {
   AgentStatus,
   ApprovalStatus,
+  EvaluationCandidateStatus,
+  EvaluationCandidateTrigger,
+  EvaluationReviewDecision,
   PrismaClient,
   RunStatus,
   WorkflowJobStatus,
@@ -118,6 +121,9 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       approvals,
       auditEvents,
       workflowJobs,
+      evaluationCandidates,
+      evaluationOccurrences,
+      evaluationReviews,
       migrations,
     ] = await Promise.all([
       prisma.tenant.findMany({ orderBy: { id: "asc" } }),
@@ -130,6 +136,11 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       prisma.approval.findMany({ orderBy: { id: "asc" } }),
       prisma.auditEvent.findMany({ orderBy: { id: "asc" } }),
       prisma.workflowJob.findMany({ orderBy: { id: "asc" } }),
+      prisma.evaluationCandidate.findMany({ orderBy: { id: "asc" } }),
+      prisma.evaluationCandidateOccurrence.findMany({
+        orderBy: { id: "asc" },
+      }),
+      prisma.evaluationCandidateReview.findMany({ orderBy: { id: "asc" } }),
       prisma.$queryRaw<
         Array<{
           migration_name: string;
@@ -158,6 +169,9 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
         Approval: fingerprintRows(approvals),
         AuditEvent: fingerprintRows(auditEvents),
         WorkflowJob: fingerprintRows(workflowJobs),
+        EvaluationCandidate: fingerprintRows(evaluationCandidates),
+        EvaluationCandidateOccurrence: fingerprintRows(evaluationOccurrences),
+        EvaluationCandidateReview: fingerprintRows(evaluationReviews),
       },
     };
   } finally {
@@ -509,6 +523,121 @@ async function seedRecoveryFixture(): Promise<void> {
           availableAt: createdAt,
           createdAt,
           updatedAt: createdAt,
+        },
+      });
+
+      const candidateId = `00000000-0000-4000-8000-00000000${suffix}a01`;
+      const provenance = {
+        contractVersion: "raeburnai.dataset-provenance.v1",
+        sourceKind: "synthetic",
+        sourceId: `dr-eval-source-${suffix}`,
+        collectedAt: createdAt.toISOString(),
+        jurisdiction: "GB",
+        license: {
+          identifier: "synthetic-dr-fixture",
+          evaluationAllowed: true,
+          trainingAllowed: true,
+          redistributionAllowed: true,
+        },
+        privacy: {
+          containsPersonalData: false,
+          containsSpecialCategoryData: false,
+        },
+        permittedPurposes: ["evaluation", "training"],
+      };
+      const approvedRecord = {
+        contractVersion: "raeburnai.dataset-record.v1",
+        id: `dr.eval.${suffix}.001`,
+        task: "Verify disaster-recovery evaluation state",
+        domain: "operations",
+        jurisdiction: "GB",
+        date: "2026-09-15",
+        difficulty: "medium",
+        confidence: 1,
+        prompt: `Verify tenant ${suffix} recovery state.`,
+        idealAnswer: "The tenant-scoped recovery state is preserved.",
+        evidence: [],
+        badAnswer: "Recovery state was lost.",
+        critique: "The bad answer contradicts the restored database state.",
+        toolTrace: [],
+        provenance,
+      };
+
+      const approvedRecordDigest = createHash("sha256")
+        .update(JSON.stringify(canonicalize(approvedRecord)))
+        .digest("hex");
+      const candidateFingerprint = createHash("sha256")
+        .update(
+          JSON.stringify(
+            canonicalize({
+              trigger: "benchmark_failure",
+              task: approvedRecord.task,
+              domain: approvedRecord.domain,
+              prompt: approvedRecord.prompt,
+              observedOutput: approvedRecord.badAnswer,
+              provenance,
+            }),
+          ),
+        )
+        .digest("hex");
+      const sourceRefHash = createHash("sha256")
+        .update(`dr-eval-source-ref-${suffix}`)
+        .digest("hex");
+
+      await prisma.evaluationCandidate.create({
+        data: {
+          id: candidateId,
+          tenantId,
+          fingerprint: candidateFingerprint,
+          trigger: EvaluationCandidateTrigger.BENCHMARK_FAILURE,
+          task: approvedRecord.task,
+          domain: approvedRecord.domain,
+          prompt: approvedRecord.prompt,
+          observedOutput: approvedRecord.badAnswer,
+          confidence: 0.2,
+          reasonLabels: ["incorrect_answer"],
+          toolTrace: [],
+          metadata: { fixture: true },
+          provenance,
+          classification: "general",
+          findingTypes: [],
+          redactionCount: 0,
+          occurrenceCount: 1,
+          status: EvaluationCandidateStatus.APPROVED_EVALUATION,
+          approvedRecord,
+          approvedRecordDigest,
+          reviewedBy: `reviewer-${suffix}`,
+          reviewedAt: createdAt,
+          firstSeenAt: createdAt,
+          lastSeenAt: createdAt,
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
+      await prisma.evaluationCandidateOccurrence.create({
+        data: {
+          id: `00000000-0000-4000-8000-00000000${suffix}a02`,
+          tenantId,
+          candidateId,
+          sourceRefHash,
+          actorId: `eval-capture-${suffix}`,
+          requestId: `dr-eval-request-${suffix}`,
+          createdAt,
+        },
+      });
+
+      await prisma.evaluationCandidateReview.create({
+        data: {
+          id: `00000000-0000-4000-8000-00000000${suffix}a03`,
+          tenantId,
+          candidateId,
+          reviewer: `reviewer-${suffix}`,
+          decision: EvaluationReviewDecision.APPROVE_EVALUATION,
+          note: "Deterministic disaster-recovery evaluation fixture.",
+          datasetRecord: approvedRecord,
+          recordDigest: approvedRecordDigest,
+          createdAt,
         },
       });
     }

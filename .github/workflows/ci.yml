@@ -83,7 +83,7 @@ jobs:
         env:
           DATABASE_URL: ${{ env.AGENTOS_RESTORE_DATABASE_URL }}
         run: npm run db:migrate
-      - name: Verify restored tenant, run, memory, approval and audit state
+      - name: Verify restored tenant, run, memory, approval, evaluation and audit state
         env:
           DATABASE_URL: ${{ env.AGENTOS_RESTORE_DATABASE_URL }}
         run: npm run dr:verify
