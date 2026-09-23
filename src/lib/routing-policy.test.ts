@@ -59,11 +59,23 @@ describe("routing policy", () => {
   });
 
   it.each([
-    ["Deploy to production after reviewing the release.", "raeburn-software-engineering"],
-    ["Delete production data after the approved migration.", "raeburn-software-engineering"],
-    ["Disable security controls during incident recovery.", "raeburn-cybersecurity"],
+    [
+      "Deploy to production after reviewing the release.",
+      "raeburn-software-engineering",
+    ],
+    [
+      "Delete production data after the approved migration.",
+      "raeburn-software-engineering",
+    ],
+    [
+      "Disable security controls during incident recovery.",
+      "raeburn-cybersecurity",
+    ],
     ["Sign contract on behalf of the organisation.", "raeburn-legal-research"],
-    ["File court documents for the disputed contract.", "raeburn-legal-research"],
+    [
+      "File court documents for the disputed contract.",
+      "raeburn-legal-research",
+    ],
     ["Prescribe medication for the patient.", "raeburn-health-research"],
     ["Transfer funds between treasury accounts.", "raeburn-finance"],
     ["Execute trade for the portfolio.", "raeburn-finance"],
@@ -160,10 +172,10 @@ describe("routing policy", () => {
   it("rejects ambiguous duplicate expert slugs", () => {
     expectRoutingError(
       () =>
-        planExpertRoute({ goal: "Investigate a claim using primary sources." }, [
-          ...experts,
-          structuredClone(experts[0]!),
-        ]),
+        planExpertRoute(
+          { goal: "Investigate a claim using primary sources." },
+          [...experts, structuredClone(experts[0]!)],
+        ),
       "duplicate_expert_slug",
     );
   });
