@@ -58,6 +58,8 @@ describe("independent evidence verification", () => {
     );
     const result = verifyEvidenceBundle({
       strictness: "standard",
+      answer:
+        "The approved service level target is 99.9 percent availability. The result is 25.",
       sources: [trusted],
       claims: [
         {
@@ -194,6 +196,7 @@ describe("independent evidence verification", () => {
     });
     const complete = verifyEvidenceBundle({
       strictness: "regulated",
+      answer: "The regulated capital ratio is 12 percent.",
       sources: [secondary, primary],
       claims: [
         {
@@ -251,6 +254,7 @@ describe("independent evidence verification", () => {
     const trusted = source("s1", "The approved limit is 50.");
     const result = verifyEvidenceBundle({
       strictness: "standard",
+      answer: "The approved limit is 50.",
       sources: [trusted],
       claims: [
         {
@@ -312,6 +316,201 @@ describe("independent evidence verification", () => {
     expect(result.reasons).toContain(
       "substantiated high-severity critic finding: f1",
     );
+  });
+
+  it("does not let conflict resolution bypass the regulated distinct-source minimum", () => {
+    const primarySupport = source(
+      "support",
+      "The regulated ratio is 12 percent.",
+      { sourceType: "primary" },
+    );
+    const weakerContradiction = source(
+      "contradiction",
+      "The regulated ratio is not 12 percent.",
+      { sourceType: "secondary" },
+    );
+    const result = verifyEvidenceBundle({
+      strictness: "regulated",
+      answer: "The regulated ratio is 12 percent.",
+      sources: [primarySupport, weakerContradiction],
+      claims: [
+        {
+          id: "c1",
+          claim: "The regulated ratio is 12 percent.",
+          sourceIds: ["support", "contradiction"],
+        },
+      ],
+      contradictionSearchPerformed: true,
+      criticReview: critic(),
+    });
+
+    expect(result.decision).toBe("fail");
+    expect(result.claimResults[0]?.verdict).toBe("insufficient");
+  });
+
+  it("rejects duplicate source references within a single claim", () => {
+    const trusted = source("s1", "The regulated ratio is 12 percent.");
+    expect(() =>
+      verifyEvidenceBundle({
+        strictness: "regulated",
+        answer: "The regulated ratio is 12 percent.",
+        sources: [trusted],
+        claims: [
+          {
+            id: "c1",
+            claim: "The regulated ratio is 12 percent.",
+            sourceIds: ["s1", "s1"],
+          },
+        ],
+        contradictionSearchPerformed: true,
+        criticReview: critic(),
+      }),
+    ).toThrow("claim sourceIds must be unique");
+  });
+
+  it("does not substantiate a critic finding when its cited evidence contradicts the finding", () => {
+    const support = source("support", "The approved limit is 50.");
+    const refutation = source(
+      "refutation",
+      "No documented exception applies to emergency cases.",
+    );
+    const result = verifyEvidenceBundle({
+      strictness: "standard",
+      answer: "The approved limit is 50.",
+      sources: [support, refutation],
+      claims: [
+        {
+          id: "c1",
+          claim: "The approved limit is 50.",
+          sourceIds: ["support"],
+        },
+      ],
+      criticReview: critic([
+        {
+          id: "f1",
+          category: "factuality",
+          severity: "critical",
+          summary: "A documented exception applies to emergency cases.",
+          claimIds: ["c1"],
+          sourceIds: ["refutation"],
+        },
+      ]),
+    });
+
+    expect(result.critic.substantiatedFindingIds).toEqual([]);
+    expect(result.critic.ignoredFindingIds).toEqual(["f1"]);
+    expect(result.decision).toBe("review");
+  });
+
+  it("scopes negation to the matching source statement", () => {
+    const trusted = source(
+      "s1",
+      "The approved limit is 50. This does not apply to emergency cases.",
+    );
+    const result = verifyEvidenceBundle({
+      strictness: "standard",
+      answer: "The approved limit is 50.",
+      sources: [trusted],
+      claims: [
+        {
+          id: "c1",
+          claim: "The approved limit is 50.",
+          sourceIds: ["s1"],
+        },
+      ],
+    });
+
+    expect(result.decision).toBe("pass");
+    expect(result.claimResults[0]?.verdict).toBe("supported");
+  });
+
+  it("rejects punctuation-only claims after normalization", () => {
+    const trusted = source("s1", "Any source text.");
+    expect(() =>
+      verifyEvidenceBundle({
+        answer: "...",
+        sources: [trusted],
+        claims: [{ id: "c1", claim: "...", sourceIds: ["s1"] }],
+      }),
+    ).toThrow("claim must contain semantic text");
+  });
+
+  it("preserves exact source excerpt bytes for integrity validation", () => {
+    const trusted = source(
+      "s1",
+      "  The approved limit is 50.\n",
+    );
+    const result = verifyEvidenceBundle({
+      strictness: "standard",
+      answer: "The approved limit is 50.",
+      sources: [trusted],
+      claims: [
+        {
+          id: "c1",
+          claim: "The approved limit is 50.",
+          sourceIds: ["s1"],
+        },
+      ],
+    });
+
+    expect(result.decision).toBe("pass");
+    expect(result.scores.evidenceIntegrity).toBe(1);
+  });
+
+  it("requires at least one material assertion", () => {
+    expect(() =>
+      verifyEvidenceBundle({
+        answer: "The result is 2.",
+        calculations: [
+          {
+            id: "calc-1",
+            expression: "1 + 1",
+            assertedResult: 2,
+            material: false,
+          },
+        ],
+      }),
+    ).toThrow("verification requires at least one material assertion");
+  });
+
+  it("fails when the answer contains an assertion missing from the verified claim inventory", () => {
+    const trusted = source("s1", "The approved limit is 50.");
+    const result = verifyEvidenceBundle({
+      strictness: "standard",
+      answer: "The approved limit is 50. The moon is green.",
+      sources: [trusted],
+      claims: [
+        {
+          id: "c1",
+          claim: "The approved limit is 50.",
+          sourceIds: ["s1"],
+        },
+      ],
+    });
+
+    expect(result.decision).toBe("fail");
+    expect(result.scores.answerCoverage).toBe(0.5);
+    expect(result.reasons).toContain(
+      "answer assertion is not covered by the claim inventory: The moon is green.",
+    );
+  });
+
+  it("rejects unknown request fields so assurance typos cannot downgrade strictness", () => {
+    const trusted = source("s1", "The approved limit is 50.");
+    expect(() =>
+      verifyEvidenceBundle({
+        strictnes: "regulated",
+        answer: "The approved limit is 50.",
+        sources: [trusted],
+        claims: [
+          {
+            id: "c1",
+            claim: "The approved limit is 50.",
+            sourceIds: ["s1"],
+          },
+        ],
+      }),
+    ).toThrow("Unrecognized key");
   });
 
   it("evaluates arithmetic without eval and rejects unsupported expressions", () => {
