@@ -71,7 +71,7 @@ export class RoutingPolicyError extends Error {
       | "manifest_identity_mismatch",
     public readonly detail?: string,
   ) {
-    super(detail ? \`\${code}: \${detail}\` : code);
+    super(detail ? `${code}: ${detail}` : code);
     this.name = "RoutingPolicyError";
   }
 }
@@ -262,8 +262,8 @@ function words(value: string): Set<string> {
 }
 
 function containsPhrase(text: string, phrase: string): boolean {
-  const normalized = \` \${normalizedText(text)} \`;
-  const wanted = \` \${normalizedText(phrase)} \`;
+  const normalized = ` ${normalizedText(text)} `;
+  const wanted = ` ${normalizedText(phrase)} `;
   return normalized.includes(wanted);
 }
 
@@ -313,14 +313,14 @@ function classifyRisk(
     if (containsPhrase(goal, phrase)) {
       return {
         riskTier: "critical",
-        reason: \`critical action marker: \${phrase}\`,
+        reason: `critical action marker: ${phrase}`,
       };
     }
   }
 
   for (const phrase of HIGH_RISK_PHRASES) {
     if (containsPhrase(goal, phrase)) {
-      return { riskTier: "high", reason: \`high-risk marker: \${phrase}\` };
+      return { riskTier: "high", reason: `high-risk marker: ${phrase}` };
     }
   }
 
@@ -365,7 +365,7 @@ function expertMatchesIntent(
   return (
     domains.has(intent) ||
     capabilities.has(intent) ||
-    capabilities.has(\`\${intent}_expert\`)
+    capabilities.has(`${intent}_expert`)
   );
 }
 
@@ -383,7 +383,7 @@ function scoreExpert(
     const classifierScore = intentScores.get(intent) ?? 1;
     const domainScore = domains.has(intent) ? 100 : 0;
     const capabilityScore =
-      capabilities.has(intent) || capabilities.has(\`\${intent}_expert\`)
+      capabilities.has(intent) || capabilities.has(`${intent}_expert`)
         ? 40
         : 0;
     return sum + domainScore + capabilityScore + classifierScore;
@@ -427,7 +427,7 @@ function sortedUniqueExperts(manifests: AgentManifest[]): AgentManifest[] {
     if (bySlug.has(manifest.slug)) {
       throw new RoutingPolicyError(
         "duplicate_expert_slug",
-        \`duplicate expert slug: \${manifest.slug}\`,
+        `duplicate expert slug: ${manifest.slug}`,
       );
     }
     bySlug.set(manifest.slug, manifest);
@@ -487,14 +487,14 @@ export function planExpertRoute(
     if (!candidate) {
       throw new RoutingPolicyError(
         "no_eligible_expert",
-        \`no verified expert satisfies classified intent: \${intent}\`,
+        `no verified expert satisfies classified intent: ${intent}`,
       );
     }
     const expert = manifestBySlug.get(candidate.expert);
     if (!expert) {
       throw new RoutingPolicyError(
         "no_eligible_expert",
-        \`expert registry entry disappeared: \${candidate.expert}\`,
+        `expert registry entry disappeared: ${candidate.expert}`,
       );
     }
     selected.push(expert);
@@ -560,12 +560,12 @@ export function planExpertRoute(
     ...(adjudicator ? { adjudicator: adjudicator.slug } : {}),
     requiresHumanApproval,
     reasons: [
-      \`primary intent: \${classification.primary}\`,
-      \`classified intents: \${classification.intents.join(", ")}\`,
+      `primary intent: ${classification.primary}`,
+      `classified intents: ${classification.intents.join(", ")}`,
       riskReason,
-      \`selected expert count: \${selected.length}\`,
+      `selected expert count: ${selected.length}`,
       ...(adjudicator
-        ? [\`independent adjudicator: \${adjudicator.slug}\`]
+        ? [`independent adjudicator: ${adjudicator.slug}`]
         : []),
     ],
     candidateScores,
@@ -628,7 +628,7 @@ export function verifyStoredAgentManifest(
     if (actual !== undefined && actual !== declared) {
       throw new RoutingPolicyError(
         "manifest_identity_mismatch",
-        \`stored manifest \${field} does not match the executable agent record\`,
+        `stored manifest ${field} does not match the executable agent record`,
       );
     }
   }
