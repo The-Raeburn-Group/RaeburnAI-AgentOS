@@ -58,7 +58,7 @@ function agentRecord(
     ...manifestInput,
   });
   return {
-    id: \`agent-\${manifest.slug}\`,
+    id: `agent-${manifest.slug}`,
     tenantId: "tenant-a",
     name: manifest.name,
     slug: manifest.slug,
