@@ -1,11 +1,9 @@
 import { z } from "zod";
 import { agentManifestDigest } from "@/lib/collaboration";
-import {
-  AgentManifestSchema,
-  type AgentManifest,
-} from "@/lib/types";
+import { AgentManifestSchema, type AgentManifest } from "@/lib/types";
 
-export const ROUTING_PLAN_CONTRACT_VERSION = "raeburnai.routing-plan.v1" as const;
+export const ROUTING_PLAN_CONTRACT_VERSION =
+  "raeburnai.routing-plan.v1" as const;
 
 export const RoutingIntentSchema = z.enum([
   "general_reasoning",
@@ -383,9 +381,7 @@ function scoreExpert(
     const classifierScore = intentScores.get(intent) ?? 1;
     const domainScore = domains.has(intent) ? 100 : 0;
     const capabilityScore =
-      capabilities.has(intent) || capabilities.has(`${intent}_expert`)
-        ? 40
-        : 0;
+      capabilities.has(intent) || capabilities.has(`${intent}_expert`) ? 40 : 0;
     return sum + domainScore + capabilityScore + classifierScore;
   }, 0);
   return { expert: manifest.slug, score, matchedIntents };
@@ -564,9 +560,7 @@ export function planExpertRoute(
       `classified intents: ${classification.intents.join(", ")}`,
       riskReason,
       `selected expert count: ${selected.length}`,
-      ...(adjudicator
-        ? [`independent adjudicator: ${adjudicator.slug}`]
-        : []),
+      ...(adjudicator ? [`independent adjudicator: ${adjudicator.slug}`] : []),
     ],
     candidateScores,
   });
@@ -611,7 +605,10 @@ export function verifyStoredAgentManifest(
   }
   const manifest = parsed.data;
 
-  if (manifest.slug !== expected.slug || manifest.version !== expected.version) {
+  if (
+    manifest.slug !== expected.slug ||
+    manifest.version !== expected.version
+  ) {
     throw new RoutingPolicyError(
       "manifest_identity_mismatch",
       "stored manifest slug/version does not match the executable agent record",
