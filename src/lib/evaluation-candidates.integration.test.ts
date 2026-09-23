@@ -272,9 +272,7 @@ describeWithDatabase("evaluation candidate quarantine pipeline", () => {
       context(tenantA, "quality-reviewer", "review-1"),
     );
 
-    expect(approved.status).toBe(
-      EvaluationCandidateStatus.APPROVED_EVALUATION,
-    );
+    expect(approved.status).toBe(EvaluationCandidateStatus.APPROVED_EVALUATION);
     expect(approved.reviewedBy).toBe("quality-reviewer");
     expect(approved.approvedRecordDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(approved.reviews).toHaveLength(1);
@@ -375,9 +373,7 @@ describeWithDatabase("evaluation candidate quarantine pipeline", () => {
         { decision: "reject", note: "Cross-tenant review must fail." },
         context(tenantB, "tenant-b-reviewer", "tenant-b-review"),
       ),
-    ).rejects.toThrowError(
-      new EvaluationCandidateError("candidate_not_found"),
-    );
+    ).rejects.toThrowError(new EvaluationCandidateError("candidate_not_found"));
   });
 
   it("allows only one concurrent terminal review", async () => {
@@ -401,12 +397,12 @@ describeWithDatabase("evaluation candidate quarantine pipeline", () => {
         context(tenantA, "reviewer-b", "race-b"),
       ),
     ]);
-    expect(reviews.filter((result) => result.status === "fulfilled")).toHaveLength(
-      1,
-    );
-    expect(reviews.filter((result) => result.status === "rejected")).toHaveLength(
-      1,
-    );
+    expect(
+      reviews.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(
+      reviews.filter((result) => result.status === "rejected"),
+    ).toHaveLength(1);
     expect(
       await db.evaluationCandidateReview.count({
         where: { candidateId: captured.candidate.id },
