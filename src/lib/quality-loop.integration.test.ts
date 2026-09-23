@@ -9,7 +9,7 @@ import {
 } from "@/lib/quality-loop";
 
 const databaseUrl = process.env.DATABASE_URL;
-const describeWithDatabase = databaseUrl ? describe : describe.skip;
+const describeWithDatabase = databaseUrl ? describe.sequential : describe.skip;
 const tenantId = "quality-loop-tenant";
 
 async function cleanFixtures() {
