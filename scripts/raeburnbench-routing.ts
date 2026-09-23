@@ -56,8 +56,7 @@ process.stdout.write(
 );
 
 if (
-  result.suiteScores.routing <
-    corpusFixture.thresholds.suites.routing ||
+  result.suiteScores.routing < corpusFixture.thresholds.suites.routing ||
   failedCases.length > 0
 ) {
   process.exitCode = 2;
