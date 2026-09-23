@@ -110,6 +110,8 @@ const INTENT_RULES: readonly IntentRule[] = [
       "software engineering",
       "typescript service",
       "authentication logic",
+      "deploy to production",
+      "delete production",
     ],
     tokens: [
       "typescript",
@@ -131,6 +133,7 @@ const INTENT_RULES: readonly IntentRule[] = [
       "prompt injection",
       "authentication logic",
       "cyber security",
+      "disable security",
     ],
     tokens: [
       "security",
@@ -148,7 +151,13 @@ const INTENT_RULES: readonly IntentRule[] = [
   },
   {
     intent: "legal_research",
-    phrases: ["legal review", "legal conclusion", "governing jurisdiction"],
+    phrases: [
+      "legal review",
+      "legal conclusion",
+      "governing jurisdiction",
+      "sign contract",
+      "file court",
+    ],
     tokens: [
       "legal",
       "law",
@@ -174,7 +183,12 @@ const INTENT_RULES: readonly IntentRule[] = [
   },
   {
     intent: "health_research",
-    phrases: ["medical advice", "clinical evidence", "health research"],
+    phrases: [
+      "medical advice",
+      "clinical evidence",
+      "health research",
+      "prescribe medication",
+    ],
     tokens: [
       "medical",
       "health",
@@ -187,7 +201,12 @@ const INTENT_RULES: readonly IntentRule[] = [
   },
   {
     intent: "finance",
-    phrases: ["financial advice", "investment decision", "execute trade"],
+    phrases: [
+      "financial advice",
+      "investment decision",
+      "execute trade",
+      "transfer funds",
+    ],
     tokens: [
       "finance",
       "financial",
@@ -200,7 +219,7 @@ const INTENT_RULES: readonly IntentRule[] = [
   },
   {
     intent: "tax",
-    phrases: ["tax return", "tax advice"],
+    phrases: ["tax return", "tax advice", "submit tax return"],
     tokens: ["tax", "vat", "hmrc", "corporation", "selfassessment"],
   },
   {
