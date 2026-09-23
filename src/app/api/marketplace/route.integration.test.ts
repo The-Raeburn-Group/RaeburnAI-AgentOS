@@ -30,9 +30,7 @@ const databaseUrl = process.env.DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
 const tenantId = "marketplace-integrity-tenant";
 
-function manifest(
-  overrides: Partial<AgentManifest> = {},
-): AgentManifest {
+function manifest(overrides: Partial<AgentManifest> = {}): AgentManifest {
   return AgentManifestSchema.parse({
     schemaVersion: "raeburnai.agent-manifest.v1",
     name: "Raeburn Research",
