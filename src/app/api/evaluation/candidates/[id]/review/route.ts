@@ -55,6 +55,13 @@ export async function POST(
   const limited = rateLimit(request, 30, 60_000);
   if (limited) return limited;
 
+  if (!(request.headers.get("content-type") ?? "").includes("application/json")) {
+    return NextResponse.json(
+      { error: "application_json_required" },
+      { status: 415 },
+    );
+  }
+
   try {
     const identity = await requireHumanPermission("evaluation.review");
     const tenant = await requireHumanTenant(identity);
