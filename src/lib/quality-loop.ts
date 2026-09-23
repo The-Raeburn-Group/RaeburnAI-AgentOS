@@ -83,7 +83,9 @@ function isPrismaUniqueViolation(error: unknown): boolean {
   );
 }
 
-function metadataRecord(value: Prisma.JsonValue): Record<string, Prisma.JsonValue> {
+function metadataRecord(
+  value: Prisma.JsonValue,
+): Record<string, Prisma.JsonValue> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as Record<string, Prisma.JsonValue>;
 }
@@ -101,7 +103,9 @@ function metadataNumber(
   key: string,
 ): number | undefined {
   const value = metadata[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function failureKind(action: string, detail: string): EvaluationFailureKind {
@@ -188,9 +192,7 @@ function safeFailurePayload(
 }
 
 export function projectFailureAuditEvent(event: FailureEvent) {
-  if (
-    !QUALITY_FAILURE_ACTIONS.includes(event.action as QualityFailureAction)
-  ) {
+  if (!QUALITY_FAILURE_ACTIONS.includes(event.action as QualityFailureAction)) {
     throw new Error("unsupported quality failure action");
   }
   const metadata = metadataRecord(event.metadata);
@@ -221,14 +223,21 @@ export function projectFailureAuditEvent(event: FailureEvent) {
   };
 }
 
-export async function ingestFailureAuditEvents(options: {
-  limit?: number;
-} = {}): Promise<{
+export async function ingestFailureAuditEvents(
+  options: {
+    limit?: number;
+  } = {},
+): Promise<{
   scanned: number;
   projected: number;
   skipped: number;
 }> {
-  const limit = z.number().int().min(1).max(500).parse(options.limit ?? 100);
+  const limit = z
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .parse(options.limit ?? 100);
   const events = await db.auditEvent.findMany({
     where: {
       action: { in: [...QUALITY_FAILURE_ACTIONS] },
@@ -377,10 +386,7 @@ function validatedCounterexampleRecord(
   input: unknown,
 ): DatasetRecord {
   const record = DatasetRecordSchema.parse(input);
-  if (
-    record.provenance.sourceId !==
-    "evaluation-candidate:" + candidate.id
-  ) {
+  if (record.provenance.sourceId !== "evaluation-candidate:" + candidate.id) {
     throw new QualityLoopError("counterexample_source_mismatch");
   }
   if (!record.badAnswer?.trim() || !record.critique?.trim()) {

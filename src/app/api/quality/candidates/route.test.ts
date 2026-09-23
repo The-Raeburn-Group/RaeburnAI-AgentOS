@@ -51,7 +51,9 @@ describe("quality candidate API", () => {
 
   it("lists only tenant-scoped pending candidates", async () => {
     vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "quality-test-token");
-    mocks.findMany.mockResolvedValue([{ id: "candidate-1", status: "PENDING_REVIEW" }]);
+    mocks.findMany.mockResolvedValue([
+      { id: "candidate-1", status: "PENDING_REVIEW" },
+    ]);
 
     const response = await GET(
       new Request("http://localhost:3000/api/quality/candidates", {

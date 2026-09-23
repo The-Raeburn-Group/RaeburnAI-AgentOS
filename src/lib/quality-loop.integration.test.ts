@@ -33,7 +33,8 @@ function counterexample(candidateId: string) {
     date: "2026-09-23",
     difficulty: "hard",
     confidence: 0.95,
-    prompt: "A model provider is unavailable. Continue without inventing a result.",
+    prompt:
+      "A model provider is unavailable. Continue without inventing a result.",
     idealAnswer:
       "Report the provider failure, preserve the failed state and use only an approved fallback.",
     badAnswer: "Pretend the model returned a successful answer.",
@@ -74,14 +75,20 @@ describeWithDatabase("durable quality loop", () => {
           tenantId,
           actor: "worker-a",
           action: "workflow.job.dead_lettered",
-          metadata: { error: "provider unavailable for alex@example.com", attempts: 3 },
+          metadata: {
+            error: "provider unavailable for alex@example.com",
+            attempts: 3,
+          },
         },
         {
           id: "quality-source-2",
           tenantId,
           actor: "worker-b",
           action: "workflow.job.dead_lettered",
-          metadata: { error: "provider unavailable for alex@example.com", attempts: 3 },
+          metadata: {
+            error: "provider unavailable for alex@example.com",
+            attempts: 3,
+          },
         },
       ],
     });
@@ -166,7 +173,6 @@ describeWithDatabase("durable quality loop", () => {
     });
   });
 
-
   it("allows only one conflicting reviewer transition", async () => {
     await db.auditEvent.create({
       data: {
@@ -197,8 +203,12 @@ describeWithDatabase("durable quality loop", () => {
       }),
     ]);
 
-    expect(outcomes.filter((item) => item.status === "fulfilled")).toHaveLength(1);
-    expect(outcomes.filter((item) => item.status === "rejected")).toHaveLength(1);
+    expect(outcomes.filter((item) => item.status === "fulfilled")).toHaveLength(
+      1,
+    );
+    expect(outcomes.filter((item) => item.status === "rejected")).toHaveLength(
+      1,
+    );
     expect(
       await db.auditEvent.count({
         where: { tenantId, action: "quality.evaluation_candidate.reviewed" },

@@ -34,7 +34,10 @@ function qualityOperator(request: Request) {
   ) {
     return {
       ok: false as const,
-      response: NextResponse.json({ error: "quality_role_required" }, { status: 403 }),
+      response: NextResponse.json(
+        { error: "quality_role_required" },
+        { status: 403 },
+      ),
     };
   }
   return authentication;
@@ -46,7 +49,10 @@ function qualityError(error: unknown) {
     return NextResponse.json({ error: error.code }, { status });
   }
   if (error instanceof ZodError || error instanceof SyntaxError) {
-    return NextResponse.json({ error: "invalid_quality_command" }, { status: 400 });
+    return NextResponse.json(
+      { error: "invalid_quality_command" },
+      { status: 400 },
+    );
   }
   return null;
 }

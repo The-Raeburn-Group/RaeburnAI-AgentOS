@@ -80,7 +80,9 @@ describe("quality benchmark gates", () => {
 
     const result = evaluateToolBenchmark(toolBenchmark, changed);
     expect(result.gate).toBe("fail");
-    expect(result.caseResults[0]?.reasons).toContain("tool call budget exceeded");
+    expect(result.caseResults[0]?.reasons).toContain(
+      "tool call budget exceeded",
+    );
     expect(result.caseResults[0]?.reasons).toContain("forbidden tool invoked");
   });
 
@@ -93,10 +95,7 @@ describe("quality benchmark gates", () => {
     measurement.latencyMs = 3000;
     measurement.costUsd = 0.04;
 
-    const result = evaluatePerformanceBenchmark(
-      performanceBenchmark,
-      changed,
-    );
+    const result = evaluatePerformanceBenchmark(performanceBenchmark, changed);
     expect(result.gate).toBe("fail");
     expect(result.caseResults[1]?.reasons).toEqual([
       "latency budget exceeded",
@@ -125,13 +124,10 @@ describe("quality benchmark gates", () => {
 
   it("rejects mixed-candidate evidence even when every individual gate passes", () => {
     const tool = evaluateToolBenchmark(toolBenchmark, toolCandidate);
-    const performance = evaluatePerformanceBenchmark(
-      performanceBenchmark,
-      {
-        ...performanceCandidate,
-        candidate: { id: "different", version: "0.1.0" },
-      },
-    );
+    const performance = evaluatePerformanceBenchmark(performanceBenchmark, {
+      ...performanceCandidate,
+      candidate: { id: "different", version: "0.1.0" },
+    });
     const result = evaluateChallengerGate({
       raeburnBench: {
         candidate,

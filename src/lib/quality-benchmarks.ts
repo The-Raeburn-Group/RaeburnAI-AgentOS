@@ -68,7 +68,10 @@ export function evaluateToolBenchmark(
   const benchmark = ToolBenchmarkSchema.parse(benchmarkInput);
   const candidate = ToolBenchmarkCandidateSchema.parse(candidateInput);
   const knownCases = new Set(benchmark.cases.map((item) => item.id));
-  const traces = new Map<string, z.infer<typeof ToolBenchmarkCandidateSchema>["traces"][number]>();
+  const traces = new Map<
+    string,
+    z.infer<typeof ToolBenchmarkCandidateSchema>["traces"][number]
+  >();
 
   for (const trace of candidate.traces) {
     if (!knownCases.has(trace.caseId)) {
@@ -111,8 +114,7 @@ export function evaluateToolBenchmark(
   });
 
   const score = rounded(
-    caseResults.reduce((sum, item) => sum + item.score, 0) /
-      caseResults.length,
+    caseResults.reduce((sum, item) => sum + item.score, 0) / caseResults.length,
   );
   const unsigned = {
     contractVersion: TOOL_BENCHMARK_VERSION,
@@ -162,14 +164,21 @@ export function evaluatePerformanceBenchmark(
   const benchmark = PerformanceBenchmarkSchema.parse(benchmarkInput);
   const candidate = PerformanceCandidateSchema.parse(candidateInput);
   const knownCases = new Set(benchmark.cases.map((item) => item.id));
-  const measurements = new Map<string, z.infer<typeof PerformanceCandidateSchema>["measurements"][number]>();
+  const measurements = new Map<
+    string,
+    z.infer<typeof PerformanceCandidateSchema>["measurements"][number]
+  >();
 
   for (const measurement of candidate.measurements) {
     if (!knownCases.has(measurement.caseId)) {
-      throw new Error("performance_benchmark_unknown_case:" + measurement.caseId);
+      throw new Error(
+        "performance_benchmark_unknown_case:" + measurement.caseId,
+      );
     }
     if (measurements.has(measurement.caseId)) {
-      throw new Error("performance_benchmark_duplicate_case:" + measurement.caseId);
+      throw new Error(
+        "performance_benchmark_duplicate_case:" + measurement.caseId,
+      );
     }
     measurements.set(measurement.caseId, measurement);
   }
@@ -229,21 +238,29 @@ const GateResultSchema = z.object({
 });
 
 export function evaluateChallengerGate(options: {
-  raeburnBench: { candidate: { id: string; version: string }; gate: { status: "pass" | "fail" }; artifactDigest: string };
+  raeburnBench: {
+    candidate: { id: string; version: string };
+    gate: { status: "pass" | "fail" };
+    artifactDigest: string;
+  };
   toolBenchmark: unknown;
   performanceBenchmark: unknown;
 }) {
   const tool = GateResultSchema.parse(options.toolBenchmark);
   const performance = GateResultSchema.parse(options.performanceBenchmark);
-  const identity = CandidateIdentitySchema.parse(options.raeburnBench.candidate);
+  const identity = CandidateIdentitySchema.parse(
+    options.raeburnBench.candidate,
+  );
   const sameCandidate =
     tool.candidate.id === identity.id &&
     tool.candidate.version === identity.version &&
     performance.candidate.id === identity.id &&
     performance.candidate.version === identity.version;
   const reasons: string[] = [];
-  if (!sameCandidate) reasons.push("benchmark artifacts refer to different candidates");
-  if (options.raeburnBench.gate.status !== "pass") reasons.push("RaeburnBench failed");
+  if (!sameCandidate)
+    reasons.push("benchmark artifacts refer to different candidates");
+  if (options.raeburnBench.gate.status !== "pass")
+    reasons.push("RaeburnBench failed");
   if (tool.gate !== "pass") reasons.push("tool-use benchmark failed");
   if (performance.gate !== "pass") reasons.push("performance benchmark failed");
 
