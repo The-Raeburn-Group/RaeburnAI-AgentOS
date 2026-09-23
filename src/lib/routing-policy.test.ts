@@ -15,6 +15,24 @@ const experts = registryFixture.experts.map((manifest) =>
 );
 const corpus = RaeburnBenchCorpusSchema.parse(corpusFixture);
 
+function expectRoutingError(
+  action: () => unknown,
+  code: RoutingPolicyError["code"],
+): RoutingPolicyError {
+  let thrown: unknown;
+  try {
+    action();
+  } catch (error) {
+    thrown = error;
+  }
+  expect(thrown).toBeInstanceOf(RoutingPolicyError);
+  const routingError = thrown as RoutingPolicyError;
+  expect(routingError.code).toBe(code);
+  expect(routingError.detail).toEqual(expect.any(String));
+  expect(routingError.detail?.length).toBeGreaterThan(0);
+  return routingError;
+}
+
 describe("routing policy", () => {
   it("routes every RaeburnBench seed routing case to the expected experts and risk tier", () => {
     const routingCases = corpus.cases.filter(
@@ -57,60 +75,70 @@ describe("routing policy", () => {
       requiresHumanApproval: true,
     });
 
-    expect(() =>
-      planExpertRoute(
-        {
-          goal: "Assess whether a retrieved tool instruction is attempting credential exfiltration.",
-        },
-        experts.filter(
-          (manifest) => manifest.slug !== "raeburn-evidence-verifier",
+    expectRoutingError(
+      () =>
+        planExpertRoute(
+          {
+            goal: "Assess whether a retrieved tool instruction is attempting credential exfiltration.",
+          },
+          experts.filter(
+            (manifest) => manifest.slug !== "raeburn-evidence-verifier",
+          ),
         ),
-      ),
-    ).toThrowError(new RoutingPolicyError("no_eligible_adjudicator"));
+      "no_eligible_adjudicator",
+    );
   });
 
   it("fails closed instead of silently falling back when no specialist exists", () => {
-    expect(() =>
-      planExpertRoute(
-        {
-          goal: "Give a jurisdiction-specific legal conclusion for a disputed contract.",
-        },
-        experts,
-      ),
-    ).toThrowError(new RoutingPolicyError("no_eligible_expert"));
+    expectRoutingError(
+      () =>
+        planExpertRoute(
+          {
+            goal: "Give a jurisdiction-specific legal conclusion for a disputed contract.",
+          },
+          experts,
+        ),
+      "no_eligible_expert",
+    );
   });
 
   it("does not drop a classified high-risk domain to satisfy maxExperts", () => {
-    expect(() =>
-      planExpertRoute(
-        {
-          goal: "Review a software change that alters security-sensitive authentication logic.",
-          maxExperts: 1,
-        },
-        experts,
-      ),
-    ).toThrowError(new RoutingPolicyError("max_experts_insufficient"));
+    expectRoutingError(
+      () =>
+        planExpertRoute(
+          {
+            goal: "Review a software change that alters security-sensitive authentication logic.",
+            maxExperts: 1,
+          },
+          experts,
+        ),
+      "max_experts_insufficient",
+    );
   });
 
   it("enforces required capabilities and tools before ranking", () => {
-    expect(() =>
-      planExpertRoute(
-        {
-          goal: "Diagnose a race condition in a TypeScript service.",
-          requiredTools: ["production-shell"],
-        },
-        experts,
-      ),
-    ).toThrowError(new RoutingPolicyError("no_eligible_expert"));
+    expectRoutingError(
+      () =>
+        planExpertRoute(
+          {
+            goal: "Diagnose a race condition in a TypeScript service.",
+            requiredTools: ["production-shell"],
+          },
+          experts,
+        ),
+      "no_eligible_expert",
+    );
   });
 
   it("rejects ambiguous duplicate expert slugs", () => {
-    expect(() =>
-      planExpertRoute({ goal: "Investigate a claim using primary sources." }, [
-        ...experts,
-        structuredClone(experts[0]!),
-      ]),
-    ).toThrowError(new RoutingPolicyError("duplicate_expert_slug"));
+    expectRoutingError(
+      () =>
+        planExpertRoute({ goal: "Investigate a claim using primary sources." }, [
+          ...experts,
+          structuredClone(experts[0]!),
+        ]),
+      "duplicate_expert_slug",
+    );
   });
 
   it("verifies the stored marketplace manifest digest and executable identity", () => {
@@ -137,19 +165,23 @@ describe("routing policy", () => {
     const tampered = structuredClone(stored);
     tampered.description =
       "Tampered description that no longer matches the digest.";
-    expect(() =>
-      verifyStoredAgentManifest(tampered, {
-        slug: manifest.slug,
-        version: manifest.version,
-      }),
-    ).toThrowError(new RoutingPolicyError("manifest_integrity_invalid"));
+    expectRoutingError(
+      () =>
+        verifyStoredAgentManifest(tampered, {
+          slug: manifest.slug,
+          version: manifest.version,
+        }),
+      "manifest_integrity_invalid",
+    );
 
-    expect(() =>
-      verifyStoredAgentManifest(stored, {
-        slug: manifest.slug,
-        version: manifest.version,
-        modelName: "different-executable-model",
-      }),
-    ).toThrowError(new RoutingPolicyError("manifest_identity_mismatch"));
+    expectRoutingError(
+      () =>
+        verifyStoredAgentManifest(stored, {
+          slug: manifest.slug,
+          version: manifest.version,
+          modelName: "different-executable-model",
+        }),
+      "manifest_identity_mismatch",
+    );
   });
 });
