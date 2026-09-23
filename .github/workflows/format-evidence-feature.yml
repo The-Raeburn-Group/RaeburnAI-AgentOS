@@ -1,0 +1,43 @@
+name: Format evidence feature branch
+
+on:
+  push:
+    branches:
+      - feat/evidence-verification-core
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format reviewed evidence files
+        run: |
+          npx --no-install prettier --write \
+            src/app/api/evidence/verify/route.integration.test.ts \
+            src/app/api/evidence/verify/route.test.ts \
+            src/app/api/evidence/verify/route.ts \
+            src/lib/evidence-verification.test.ts \
+            src/lib/evidence-verification.ts \
+            scripts/evidence-verification-bench.ts \
+            docs/EVIDENCE_VERIFICATION.md
+      - name: Commit exact formatting result
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/app/api/evidence/verify src/lib/evidence-verification.ts src/lib/evidence-verification.test.ts scripts/evidence-verification-bench.ts docs/EVIDENCE_VERIFICATION.md
+          git commit -m 'style(evidence): apply pinned Prettier after review fixes'
+          git push origin HEAD:feat/evidence-verification-core
