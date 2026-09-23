@@ -25,15 +25,33 @@ export const TrustedEvidenceSourceSchema = z.object({
   documentId: z.string().trim().min(1).max(256),
   documentVersion: z.string().trim().min(1).max(128),
   chunkId: z.string().trim().min(1).max(256),
-  excerpt: z.string().trim().min(1).max(20_000),
+  excerpt: z
+    .string()
+    .min(1)
+    .max(20_000)
+    .refine((value) => value.trim().length > 0, {
+      message: "source excerpt cannot be blank",
+    }),
   contentHash: z.string().regex(/^[a-f0-9]{64}$/),
 });
 export type TrustedEvidenceSource = z.infer<typeof TrustedEvidenceSourceSchema>;
 
 export const EvidenceVerificationClaimSchema = z.object({
   id: z.string().trim().min(1).max(256),
-  claim: z.string().trim().min(1).max(10_000),
-  sourceIds: z.array(z.string().trim().min(1).max(256)).min(1),
+  claim: z
+    .string()
+    .trim()
+    .min(1)
+    .max(10_000)
+    .refine((value) => normalizedText(value).length > 0, {
+      message: "claim must contain semantic text",
+    }),
+  sourceIds: z
+    .array(z.string().trim().min(1).max(256))
+    .min(1)
+    .refine((values) => new Set(values).size === values.length, {
+      message: "claim sourceIds must be unique",
+    }),
   material: z.boolean().default(true),
 });
 export type EvidenceVerificationClaim = z.infer<
@@ -93,12 +111,23 @@ export const EvidenceVerificationRequestSchema = z
     contradictionSearchPerformed: z.boolean().default(false),
     criticReview: CriticReviewSchema.optional(),
   })
+  .strict()
   .superRefine((value, context) => {
     if (value.claims.length === 0 && value.calculations.length === 0) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["claims"],
         message: "verification requires at least one claim or calculation",
+      });
+    }
+    if (
+      !value.claims.some((claim) => claim.material) &&
+      !value.calculations.some((calculation) => calculation.material)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["claims"],
+        message: "verification requires at least one material assertion",
       });
     }
   });
@@ -155,6 +184,7 @@ export const EvidenceVerificationResultSchema = z.object({
     citationIntegrity: z.number().min(0).max(1),
     calculationAccuracy: z.number().min(0).max(1),
     contradictionCoverage: z.number().min(0).max(1),
+    answerCoverage: z.number().min(0).max(1),
     overall: z.number().min(0).max(1),
   }),
   reasons: z.array(z.string()),
@@ -287,48 +317,91 @@ function sourceRelation(
   source: TrustedEvidenceSource,
 ): { relation: "supports" | "contradicts" | "unclear"; reasons: string[] } {
   const normalizedClaim = normalizedText(claim);
-  const normalizedExcerpt = normalizedText(source.excerpt);
+  if (!normalizedClaim) {
+    return {
+      relation: "unclear",
+      reasons: ["claim normalizes to empty text"],
+    };
+  }
+
   const claimTokens = materialTokens(claim);
-  const excerptTokens = new Set(materialTokens(source.excerpt));
-  const overlap =
-    claimTokens.length === 0
-      ? 0
-      : claimTokens.filter((token) => excerptTokens.has(token)).length /
-        claimTokens.length;
   const claimNumbers = numbers(claim);
-  const excerptNumbers = numbers(source.excerpt);
-  const numericMismatch =
-    claimNumbers.length > 0 &&
-    excerptNumbers.length > 0 &&
-    claimNumbers.some(
-      (value) => !excerptNumbers.some((candidate) => candidate === value),
-    );
-  const negationMismatch = hasNegation(claim) !== hasNegation(source.excerpt);
+  const statements = source.excerpt
+    .split(/(?:\r?\n|;|(?<=[.!?])\s+)/)
+    .map((statement) => statement.trim())
+    .filter((statement) => normalizedText(statement).length > 0);
+
+  let best:
+    | {
+        statement: string;
+        normalized: string;
+        overlap: number;
+        numericMismatch: boolean;
+        negationMismatch: boolean;
+      }
+    | undefined;
+
+  for (const statement of statements) {
+    const normalized = normalizedText(statement);
+    if (normalized.includes(normalizedClaim)) {
+      return {
+        relation: "supports",
+        reasons: ["claim appears directly in a trusted source statement"],
+      };
+    }
+
+    const statementTokens = new Set(materialTokens(statement));
+    const overlap =
+      claimTokens.length === 0
+        ? 0
+        : claimTokens.filter((token) => statementTokens.has(token)).length /
+          claimTokens.length;
+    const statementNumbers = numbers(statement);
+    const numericMismatch =
+      claimNumbers.length > 0 &&
+      statementNumbers.length > 0 &&
+      claimNumbers.some(
+        (value) =>
+          !statementNumbers.some((candidate) => candidate === value),
+      );
+    const negationMismatch = hasNegation(claim) !== hasNegation(statement);
+
+    if (!best || overlap > best.overlap) {
+      best = {
+        statement,
+        normalized,
+        overlap,
+        numericMismatch,
+        negationMismatch,
+      };
+    }
+  }
 
   if (
-    normalizedExcerpt.includes("not " + normalizedClaim) ||
-    (overlap >= 0.8 && (negationMismatch || numericMismatch))
+    best &&
+    best.overlap >= 0.8 &&
+    (best.negationMismatch || best.numericMismatch)
   ) {
     return {
       relation: "contradicts",
       reasons: [
-        negationMismatch
-          ? "high lexical overlap with opposing negation"
-          : "high lexical overlap with conflicting numeric evidence",
+        best.negationMismatch
+          ? "best-matching source statement has opposing negation"
+          : "best-matching source statement has conflicting numeric evidence",
       ],
     };
   }
 
   if (
-    normalizedExcerpt.includes(normalizedClaim) ||
-    (claimTokens.length >= 2 && overlap >= 0.85 && !numericMismatch)
+    best &&
+    claimTokens.length >= 2 &&
+    best.overlap >= 0.85 &&
+    !best.numericMismatch
   ) {
     return {
       relation: "supports",
       reasons: [
-        normalizedExcerpt.includes(normalizedClaim)
-          ? "claim appears directly in trusted source excerpt"
-          : "trusted source excerpt has strong material-token coverage",
+        "best-matching trusted source statement has strong material-token coverage",
       ],
     };
   }
@@ -545,29 +618,41 @@ function claimVerdict(options: {
     ...contradicts.map((item) => item.quality),
   );
   const reasons: string[] = [];
-  let verdict: "supported" | "contradicted" | "conflicted" | "insufficient" =
-    "insufficient";
+  let direction: "support" | "contradiction" | "conflict" | "none" = "none";
 
   if (supports.length > 0 && contradicts.length > 0) {
     const difference = Math.abs(bestSupport - bestContradiction);
     if (difference < 0.2) {
-      verdict = "conflicted";
+      direction = "conflict";
       reasons.push(
         "material supporting and contradicting evidence have comparable quality",
       );
     } else if (bestSupport > bestContradiction) {
-      verdict = "supported";
+      direction = "support";
       reasons.push(
         "higher-quality evidence supports the claim despite contradiction",
       );
     } else {
-      verdict = "contradicted";
+      direction = "contradiction";
       reasons.push("higher-quality evidence contradicts the claim");
     }
   } else if (contradicts.length > 0) {
-    verdict = "contradicted";
+    direction = "contradiction";
     reasons.push("trusted evidence contradicts the claim");
   } else if (supports.length > 0) {
+    direction = "support";
+  } else {
+    reasons.push("no trusted source independently supports the material claim");
+  }
+
+  let verdict: "supported" | "contradicted" | "conflicted" | "insufficient" =
+    direction === "contradiction"
+      ? "contradicted"
+      : direction === "conflict"
+        ? "conflicted"
+        : "insufficient";
+
+  if (direction === "support") {
     const validSupportingIds = new Set(supports.map((item) => item.sourceId));
     const minimum = requiredSupportingSources(strictness);
     const primaryPresent = sources.some(
@@ -576,8 +661,9 @@ function claimVerdict(options: {
         validSupportingIds.has(source.id) &&
         evidenceSourceContentHash(source.excerpt) === source.contentHash,
     );
+
     if (
-      supports.length >= minimum &&
+      validSupportingIds.size >= minimum &&
       (strictness !== "regulated" || primaryPresent)
     ) {
       verdict = "supported";
@@ -585,14 +671,13 @@ function claimVerdict(options: {
         "claim meets the minimum independently verified supporting-source policy",
       );
     } else {
+      verdict = "insufficient";
       reasons.push(
         strictness === "regulated" && !primaryPresent
           ? "regulated claim lacks independently verified primary-source support"
-          : "claim lacks the required number of independently verified supporting sources",
+          : "claim lacks the required number of distinct independently verified supporting sources",
       );
     }
-  } else {
-    reasons.push("no trusted source independently supports the material claim");
   }
 
   return {
@@ -658,7 +743,7 @@ function verifyCritic(options: {
       finding.sourceIds.some((sourceId) => {
         const source = sourceMap.get(sourceId);
         if (!source) return false;
-        return sourceRelation(finding.summary, source).relation !== "unclear";
+        return sourceRelation(finding.summary, source).relation === "supports";
       });
     if (evidenceGrounded) substantiated.push(finding.id);
     else ignored.push(finding.id);
@@ -683,6 +768,87 @@ function verifyCritic(options: {
 
 function deduplicatedReasons(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function answerStatements(answer: string): string[] {
+  return answer
+    .split(/(?:\r?\n|;|(?<=[.!?])\s+)/)
+    .map((statement) => statement.trim())
+    .filter((statement) => normalizedText(statement).length > 0);
+}
+
+function claimCoversAnswerStatement(
+  statement: string,
+  claim: EvidenceVerificationClaim,
+): boolean {
+  if (!claim.material) return false;
+  const statementTokens = materialTokens(statement);
+  const claimTokens = new Set(materialTokens(claim.claim));
+  const statementNumbers = numbers(statement);
+  const claimNumbers = numbers(claim.claim);
+  const tokenCoverage =
+    statementTokens.length === 0
+      ? normalizedText(statement) === normalizedText(claim.claim)
+        ? 1
+        : 0
+      : statementTokens.filter((token) => claimTokens.has(token)).length /
+        statementTokens.length;
+  const numbersCovered = statementNumbers.every((value) =>
+    claimNumbers.some((candidate) => candidate === value),
+  );
+  return tokenCoverage >= 0.8 && numbersCovered;
+}
+
+function calculationCoversAnswerStatement(
+  statement: string,
+  calculation: CalculationClaim,
+): boolean {
+  if (!calculation.material) return false;
+  const genericCalculationWords = new Set([
+    "amount",
+    "calculation",
+    "result",
+    "total",
+    "value",
+  ]);
+  const statementTokens = materialTokens(statement);
+  const statementNumbers = numbers(statement);
+  const tolerance = Math.max(
+    calculation.absoluteTolerance,
+    Math.abs(calculation.assertedResult) * calculation.relativeTolerance,
+  );
+  const resultPresent = statementNumbers.some(
+    (value) => Math.abs(value - calculation.assertedResult) <= tolerance,
+  );
+  return (
+    resultPresent &&
+    statementTokens.every((token) => genericCalculationWords.has(token))
+  );
+}
+
+function verifyAnswerCoverage(
+  request: EvidenceVerificationRequest,
+): { score: number; uncoveredStatements: string[] } {
+  const statements = answerStatements(request.answer);
+  if (statements.length === 0) {
+    return { score: 0, uncoveredStatements: ["answer is blank"] };
+  }
+
+  const uncoveredStatements = statements.filter(
+    (statement) =>
+      !request.claims.some((claim) =>
+        claimCoversAnswerStatement(statement, claim),
+      ) &&
+      !request.calculations.some((calculation) =>
+        calculationCoversAnswerStatement(statement, calculation),
+      ),
+  );
+  return {
+    score: rounded(
+      (statements.length - uncoveredStatements.length) / statements.length,
+    ),
+    uncoveredStatements,
+  };
 }
 
 export function verifyEvidenceBundle(
@@ -731,6 +897,7 @@ export function verifyEvidenceBundle(
     }),
   );
   const calculationResults = request.calculations.map(verifyCalculation);
+  const answerCoverage = verifyAnswerCoverage(request);
   const critic = verifyCritic({
     review: request.criticReview,
     strictness: request.strictness,
@@ -752,6 +919,10 @@ export function verifyEvidenceBundle(
   const hardFailures: string[] = [];
   const reviewReasons: string[] = [];
   const unresolvedRisks: string[] = [];
+
+  for (const statement of answerCoverage.uncoveredStatements) {
+    hardFailures.push("answer assertion is not covered by the claim inventory: " + statement);
+  }
 
   if (
     (request.strictness === "high" || request.strictness === "regulated") &&
@@ -870,6 +1041,7 @@ export function verifyEvidenceBundle(
       citationIntegrity,
       calculationAccuracy,
       contradictionCoverage,
+      answerCoverage.score,
     ]),
   );
 
@@ -894,6 +1066,7 @@ export function verifyEvidenceBundle(
       citationIntegrity,
       calculationAccuracy,
       contradictionCoverage,
+      answerCoverage: answerCoverage.score,
       overall,
     },
     reasons: deduplicatedReasons([...hardFailures, ...reviewReasons]),
