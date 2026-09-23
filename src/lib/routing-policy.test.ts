@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import corpusFixture from "../../benchmarks/raeburnbench.seed.v0.json";
 import registryFixture from "../../benchmarks/experts/routing-seed.v0.json";
 import { agentManifestDigest } from "@/lib/collaboration";
+import { RaeburnBenchCorpusSchema } from "@/lib/raeburnbench";
 import {
   RoutingPolicyError,
   planExpertRoute,
@@ -12,10 +13,11 @@ import { AgentManifestSchema } from "@/lib/types";
 const experts = registryFixture.experts.map((manifest) =>
   AgentManifestSchema.parse(manifest),
 );
+const corpus = RaeburnBenchCorpusSchema.parse(corpusFixture);
 
 describe("routing policy", () => {
   it("routes every RaeburnBench seed routing case to the expected experts and risk tier", () => {
-    const routingCases = corpusFixture.cases.filter(
+    const routingCases = corpus.cases.filter(
       (benchmarkCase) => benchmarkCase.suite === "routing",
     );
 
