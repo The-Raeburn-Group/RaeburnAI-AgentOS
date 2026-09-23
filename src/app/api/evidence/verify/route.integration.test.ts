@@ -32,8 +32,7 @@ function verificationRequest() {
     },
     body: JSON.stringify({
       strictness: "standard",
-      answer:
-        "The approved control threshold is 75 percent. The result is 75.",
+      answer: "The approved control threshold is 75 percent. The result is 75.",
       sources: [
         {
           id: "source-1",

@@ -361,8 +361,7 @@ function sourceRelation(
       claimNumbers.length > 0 &&
       statementNumbers.length > 0 &&
       claimNumbers.some(
-        (value) =>
-          !statementNumbers.some((candidate) => candidate === value),
+        (value) => !statementNumbers.some((candidate) => candidate === value),
       );
     const negationMismatch = hasNegation(claim) !== hasNegation(statement);
 
@@ -826,9 +825,10 @@ function calculationCoversAnswerStatement(
   );
 }
 
-function verifyAnswerCoverage(
-  request: EvidenceVerificationRequest,
-): { score: number; uncoveredStatements: string[] } {
+function verifyAnswerCoverage(request: EvidenceVerificationRequest): {
+  score: number;
+  uncoveredStatements: string[];
+} {
   const statements = answerStatements(request.answer);
   if (statements.length === 0) {
     return { score: 0, uncoveredStatements: ["answer is blank"] };
@@ -921,7 +921,9 @@ export function verifyEvidenceBundle(
   const unresolvedRisks: string[] = [];
 
   for (const statement of answerCoverage.uncoveredStatements) {
-    hardFailures.push("answer assertion is not covered by the claim inventory: " + statement);
+    hardFailures.push(
+      "answer assertion is not covered by the claim inventory: " + statement,
+    );
   }
 
   if (

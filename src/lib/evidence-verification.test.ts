@@ -436,10 +436,7 @@ describe("independent evidence verification", () => {
   });
 
   it("preserves exact source excerpt bytes for integrity validation", () => {
-    const trusted = source(
-      "s1",
-      "  The approved limit is 50.\n",
-    );
+    const trusted = source("s1", "  The approved limit is 50.\n");
     const result = verifyEvidenceBundle({
       strictness: "standard",
       answer: "The approved limit is 50.",
