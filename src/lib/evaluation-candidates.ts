@@ -675,7 +675,6 @@ export async function exportApprovedEvaluationRecordsJsonl(
     where: {
       tenantId,
       status,
-      approvedRecord: { not: Prisma.DbNull },
     },
     orderBy: [{ reviewedAt: "asc" }, { id: "asc" }],
   });
