@@ -229,21 +229,35 @@ function assertProvenanceHasNoSensitiveIdentifiers(
     | "capture_sensitive_data_not_allowed"
     | "approved_record_requires_redaction",
 ): void {
+  const identifiers = [
+    provenance.sourceId,
+    provenance.sourceUri,
+    provenance.license.identifier,
+    provenance.privacy.lawfulBasis,
+  ].filter((value): value is string => Boolean(value));
+
   try {
-    const result = sanitizeMemoryCandidate({
+    for (const value of identifiers) {
+      const result = sanitizeMemoryCandidate({
+        content: value,
+        metadata: {},
+        sensitivityLabels: [],
+      });
+      if (result.redactionCount > 0 || result.content !== value) {
+        throw new EvaluationCandidateError(
+          code,
+          "dataset provenance identifiers must be opaque and free of direct identifiers or credentials",
+        );
+      }
+    }
+
+    // Keep the structural check as a second line of defence for future
+    // provenance fields whose names themselves imply prohibited data.
+    sanitizeMemoryCandidate({
       content: "dataset-provenance",
       metadata: provenance as unknown as Record<string, JsonValue>,
       sensitivityLabels: [],
     });
-    if (
-      result.redactionCount > 0 ||
-      JSON.stringify(result.metadata) !== JSON.stringify(provenance)
-    ) {
-      throw new EvaluationCandidateError(
-        code,
-        "dataset provenance identifiers must be opaque and free of direct identifiers or credentials",
-      );
-    }
   } catch (error) {
     if (error instanceof EvaluationCandidateError) throw error;
     if (error instanceof MemoryPolicyError) {
