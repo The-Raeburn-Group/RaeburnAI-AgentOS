@@ -336,8 +336,12 @@ export async function reviewEvaluationCandidate(options: {
   }
 
   return db.$transaction(async (tx) => {
-    const reviewed = await tx.evaluationCandidate.update({
-      where: { id: candidate.id },
+    const transition = await tx.evaluationCandidate.updateMany({
+      where: {
+        id: candidate.id,
+        tenantId: options.tenantId,
+        status: EvaluationCandidateStatus.PENDING_REVIEW,
+      },
       data: {
         status: targetStatus,
         reviewedBy: input.reviewer,
@@ -345,6 +349,13 @@ export async function reviewEvaluationCandidate(options: {
         reviewedAt: new Date(),
       },
     });
+    const reviewed = await tx.evaluationCandidate.findUniqueOrThrow({
+      where: { id: candidate.id },
+    });
+    if (transition.count !== 1) {
+      if (reviewed.status === targetStatus) return reviewed;
+      throw new QualityLoopError("invalid_transition");
+    }
     await tx.auditEvent.create({
       data: {
         tenantId: candidate.tenantId,
@@ -403,13 +414,23 @@ export async function promoteEvaluationCandidate(options: {
 
   const record = validatedCounterexampleRecord(candidate, input.record);
   return db.$transaction(async (tx) => {
-    const promoted = await tx.evaluationCandidate.update({
-      where: { id: candidate.id },
+    const transition = await tx.evaluationCandidate.updateMany({
+      where: {
+        id: candidate.id,
+        tenantId: options.tenantId,
+        status: EvaluationCandidateStatus.ACCEPTED,
+      },
       data: {
         status: EvaluationCandidateStatus.PROMOTED,
         datasetRecord: inputJson(record),
         promotedAt: new Date(),
       },
+    });
+    if (transition.count !== 1) {
+      throw new QualityLoopError("invalid_transition");
+    }
+    const promoted = await tx.evaluationCandidate.findUniqueOrThrow({
+      where: { id: candidate.id },
     });
     await tx.auditEvent.create({
       data: {
