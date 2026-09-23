@@ -220,6 +220,39 @@ function sanitizeMetadata(
   return result.metadata;
 }
 
+function assertProvenanceHasNoSensitiveIdentifiers(
+  provenance: z.infer<typeof DatasetProvenanceSchema>,
+  code:
+    | "capture_sensitive_data_not_allowed"
+    | "approved_record_requires_redaction",
+): void {
+  try {
+    const result = sanitizeMemoryCandidate({
+      content: "dataset-provenance",
+      metadata: provenance as unknown as Record<string, JsonValue>,
+      sensitivityLabels: [],
+    });
+    if (
+      result.redactionCount > 0 ||
+      JSON.stringify(result.metadata) !== JSON.stringify(provenance)
+    ) {
+      throw new EvaluationCandidateError(
+        code,
+        "dataset provenance identifiers must be opaque and free of direct identifiers or credentials",
+      );
+    }
+  } catch (error) {
+    if (error instanceof EvaluationCandidateError) throw error;
+    if (error instanceof MemoryPolicyError) {
+      throw new EvaluationCandidateError(
+        code,
+        "dataset provenance cannot contain private keys or prohibited sensitive data",
+      );
+    }
+    throw error;
+  }
+}
+
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value !== null && typeof value === "object") {
@@ -255,6 +288,10 @@ function sanitizedCapture(input: unknown) {
   if (parsed.provenance.privacy.containsSpecialCategoryData) {
     throw new EvaluationCandidateError("special_category_data_not_allowed");
   }
+  assertProvenanceHasNoSensitiveIdentifiers(
+    parsed.provenance,
+    "capture_sensitive_data_not_allowed",
+  );
 
   const accumulator: SanitizationAccumulator = {
     findingTypes: new Set(),
@@ -446,6 +483,10 @@ export async function captureEvaluationCandidate(
 }
 
 function assertApprovedRecordNeedsNoRedaction(record: DatasetRecord): void {
+  assertProvenanceHasNoSensitiveIdentifiers(
+    record.provenance,
+    "approved_record_requires_redaction",
+  );
   const values = [
     record.prompt,
     record.idealAnswer,
