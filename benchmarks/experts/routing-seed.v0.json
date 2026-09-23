@@ -138,6 +138,142 @@
     },
     {
       "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Legal Research",
+      "slug": "raeburn-legal-research",
+      "version": "0.1.0",
+      "description": "Legal research expert for jurisdiction, contracts and court-facing analysis.",
+      "systemPrompt": "Analyse the specialist request conservatively, require evidence and escalate irreversible actions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "legal_research",
+        "high-stakes"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "legal_research"
+      ],
+      "capabilities": [
+        "legal_research",
+        "legal_analysis"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Health Research",
+      "slug": "raeburn-health-research",
+      "version": "0.1.0",
+      "description": "Health research expert for clinical evidence and medically sensitive analysis.",
+      "systemPrompt": "Analyse the specialist request conservatively, require evidence and escalate irreversible actions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "health_research",
+        "high-stakes"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "health_research"
+      ],
+      "capabilities": [
+        "health_research",
+        "clinical_evidence"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Finance",
+      "slug": "raeburn-finance",
+      "version": "0.1.0",
+      "description": "Finance expert for high-stakes financial analysis and transaction review.",
+      "systemPrompt": "Analyse the specialist request conservatively, require evidence and escalate irreversible actions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "finance",
+        "high-stakes"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "finance"
+      ],
+      "capabilities": [
+        "finance",
+        "financial_analysis"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
+      "name": "Raeburn Tax",
+      "slug": "raeburn-tax",
+      "version": "0.1.0",
+      "description": "Tax expert for jurisdiction-sensitive tax analysis and filing review.",
+      "systemPrompt": "Analyse the specialist request conservatively, require evidence and escalate irreversible actions.",
+      "modelProvider": "ollama",
+      "modelName": "test-model",
+      "marketplaceTags": [
+        "tax",
+        "high-stakes"
+      ],
+      "requiredTools": [],
+      "domains": [
+        "tax"
+      ],
+      "capabilities": [
+        "tax",
+        "tax_analysis"
+      ],
+      "retrievalCollections": [],
+      "evalSuites": [
+        "routing"
+      ],
+      "riskTier": "high",
+      "evidencePolicy": {
+        "requireSources": true,
+        "preferPrimarySources": true,
+        "contradictionSearch": true
+      },
+      "approvalRequired": true,
+      "memoryScope": "workflow"
+    },
+    {
+      "schemaVersion": "raeburnai.agent-manifest.v1",
       "name": "Raeburn Evidence Verifier",
       "slug": "raeburn-evidence-verifier",
       "version": "0.1.0",
