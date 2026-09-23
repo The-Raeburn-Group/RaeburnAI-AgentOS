@@ -59,7 +59,8 @@ export async function POST(request: Request) {
           calculationCount: verification.calculationResults.length,
           substantiatedCriticFindingCount:
             verification.critic.substantiatedFindingIds.length,
-          ignoredCriticFindingCount: verification.critic.ignoredFindingIds.length,
+          ignoredCriticFindingCount:
+            verification.critic.ignoredFindingIds.length,
           scores: verification.scores,
           reasonCount: verification.reasons.length,
           unresolvedRiskCount: verification.unresolvedRisks.length,

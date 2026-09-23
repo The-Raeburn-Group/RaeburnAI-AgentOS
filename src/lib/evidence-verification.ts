@@ -191,10 +191,7 @@ function canonicalJson(value: unknown): string {
       "{" +
       Object.entries(value as Record<string, unknown>)
         .sort(([left], [right]) => left.localeCompare(right))
-        .map(
-          ([key, item]) =>
-            JSON.stringify(key) + ":" + canonicalJson(item),
-        )
+        .map(([key, item]) => JSON.stringify(key) + ":" + canonicalJson(item))
         .join(",") +
       "}"
     );
@@ -338,11 +335,15 @@ function sourceRelation(
 
   return {
     relation: "unclear",
-    reasons: ["trusted source excerpt does not independently establish the claim"],
+    reasons: [
+      "trusted source excerpt does not independently establish the claim",
+    ],
   };
 }
 
-function sourceQuality(sourceType: TrustedEvidenceSource["sourceType"]): number {
+function sourceQuality(
+  sourceType: TrustedEvidenceSource["sourceType"],
+): number {
   if (sourceType === "primary") return 1;
   if (sourceType === "internal") return 0.9;
   if (sourceType === "secondary") return 0.75;
@@ -544,20 +545,21 @@ function claimVerdict(options: {
     ...contradicts.map((item) => item.quality),
   );
   const reasons: string[] = [];
-  let verdict:
-    | "supported"
-    | "contradicted"
-    | "conflicted"
-    | "insufficient" = "insufficient";
+  let verdict: "supported" | "contradicted" | "conflicted" | "insufficient" =
+    "insufficient";
 
   if (supports.length > 0 && contradicts.length > 0) {
     const difference = Math.abs(bestSupport - bestContradiction);
     if (difference < 0.2) {
       verdict = "conflicted";
-      reasons.push("material supporting and contradicting evidence have comparable quality");
+      reasons.push(
+        "material supporting and contradicting evidence have comparable quality",
+      );
     } else if (bestSupport > bestContradiction) {
       verdict = "supported";
-      reasons.push("higher-quality evidence supports the claim despite contradiction");
+      reasons.push(
+        "higher-quality evidence supports the claim despite contradiction",
+      );
     } else {
       verdict = "contradicted";
       reasons.push("higher-quality evidence contradicts the claim");
@@ -620,7 +622,9 @@ function verifyCritic(options: {
       reasons:
         strictness === "standard"
           ? ["critic review was not supplied"]
-          : ["high-assurance verification requires an independent critic review"],
+          : [
+              "high-assurance verification requires an independent critic review",
+            ],
     };
   }
 
@@ -787,27 +791,39 @@ export function verifyEvidenceBundle(
     if (claim.verdict === "contradicted") {
       hardFailures.push("material claim is contradicted: " + claim.id);
     } else if (claim.verdict === "conflicted") {
-      hardFailures.push("material claim has unresolved evidence conflict: " + claim.id);
+      hardFailures.push(
+        "material claim has unresolved evidence conflict: " + claim.id,
+      );
     } else if (claim.verdict === "insufficient") {
       if (request.strictness === "standard") {
-        reviewReasons.push("material claim lacks sufficient evidence: " + claim.id);
+        reviewReasons.push(
+          "material claim lacks sufficient evidence: " + claim.id,
+        );
       } else {
-        hardFailures.push("material claim lacks sufficient evidence: " + claim.id);
+        hardFailures.push(
+          "material claim lacks sufficient evidence: " + claim.id,
+        );
       }
     }
   }
 
   for (const calculation of materialCalculations) {
     if (!calculation.passed) {
-      hardFailures.push("material calculation failed verification: " + calculation.id);
+      hardFailures.push(
+        "material calculation failed verification: " + calculation.id,
+      );
     }
   }
 
   for (const finding of highCriticFindings) {
     if (request.strictness === "standard") {
-      reviewReasons.push("substantiated high-severity critic finding: " + finding.id);
+      reviewReasons.push(
+        "substantiated high-severity critic finding: " + finding.id,
+      );
     } else {
-      hardFailures.push("substantiated high-severity critic finding: " + finding.id);
+      hardFailures.push(
+        "substantiated high-severity critic finding: " + finding.id,
+      );
     }
   }
 
@@ -837,7 +853,9 @@ export function verifyEvidenceBundle(
     ),
   );
   const calculationAccuracy = rounded(
-    mean(materialCalculations.map((calculation) => (calculation.passed ? 1 : 0))),
+    mean(
+      materialCalculations.map((calculation) => (calculation.passed ? 1 : 0)),
+    ),
   );
   const contradictionCoverage =
     request.strictness === "standard"

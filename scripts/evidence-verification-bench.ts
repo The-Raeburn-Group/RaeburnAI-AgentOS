@@ -131,11 +131,7 @@ const cases: Array<{
       answer: "The regulated ratio is 12 percent.",
       sources: [
         source("primary", "The regulated ratio is 12 percent.", "primary"),
-        source(
-          "secondary",
-          "The regulated ratio is 12 percent.",
-          "secondary",
-        ),
+        source("secondary", "The regulated ratio is 12 percent.", "secondary"),
       ],
       claims: [
         {

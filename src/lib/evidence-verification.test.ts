@@ -62,7 +62,8 @@ describe("independent evidence verification", () => {
       claims: [
         {
           id: "c1",
-          claim: "The approved service level target is 99.9 percent availability.",
+          claim:
+            "The approved service level target is 99.9 percent availability.",
           sourceIds: ["s1"],
         },
       ],
@@ -188,11 +189,9 @@ describe("independent evidence verification", () => {
     expect(single.decision).toBe("fail");
     expect(single.claimResults[0]?.verdict).toBe("insufficient");
 
-    const primary = source(
-      "s2",
-      "The regulated capital ratio is 12 percent.",
-      { sourceType: "primary" },
-    );
+    const primary = source("s2", "The regulated capital ratio is 12 percent.", {
+      sourceType: "primary",
+    });
     const complete = verifyEvidenceBundle({
       strictness: "regulated",
       sources: [secondary, primary],

@@ -11,7 +11,7 @@ The verifier checks five separate dimensions:
 1. **Source integrity** — every trusted source carries URI, document/version/chunk identifiers, retrieval time, source type, excerpt and a SHA-256 hash of that excerpt. A changed excerpt fails closed.
 2. **Claim support** — material claims are re-evaluated against trusted excerpts. The verifier does not trust the model's \`supports\` / \`contradicts\` label from the adjudication response.
 3. **Citation provenance** — claim source IDs must exist in the trusted source catalog and must retain valid content hashes.
-4. **Calculations** — arithmetic expressions are recomputed by a bounded parser that supports numbers, parentheses, unary signs, \`+\`, \`-\`, \`*\`, \`/\` and postfix \`%\`. It never calls JavaScript \`eval\`.
+4. **Calculations** — arithmetic expressions are recomputed by a bounded parser that supports numbers, parentheses, unary signs, \`+\`, \`-\`, \`\*\`, \`/\` and postfix \`%\`. It never calls JavaScript \`eval\`.
 5. **Independent critic evidence** — a critic review records provider/model/family and the primary model family. High/regulated verification requires a different model family. High-severity critic findings affect the verification result only when they cite integrity-verified evidence; unsupported critic findings are retained as unresolved risk rather than automatically overriding verified evidence.
 
 The output contains per-claim/per-calculation results, explicit reasons, unresolved risks and independent scores for correctness, evidence integrity, citation integrity, calculation accuracy and contradiction-search coverage.

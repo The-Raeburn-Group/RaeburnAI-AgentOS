@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { db } from "@/lib/db";
 import { evidenceSourceContentHash } from "@/lib/evidence-verification";
 import { POST } from "./route";
@@ -58,10 +66,7 @@ function verificationRequest() {
 
 describeWithDatabase("evidence verification API integration", () => {
   beforeEach(async () => {
-    vi.stubEnv(
-      "RAEBURN_CHAIN_SERVICE_TOKEN",
-      "evidence-integration-token",
-    );
+    vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "evidence-integration-token");
     await clean();
     await db.tenant.create({
       data: {
