@@ -188,3 +188,67 @@ export function assertEvaluationRecordAdmissible(
 export function assertTrainingRecordAdmissible(input: unknown): DatasetRecord {
   return requirePurpose(parsedRecord(input), "training");
 }
+
+
+export type DatasetExportPurpose = "evaluation" | "training";
+
+function canonicalizeDatasetValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalizeDatasetValue);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, canonicalizeDatasetValue(item)]),
+    );
+  }
+  return value;
+}
+
+function recordForPurpose(
+  input: unknown,
+  purpose: DatasetExportPurpose,
+): DatasetRecord {
+  return purpose === "evaluation"
+    ? assertEvaluationRecordAdmissible(input)
+    : assertTrainingRecordAdmissible(input);
+}
+
+export function serializeDatasetRecordsJsonl(
+  inputs: unknown[],
+  purpose: DatasetExportPurpose,
+): string {
+  const ids = new Set<string>();
+  const lines = inputs.map((input) => {
+    const record = recordForPurpose(input, purpose);
+    if (ids.has(record.id)) {
+      throw new Error(`duplicate dataset record id: ${record.id}`);
+    }
+    ids.add(record.id);
+    return JSON.stringify(canonicalizeDatasetValue(record));
+  });
+  return lines.length === 0 ? "" : `${lines.join("\n")}\n`;
+}
+
+export function parseDatasetRecordsJsonl(
+  text: string,
+  purpose: DatasetExportPurpose,
+): DatasetRecord[] {
+  if (!text.trim()) return [];
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const records = lines.map((line, index) => {
+    try {
+      return recordForPurpose(JSON.parse(line), purpose);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`invalid dataset JSONL line ${index + 1}: ${message}`);
+    }
+  });
+  const ids = new Set<string>();
+  for (const record of records) {
+    if (ids.has(record.id)) {
+      throw new Error(`duplicate dataset record id: ${record.id}`);
+    }
+    ids.add(record.id);
+  }
+  return records;
+}
