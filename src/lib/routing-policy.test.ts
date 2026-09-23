@@ -104,10 +104,10 @@ describe("routing policy", () => {
 
   it("rejects ambiguous duplicate expert slugs", () => {
     expect(() =>
-      planExpertRoute(
-        { goal: "Investigate a claim using primary sources." },
-        [...experts, structuredClone(experts[0]!)],
-      ),
+      planExpertRoute({ goal: "Investigate a claim using primary sources." }, [
+        ...experts,
+        structuredClone(experts[0]!),
+      ]),
     ).toThrowError(new RoutingPolicyError("duplicate_expert_slug"));
   });
 
@@ -133,7 +133,8 @@ describe("routing policy", () => {
     ).toEqual(manifest);
 
     const tampered = structuredClone(stored);
-    tampered.description = "Tampered description that no longer matches the digest.";
+    tampered.description =
+      "Tampered description that no longer matches the digest.";
     expect(() =>
       verifyStoredAgentManifest(tampered, {
         slug: manifest.slug,
