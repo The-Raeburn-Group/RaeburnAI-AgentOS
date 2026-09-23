@@ -14,13 +14,7 @@ describe("RaeburnBench CLI artifact safety", () => {
 
     const result = spawnSync(
       resolve("node_modules/.bin/tsx"),
-      [
-        "scripts/raeburnbench.ts",
-        "--verify",
-        artifact,
-        "--out",
-        artifact,
-      ],
+      ["scripts/raeburnbench.ts", "--verify", artifact, "--out", artifact],
       {
         cwd: process.cwd(),
         encoding: "utf8",
