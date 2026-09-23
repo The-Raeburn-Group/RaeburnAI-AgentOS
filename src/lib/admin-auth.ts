@@ -23,6 +23,9 @@ export type HumanPermission =
   | "approval.decide"
   | "audit.read"
   | "metrics.read"
+  | "evaluation.read"
+  | "evaluation.capture"
+  | "evaluation.review"
   | "settings.write";
 
 const rolePermissions: Record<HumanRole, readonly HumanPermission[]> = {
@@ -35,6 +38,9 @@ const rolePermissions: Record<HumanRole, readonly HumanPermission[]> = {
     "approval.decide",
     "audit.read",
     "metrics.read",
+    "evaluation.read",
+    "evaluation.capture",
+    "evaluation.review",
     "settings.write",
   ],
   operator: [
@@ -43,6 +49,8 @@ const rolePermissions: Record<HumanRole, readonly HumanPermission[]> = {
     "workflow.run",
     "approval.read",
     "metrics.read",
+    "evaluation.read",
+    "evaluation.capture",
   ],
   approver: [
     "agent.read",
@@ -50,6 +58,8 @@ const rolePermissions: Record<HumanRole, readonly HumanPermission[]> = {
     "approval.read",
     "approval.decide",
     "audit.read",
+    "evaluation.read",
+    "evaluation.review",
   ],
   auditor: [
     "agent.read",
@@ -57,6 +67,7 @@ const rolePermissions: Record<HumanRole, readonly HumanPermission[]> = {
     "approval.read",
     "audit.read",
     "metrics.read",
+    "evaluation.read",
   ],
   viewer: ["agent.read", "workflow.read"],
 };
