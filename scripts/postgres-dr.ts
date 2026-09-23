@@ -526,7 +526,6 @@ async function seedRecoveryFixture(): Promise<void> {
         },
       });
 
-
       const candidateId = `00000000-0000-4000-8000-00000000${suffix}a01`;
       const provenance = {
         contractVersion: "raeburnai.dataset-provenance.v1",
