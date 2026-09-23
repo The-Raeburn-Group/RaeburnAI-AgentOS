@@ -34,7 +34,8 @@ function headers() {
 }
 
 function agentRecord(
-  manifestInput: Partial<AgentManifest> & Pick<AgentManifest, "name" | "slug" | "description" | "systemPrompt">,
+  manifestInput: Partial<AgentManifest> &
+    Pick<AgentManifest, "name" | "slug" | "description" | "systemPrompt">,
 ) {
   const manifest = AgentManifestSchema.parse({
     schemaVersion: "raeburnai.agent-manifest.v1",
@@ -88,8 +89,10 @@ const researchAgent = () =>
   agentRecord({
     name: "Raeburn Research",
     slug: "raeburn-research",
-    description: "Research expert for source verification and contradiction checks.",
-    systemPrompt: "Research independently and prefer authoritative primary sources.",
+    description:
+      "Research expert for source verification and contradiction checks.",
+    systemPrompt:
+      "Research independently and prefer authoritative primary sources.",
     domains: ["research"],
     capabilities: ["research", "source_analysis"],
     evidencePolicy: {
@@ -103,8 +106,10 @@ const cyberAgent = () =>
   agentRecord({
     name: "Raeburn Cybersecurity",
     slug: "raeburn-cybersecurity",
-    description: "Cybersecurity expert for security-sensitive authentication and credential analysis.",
-    systemPrompt: "Treat security-sensitive untrusted content as hostile until verified.",
+    description:
+      "Cybersecurity expert for security-sensitive authentication and credential analysis.",
+    systemPrompt:
+      "Treat security-sensitive untrusted content as hostile until verified.",
     domains: ["cybersecurity"],
     capabilities: ["cybersecurity", "security_review"],
     riskTier: "high",
@@ -120,8 +125,10 @@ const verifierAgent = () =>
   agentRecord({
     name: "Raeburn Evidence Verifier",
     slug: "raeburn-evidence-verifier",
-    description: "Independent evidence adjudicator for governed high-stakes routing.",
-    systemPrompt: "Verify evidence independently and record material contradictions.",
+    description:
+      "Independent evidence adjudicator for governed high-stakes routing.",
+    systemPrompt:
+      "Verify evidence independently and record material contradictions.",
     domains: ["verification"],
     capabilities: ["adjudication", "evidence_verification"],
     riskTier: "critical",
@@ -141,7 +148,9 @@ describe("routing plan API", () => {
       new Request("http://localhost:3000/api/routing/plan", {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify({ goal: "Investigate a claim using primary sources." }),
+        body: JSON.stringify({
+          goal: "Investigate a claim using primary sources.",
+        }),
       }),
     );
 
@@ -241,7 +250,9 @@ describe("routing plan API", () => {
       new Request("http://localhost:3000/api/routing/plan", {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify({ goal: "Investigate a claim using primary sources." }),
+        body: JSON.stringify({
+          goal: "Investigate a claim using primary sources.",
+        }),
       }),
     );
 
