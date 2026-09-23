@@ -50,8 +50,7 @@ Current v1 behavior is conservative:
 Collaboration mode is derived from risk and domain count:
 
 - one low/medium specialist -> sequential;
-- multiple low-risk specialists -> parallel;
-- multiple medium-risk specialists -> adjudicated;
+- multiple low/medium specialist intents -> adjudicated with an independent verifier;
 - high/critical -> evidence mode with an independent evidence verifier.
 
 High/critical plans require human approval regardless of individual manifest defaults.
