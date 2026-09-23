@@ -92,6 +92,7 @@ describe("evidence verification API", () => {
         headers: headers(),
         body: JSON.stringify({
           strictness: "standard",
+          answer: "The approved limit is 50. The result is 50.",
           sources: [trustedSource()],
           claims: [
             {
