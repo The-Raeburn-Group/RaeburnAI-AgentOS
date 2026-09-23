@@ -50,6 +50,22 @@ describe("dataset provenance contracts", () => {
     );
   });
 
+  it("rejects impossible provenance calendar dates", () => {
+    for (const date of ["2026-02-31", "2026-99-99", "2025-02-29"]) {
+      const record = structuredClone(corpus.cases[0].record);
+      record.date = date;
+      expect(() => DatasetRecordSchema.parse(record)).toThrow(
+        "date must be a real ISO calendar date",
+      );
+    }
+  });
+
+  it("accepts a valid leap-day provenance date", () => {
+    const record = structuredClone(corpus.cases[0].record);
+    record.date = "2024-02-29";
+    expect(DatasetRecordSchema.parse(record).date).toBe("2024-02-29");
+  });
+
   it("does not admit special-category data into automated v1 evaluation", () => {
     const record = DatasetRecordSchema.parse(
       structuredClone(corpus.cases[0].record),
