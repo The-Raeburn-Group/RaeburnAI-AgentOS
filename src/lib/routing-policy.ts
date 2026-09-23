@@ -523,7 +523,7 @@ export function planExpertRoute(
 
   let adjudicator: AgentManifest | undefined;
   if (mode === "evidence" || mode === "adjudicated") {
-    adjudicator = eligible
+    adjudicator = manifests
       .filter(
         (manifest) =>
           !selected.some((expert) => expert.slug === manifest.slug) &&
