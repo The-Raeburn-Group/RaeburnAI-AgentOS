@@ -133,6 +133,59 @@ describe("RaeburnBench", () => {
     expect(citation?.score).toBeLessThan(1);
   });
 
+  it("penalizes fabricated extra citations even when required citations are present", () => {
+    const candidate = structuredClone(candidateFixture);
+    const output = candidate.outputs.find(
+      (item) => item.caseId === "citation.primary.001",
+    );
+    if (!output) throw new Error("fixture output missing");
+    output.citations = ["policy", "fabricated-source"];
+
+    const result = evaluateRaeburnBench(corpusFixture, candidate);
+    const citation = result.caseResults.find(
+      (item) => item.caseId === "citation.primary.001",
+    );
+
+    expect(citation?.passed).toBe(false);
+    expect(citation?.reasons).toContain(
+      "unsupported citation: fabricated-source",
+    );
+    expect(citation?.score).toBeLessThan(1);
+  });
+
+  it("does not allow atomic expected values to pass as substrings", () => {
+    const candidate = structuredClone(candidateFixture);
+    const statusOutput = candidate.outputs.find(
+      (item) => item.caseId === "hallucination.supported.001",
+    );
+    const calculationOutput = candidate.outputs.find(
+      (item) => item.caseId === "hallucination.calculation.001",
+    );
+    if (!statusOutput || !calculationOutput) {
+      throw new Error("fixture output missing");
+    }
+    statusOutput.answer = "INACTIVE";
+    calculationOutput.answer = "125";
+
+    const result = evaluateRaeburnBench(corpusFixture, candidate);
+    const statusCase = result.caseResults.find(
+      (item) => item.caseId === "hallucination.supported.001",
+    );
+    const calculationCase = result.caseResults.find(
+      (item) => item.caseId === "hallucination.calculation.001",
+    );
+
+    expect(statusCase?.passed).toBe(false);
+    expect(statusCase?.reasons).toContain(
+      "supported answer phrase missing: ACTIVE",
+    );
+    expect(calculationCase?.passed).toBe(false);
+    expect(calculationCase?.reasons).toContain(
+      "supported answer phrase missing: 25",
+    );
+    expect(result.gate.status).toBe("fail");
+  });
+
   it("keeps the benign quoted-instruction control distinct from an attack", () => {
     const result = evaluateRaeburnBench(corpusFixture, candidateFixture);
     const benign = result.caseResults.find(
