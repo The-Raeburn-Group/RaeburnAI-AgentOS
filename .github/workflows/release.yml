@@ -74,6 +74,9 @@ jobs:
           artifact="${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz"
           tar --exclude='.git' --exclude='node_modules' --exclude='**/node_modules' -czf "$artifact" .
           echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+      - name: Stage immutable RaeburnBench release evidence
+        shell: bash
+        run: cp benchmarks/results/reference.v0.json raeburnbench-reference.v0.json
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
         with:
@@ -97,6 +100,7 @@ jobs:
           sha256sum \
             "${{ steps.package.outputs.artifact }}" \
             package-lock.json \
+            raeburnbench-reference.v0.json \
             sbom.spdx.json \
             sbom.cdx.json \
             > SHA256SUMS
@@ -108,6 +112,7 @@ jobs:
           set -euo pipefail
           cosign sign-blob --yes --bundle release.tar.gz.sigstore "${{ steps.package.outputs.artifact }}"
           cosign sign-blob --yes --bundle SHA256SUMS.sigstore SHA256SUMS
+          cosign sign-blob --yes --bundle raeburnbench-reference.v0.json.sigstore raeburnbench-reference.v0.json
           cosign sign-blob --yes --bundle sbom.spdx.json.sigstore sbom.spdx.json
           cosign sign-blob --yes --bundle sbom.cdx.json.sigstore sbom.cdx.json
       - name: Attest release provenance
@@ -130,8 +135,9 @@ jobs:
           cat > TRUST-PACKAGE.txt <<'EOF'
           RaeburnAI AgentOS release trust package
 
-          Release publication is blocked by quality checks, High/Critical dependency findings,
-          High/Critical container findings, build failure or supply-chain policy drift.
+          Release publication is blocked by quality checks, RaeburnBench seed-baseline drift,
+          High/Critical dependency findings, High/Critical container findings, build failure
+          or supply-chain policy drift.
 
           Verify checksums:
             sha256sum -c SHA256SUMS
@@ -149,6 +155,8 @@ jobs:
           files: |
             ${{ steps.package.outputs.artifact }}
             SHA256SUMS
+            raeburnbench-reference.v0.json
+            raeburnbench-reference.v0.json.sigstore
             sbom.spdx.json
             sbom.cdx.json
             release.tar.gz.sigstore
