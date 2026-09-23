@@ -105,6 +105,7 @@ function metadataNumber(
 }
 
 function failureKind(action: string, detail: string): EvaluationFailureKind {
+  if (action === "workflow.adjudication.rejected") return "adjudication";
   const normalized = (action + " " + detail).toLowerCase();
   if (/auth|permission|forbidden|unauthori[sz]ed|credential/.test(normalized)) {
     return "authorization";
@@ -121,7 +122,6 @@ function failureKind(action: string, detail: string): EvaluationFailureKind {
   if (/provider|model|openai|openrouter|ollama/.test(normalized)) {
     return "provider";
   }
-  if (action === "workflow.adjudication.rejected") return "adjudication";
   return "execution";
 }
 
@@ -233,6 +233,7 @@ export async function ingestFailureAuditEvents(options: {
   const events = await db.auditEvent.findMany({
     where: {
       action: { in: [...QUALITY_FAILURE_ACTIONS] },
+      evaluationCandidateOccurrence: { is: null },
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: limit,
@@ -242,16 +243,6 @@ export async function ingestFailureAuditEvents(options: {
   let skipped = 0;
 
   for (const event of events) {
-    const existingOccurrence =
-      await db.evaluationCandidateOccurrence.findUnique({
-        where: { sourceEventId: event.id },
-        select: { id: true },
-      });
-    if (existingOccurrence) {
-      skipped += 1;
-      continue;
-    }
-
     const projection = projectFailureAuditEvent(event);
     try {
       await db.$transaction(async (tx) => {
