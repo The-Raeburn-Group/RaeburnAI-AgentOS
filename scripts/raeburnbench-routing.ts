@@ -7,7 +7,9 @@ import {
 } from "../src/lib/raeburnbench";
 import { planExpertRoute } from "../src/lib/routing-policy";
 
-const candidate = structuredClone(referenceCandidate);
+const candidate = RaeburnBenchCandidateSchema.parse(
+  structuredClone(referenceCandidate),
+);
 candidate.candidateId = "routing-policy-core";
 candidate.version = "0.1.0";
 
@@ -34,8 +36,7 @@ for (const benchmarkCase of corpusFixture.cases) {
   output.riskTier = plan.riskTier;
 }
 
-const parsedCandidate = RaeburnBenchCandidateSchema.parse(candidate);
-const result = evaluateRaeburnBench(corpusFixture, parsedCandidate);
+const result = evaluateRaeburnBench(corpusFixture, candidate);
 const routingCases = result.caseResults.filter(
   (caseResult) => caseResult.suite === "routing",
 );
