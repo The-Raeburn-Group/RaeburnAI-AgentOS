@@ -44,6 +44,28 @@ enum WorkflowJobStatus {
   CANCELLED
 }
 
+enum EvaluationCandidateStatus {
+  QUARANTINED
+  APPROVED_EVALUATION
+  APPROVED_TRAINING
+  REJECTED
+}
+
+enum EvaluationCandidateTrigger {
+  BENCHMARK_FAILURE
+  HUMAN_CORRECTION
+  TOOL_FAILURE
+  LOW_CONFIDENCE
+  SECURITY_EVENT
+  MANUAL
+}
+
+enum EvaluationReviewDecision {
+  APPROVE_EVALUATION
+  APPROVE_TRAINING
+  REJECT
+}
+
 model Tenant {
   id          String       @id @default(uuid())
   name        String
@@ -58,7 +80,10 @@ model Tenant {
   mcpServers  McpServer[]
   approvals   Approval[]
   auditEvents AuditEvent[]
-  jobs        WorkflowJob[]
+  jobs                  WorkflowJob[]
+  evaluationCandidates  EvaluationCandidate[]
+  evaluationOccurrences EvaluationCandidateOccurrence[]
+  evaluationReviews     EvaluationCandidateReview[]
 }
 
 model Agent {
@@ -247,4 +272,74 @@ model WorkflowJob {
   @@index([status, availableAt])
   @@index([tenantId, status])
   @@index([status, leaseExpiresAt])
+}
+
+
+model EvaluationCandidate {
+  id                   String                     @id @default(uuid())
+  tenantId             String
+  fingerprint          String
+  trigger              EvaluationCandidateTrigger
+  task                 String
+  domain               String
+  prompt               String
+  observedOutput       String?
+  correction           String?
+  confidence           Float?
+  reasonLabels         String[]                   @default([])
+  toolTrace            Json
+  metadata             Json
+  provenance           Json
+  classification       String
+  findingTypes         String[]                   @default([])
+  redactionCount       Int                        @default(0)
+  occurrenceCount      Int                        @default(1)
+  status               EvaluationCandidateStatus  @default(QUARANTINED)
+  approvedRecord       Json?
+  approvedRecordDigest String?
+  reviewedBy           String?
+  reviewedAt           DateTime?
+  firstSeenAt          DateTime                   @default(now())
+  lastSeenAt           DateTime                   @default(now())
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  tenant               Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  occurrences          EvaluationCandidateOccurrence[]
+  reviews              EvaluationCandidateReview[]
+
+  @@unique([tenantId, fingerprint])
+  @@unique([id, tenantId])
+  @@index([tenantId, status, lastSeenAt])
+  @@index([tenantId, trigger, lastSeenAt])
+}
+
+model EvaluationCandidateOccurrence {
+  id            String              @id @default(uuid())
+  tenantId      String
+  candidateId   String
+  sourceRefHash String
+  actorId       String
+  requestId     String
+  createdAt     DateTime            @default(now())
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  candidate     EvaluationCandidate @relation(fields: [candidateId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@index([tenantId, candidateId, createdAt])
+  @@index([tenantId, sourceRefHash])
+}
+
+model EvaluationCandidateReview {
+  id            String                   @id @default(uuid())
+  tenantId      String
+  candidateId   String                   @unique
+  reviewer      String
+  decision      EvaluationReviewDecision
+  note          String
+  datasetRecord Json?
+  recordDigest  String?
+  createdAt     DateTime                 @default(now())
+  tenant        Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  candidate     EvaluationCandidate      @relation(fields: [candidateId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
 }
