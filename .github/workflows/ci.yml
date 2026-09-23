@@ -53,7 +53,10 @@ jobs:
         run: npm audit --audit-level=high
       - run: npm run db:generate
       - run: npm run db:migrate
-      - run: npm run format:check
+      - name: Generate exact formatting diff
+        run: |
+          npm run format
+          git diff --exit-code
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
