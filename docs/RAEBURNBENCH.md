@@ -85,9 +85,11 @@ npm run bench:run -- \
   --out artifacts/raeburnbench/candidate.json
 ```
 
-Once the reviewed reference artifact is committed, CI uses `npm run bench:verify` to recompute it
-byte-for-byte. Any corpus, candidate, grader or threshold drift without an intentional baseline
-update fails the release gate.
+The reviewed reference artifact is committed at `benchmarks/results/reference.v0.json`. CI uses
+`npm run bench:verify` to recompute it byte-for-byte, and `npm run verify` includes that check.
+Any corpus, candidate, grader or threshold drift without an intentional baseline update fails CI
+and the release workflow. Tagged releases stage the verified result as
+`raeburnbench-reference.v0.json`, include it in `SHA256SUMS` and publish a Sigstore bundle.
 
 ## Extending RaeburnBench
 
