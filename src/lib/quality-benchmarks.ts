@@ -42,12 +42,10 @@ export const ToolBenchmarkCandidateSchema = z.object({
   ),
 });
 
-function canonicalCalls(
+function serializedCalls(
   calls: Array<z.infer<typeof ToolCallSchema>>,
 ): string[] {
-  return calls
-    .map((call) => JSON.stringify(call))
-    .sort((left, right) => left.localeCompare(right));
+  return calls.map((call) => JSON.stringify(call));
 }
 
 function exactArray(left: string[], right: string[]): boolean {
@@ -59,6 +57,17 @@ function exactArray(left: string[], right: string[]): boolean {
 
 function rounded(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000;
+}
+
+function percentile(values: number[], quantile: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  const position = (sorted.length - 1) * quantile;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  const lowerValue = sorted[lower] ?? 0;
+  const upperValue = sorted[upper] ?? lowerValue;
+  return rounded(lowerValue + (upperValue - lowerValue) * (position - lower));
 }
 
 export function evaluateToolBenchmark(
@@ -92,14 +101,16 @@ export function evaluateToolBenchmark(
       if (trace.calls.length > benchmarkCase.maxCalls) {
         reasons.push("tool call budget exceeded");
       }
-      const forbidden = trace.calls.filter((call) =>
-        benchmarkCase.forbiddenTools.includes(call.tool),
+      const forbidden = trace.calls.filter(
+        (call) =>
+          benchmarkCase.forbiddenTools.includes(call.tool) ||
+          benchmarkCase.forbiddenTools.includes(`${call.tool}.${call.action}`),
       );
       if (forbidden.length > 0) reasons.push("forbidden tool invoked");
       if (
         !exactArray(
-          canonicalCalls(trace.calls),
-          canonicalCalls(benchmarkCase.expectedCalls),
+          serializedCalls(trace.calls),
+          serializedCalls(benchmarkCase.expectedCalls),
         )
       ) {
         reasons.push("tool trace does not exactly match expected calls");
@@ -116,6 +127,10 @@ export function evaluateToolBenchmark(
   const score = rounded(
     caseResults.reduce((sum, item) => sum + item.score, 0) / caseResults.length,
   );
+  const totalToolCalls = candidate.traces.reduce(
+    (sum, trace) => sum + trace.calls.length,
+    0,
+  );
   const unsigned = {
     contractVersion: TOOL_BENCHMARK_VERSION,
     benchmark: {
@@ -125,6 +140,7 @@ export function evaluateToolBenchmark(
     },
     candidate: candidate.candidate,
     score,
+    totalToolCalls,
     caseResults,
     gate: score >= benchmark.minimumScore ? "pass" : "fail",
   } as const;
@@ -211,8 +227,23 @@ export function evaluatePerformanceBenchmark(
       : completeMeasurements.reduce((sum, item) => sum + item.latencyMs, 0) /
           completeMeasurements.length,
   );
+  const latencies = completeMeasurements.map((item) => item.latencyMs);
+  const p50LatencyMs = percentile(latencies, 0.5);
+  const p95LatencyMs = percentile(latencies, 0.95);
   const totalCostUsd = rounded(
     completeMeasurements.reduce((sum, item) => sum + item.costUsd, 0),
+  );
+  const tokenMeasurements = completeMeasurements.filter(
+    (item) =>
+      item.inputTokens !== undefined && item.outputTokens !== undefined,
+  );
+  const totalInputTokens = tokenMeasurements.reduce(
+    (sum, item) => sum + (item.inputTokens ?? 0),
+    0,
+  );
+  const totalOutputTokens = tokenMeasurements.reduce(
+    (sum, item) => sum + (item.outputTokens ?? 0),
+    0,
   );
   const gate = caseResults.every((item) => item.passed) ? "pass" : "fail";
   const unsigned = {
@@ -224,7 +255,12 @@ export function evaluatePerformanceBenchmark(
     },
     candidate: candidate.candidate,
     meanLatencyMs,
+    p50LatencyMs,
+    p95LatencyMs,
     totalCostUsd,
+    measuredTokenCases: tokenMeasurements.length,
+    totalInputTokens,
+    totalOutputTokens,
     caseResults,
     gate,
   } as const;
