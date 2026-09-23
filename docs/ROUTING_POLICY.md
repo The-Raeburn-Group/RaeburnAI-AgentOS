@@ -2,10 +2,10 @@
 
 AgentOS exposes a versioned routing-plan contract:
 
-- \`raeburnai.routing-plan.v1\`
-- API: \`POST /api/routing/plan\`
+- `raeburnai.routing-plan.v1`
+- API: `POST /api/routing/plan`
 - Input: goal, optional required capabilities/tools, and a bounded expert limit
-- Source of truth: VERIFIED tenant-scoped \`raeburnai.agent-manifest.v1\` marketplace records
+- Source of truth: VERIFIED tenant-scoped `raeburnai.agent-manifest.v1` marketplace records
 
 The planner is deliberately deterministic. It is an executable policy/classification layer, not a claim that a learned semantic router has been trained.
 
@@ -22,7 +22,7 @@ The planner is deliberately deterministic. It is an executable policy/classifica
 9. Select one expert for each classified domain up to the governed limit.
 10. For high/critical work, require an independent evidence-capable adjudicator.
 11. Return the collaboration mode, strictness and human-approval requirement.
-12. Persist a tenant-bound \`routing.plan.created\` audit event.
+12. Persist a tenant-bound `routing.plan.created` audit event.
 
 ## Fail-closed behavior
 
@@ -32,7 +32,7 @@ The planner rejects rather than silently downgrading when:
 - manifest identity/executable fields differ from the stored Agent record;
 - two VERIFIED registry entries expose the same expert slug;
 - no expert satisfies a classified domain;
-- a high-stakes multi-domain request sets \`maxExperts\` too low to preserve every classified domain;
+- a high-stakes multi-domain request sets `maxExperts` too low to preserve every classified domain;
 - an evidence/adjudicated route has no independent eligible adjudicator;
 - required capabilities or tools are unavailable.
 
@@ -58,7 +58,7 @@ High/critical plans require human approval regardless of individual manifest def
 
 ## RaeburnBench integration
 
-\`npm run bench:routing\` executes the real routing policy against the five routing cases in the public RaeburnBench seed corpus:
+`npm run bench:routing` executes the real routing policy against the five routing cases in the public RaeburnBench seed corpus:
 
 - research;
 - software engineering;
@@ -70,7 +70,7 @@ The benchmark candidate is generated at runtime from the planner. Expected exper
 
 The seed expert registry is stored in:
 
-\`benchmarks/experts/routing-seed.v0.json\`
+`benchmarks/experts/routing-seed.v0.json`
 
 It is synthetic benchmark data, not a production expert catalogue.
 
