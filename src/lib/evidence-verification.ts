@@ -248,7 +248,7 @@ function normalizedText(value: string): string {
     .normalize("NFKC")
     .toLowerCase()
     .replace(/[’']/g, "")
-    .replace(/[^a-z0-9.%+-]+/g, " ")
+    .replace(/[^a-z0-9%+-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -300,7 +300,11 @@ function materialTokens(value: string): string[] {
 }
 
 function numbers(value: string): number[] {
-  const matches = normalizedText(value).match(/[+-]?\d+(?:\.\d+)?/g) ?? [];
+  const matches =
+    value
+      .normalize("NFKC")
+      .toLowerCase()
+      .match(/[+-]?\d+(?:\.\d+)?/g) ?? [];
   return matches
     .map((item) => Number(item))
     .filter((item) => Number.isFinite(item));
