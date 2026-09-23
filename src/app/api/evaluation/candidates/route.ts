@@ -16,7 +16,7 @@ import { apiError, rateLimit } from "@/lib/http";
 
 const ListQuerySchema = z.object({
   status: z
-    .enum(["quarantined", "approved_evaluation", "approved_training", "rejected"])
+    .enum([\n      "quarantined",\n      "approved_evaluation",\n      "approved_training",\n      "rejected",\n    ])
     .optional(),
   trigger: z
     .enum([
@@ -49,7 +49,7 @@ const triggerMap = {
 
 function authError(error: unknown) {
   if (error instanceof TenantAccessError) {
-    return NextResponse.json({ error: "tenant_access_denied" }, { status: 403 });
+    return NextResponse.json(\n      { error: "tenant_access_denied" },\n      { status: 403 },\n    );
   }
   if (!(error instanceof HumanAuthError)) return undefined;
   if (error.code === "auth_unconfigured") {
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json({ tenantId: tenant.id, candidates });
   } catch (error) {
-    return authError(error) ?? candidateError(error) ?? apiError(error, "evaluation.candidates.list");
+    return (\n      authError(error) ??\n      candidateError(error) ??\n      apiError(error, "evaluation.candidates.list")\n    );
   }
 }
 
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
   const limited = rateLimit(request, 60, 60_000);
   if (limited) return limited;
 
-  if (!(request.headers.get("content-type") ?? "").includes("application/json")) {
+  if (\n    !(request.headers.get("content-type") ?? "").includes("application/json")\n  ) {
     return NextResponse.json(
       { error: "application_json_required" },
       { status: 415 },
@@ -132,6 +132,6 @@ export async function POST(request: Request) {
       { status: result.deduplicated ? 200 : 201 },
     );
   } catch (error) {
-    return authError(error) ?? candidateError(error) ?? apiError(error, "evaluation.candidates.capture");
+    return (\n      authError(error) ??\n      candidateError(error) ??\n      apiError(error, "evaluation.candidates.capture")\n    );
   }
 }
