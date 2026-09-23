@@ -356,6 +356,13 @@ describe("independent evidence verification", () => {
     expect(() =>
       verifyEvidenceBundle({
         sources: [trusted, trusted],
+        claims: [
+          {
+            id: "c1",
+            claim: "Supported claim.",
+            sourceIds: ["s1"],
+          },
+        ],
       }),
     ).toThrow(EvidenceVerificationError);
 
