@@ -56,6 +56,8 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+      - name: Verify provider execution contract
+        run: npm run providers:verify
       - run: npm test
       - name: Verify immutable RaeburnBench seed baseline
         run: npm run bench:verify

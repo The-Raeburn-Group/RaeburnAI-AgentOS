@@ -5,3 +5,5 @@ process.env.NEXTAUTH_SECRET ??= "test-secret-for-local-tests";
 process.env.OLLAMA_BASE_URL ??= "http://localhost:11434";
 process.env.DEFAULT_MODEL_PROVIDER ??= "ollama";
 process.env.DEFAULT_MODEL ??= "llama3.1";
+process.env.OPENAI_API_KEY ??= "test-openai-key";
+process.env.OPENROUTER_API_KEY ??= "test-openrouter-key";

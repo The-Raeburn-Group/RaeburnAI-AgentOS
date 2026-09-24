@@ -101,4 +101,24 @@ export type ProviderResponse = {
   provider: string;
   model: string;
   tokens?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  latencyMs?: number;
+  structured?: JsonValue;
+  toolCalls?: Array<{
+    id?: string;
+    name: string;
+    arguments: JsonValue;
+  }>;
 };
+
+export type ProviderStreamEvent =
+  | {
+      type: "text_delta";
+      delta: string;
+    }
+  | {
+      type: "done";
+      provider: string;
+      model: string;
+    };
