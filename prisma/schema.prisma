@@ -370,6 +370,8 @@ model SpendReservation {
   committedCostMicrousd    BigInt?
   status                   String   @default("RESERVED")
   policyVersion            Int
+  warning                  Boolean  @default(false)
+  decisionReasons          String[] @default([])
   expiresAt                DateTime
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
