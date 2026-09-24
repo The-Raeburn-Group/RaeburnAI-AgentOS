@@ -64,6 +64,12 @@ export async function GET(request: Request) {
       );
     }
 
+    const safePacks = packs.map((pack) => {
+      const { systemPrompt: _systemPrompt, ...safeManifest } = pack.manifest;
+      void _systemPrompt;
+      return { ...pack, manifest: safeManifest };
+    });
+
     return NextResponse.json({
       contractVersion: "raeburnai.expert-catalog.v1",
       catalogVersion: "0.1.0",
@@ -74,7 +80,7 @@ export async function GET(request: Request) {
         (sum, pack) => sum + pack.seedCaseCount,
         0,
       ),
-      packs,
+      packs: safePacks,
     });
   } catch (error) {
     return authError(error) ?? apiError(error, "expert.catalog.list");
