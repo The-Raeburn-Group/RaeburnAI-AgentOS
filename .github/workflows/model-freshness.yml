@@ -24,9 +24,9 @@ jobs:
       - name: Install deterministic dependencies
         run: npm ci
       - name: Generate JSON freshness report
-        run: npm run models:freshness > model-freshness.json
+        run: npm run --silent models:freshness > model-freshness.json
       - name: Generate review markdown
-        run: npm run models:freshness -- --markdown > model-freshness.md
+        run: npm run --silent models:freshness -- --markdown > model-freshness.md
       - name: Open, update or close the freshness review issue
         env:
           GH_TOKEN: ${{ github.token }}
