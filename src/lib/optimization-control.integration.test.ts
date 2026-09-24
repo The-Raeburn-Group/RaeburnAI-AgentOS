@@ -156,6 +156,30 @@ async function cleanFixtures() {
 describeWithDatabase("governed configuration optimization", () => {
   afterAll(cleanFixtures);
 
+  it("rejects cross-tenant experiment ownership at the PostgreSQL boundary", async () => {
+    const tenantA = tenantPrefix + "db-a";
+    const tenantB = tenantPrefix + "db-b";
+    const pairA = await seedPair(tenantA);
+    const pairB = await seedPair(tenantB);
+
+    await expect(
+      db.optimizationExperiment.create({
+        data: {
+          tenantId: tenantA,
+          baselineAgentId: pairA.baseline.id,
+          challengerAgentId: pairB.challenger.id,
+          baselineManifestDigest: "a".repeat(64),
+          challengerManifestDigest: "b".repeat(64),
+          artifactDigest: "e".repeat(64),
+          policy: {},
+          evidence: {},
+          result: {},
+          createdBy: "cross-tenant-test",
+        },
+      }),
+    ).rejects.toThrow();
+  });
+
   it("persists idempotent evaluation evidence and promotes only after review", async () => {
     const tenantId = tenantPrefix + "promotion";
     const { baseline, challenger } = await seedPair(tenantId);
