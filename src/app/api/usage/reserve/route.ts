@@ -24,7 +24,10 @@ function ledgerError(error: unknown) {
     );
   }
   if (error instanceof ZodError || error instanceof SyntaxError) {
-    return NextResponse.json({ error: "invalid_usage_request" }, { status: 400 });
+    return NextResponse.json(
+      { error: "invalid_usage_request" },
+      { status: 400 },
+    );
   }
   return null;
 }
