@@ -149,15 +149,19 @@ describe("optimization evidence", () => {
     const challenger = bundle("agent:research-expert", "1.1.0");
     challenger.toolBenchmark.gate = "fail";
 
-    expect(captureError(() =>
-      evaluateOptimizationEvidence({
-        slug: "research-expert",
-        baselineVersion: "1.0.0",
-        challengerVersion: "1.1.0",
-        baselineManifestDigest: "a".repeat(64),
-        challengerManifestDigest: "b".repeat(64),
-        evidence: { baseline, challenger },
-      }),
-    ).toThrow("tool_benchmark_integrity_invalid");
+    expect(
+      captureError(() =>
+        evaluateOptimizationEvidence({
+          slug: "research-expert",
+          baselineVersion: "1.0.0",
+          challengerVersion: "1.1.0",
+          baselineManifestDigest: "a".repeat(64),
+          challengerManifestDigest: "b".repeat(64),
+          evidence: { baseline, challenger },
+        }),
+      ),
+    ).toMatchObject({
+      message: "tool_benchmark_integrity_invalid",
+    });
   });
 });
