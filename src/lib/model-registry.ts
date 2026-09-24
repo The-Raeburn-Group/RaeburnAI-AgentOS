@@ -293,10 +293,7 @@ export function selectRegistryModel(
     ) {
       return false;
     }
-    if (
-      request.weights.latency > 0 &&
-      entry.benchmark.p95LatencyMs === null
-    ) {
+    if (request.weights.latency > 0 && entry.benchmark.p95LatencyMs === null) {
       return false;
     }
     if (
