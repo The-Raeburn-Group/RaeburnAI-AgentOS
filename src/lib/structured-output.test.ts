@@ -40,11 +40,7 @@ describe("structured output enforcement", () => {
   });
 
   it.each([
-    [
-      '{"decision":"approve"}',
-      "required_property_missing",
-      "confidence",
-    ],
+    ['{"decision":"approve"}', "required_property_missing", "confidence"],
     [
       '{"decision":"approve","confidence":"high"}',
       "property_type_mismatch",
@@ -75,7 +71,8 @@ describe("structured output enforcement", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(StructuredOutputError);
       expect(error).toMatchObject({ code });
-      if (detail) expect((error as StructuredOutputError).detail).toContain(detail);
+      if (detail)
+        expect((error as StructuredOutputError).detail).toContain(detail);
     }
   });
 

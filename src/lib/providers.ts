@@ -116,10 +116,13 @@ async function withProviderSignal<T>(
 ): Promise<T> {
   const controller = new AbortController();
   let timedOut = false;
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, safePositiveInteger(options.timeoutMs, "provider_timeout_ms"));
+  const timeout = setTimeout(
+    () => {
+      timedOut = true;
+      controller.abort();
+    },
+    safePositiveInteger(options.timeoutMs, "provider_timeout_ms"),
+  );
 
   const abortFromCaller = () => controller.abort();
   options.signal?.addEventListener("abort", abortFromCaller, { once: true });
@@ -140,10 +143,7 @@ async function withProviderSignal<T>(
   }
 }
 
-function requireText(
-  value: unknown,
-  provider: string,
-): string {
+function requireText(value: unknown, provider: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new ProviderExecutionError("malformed_response", { provider });
   }

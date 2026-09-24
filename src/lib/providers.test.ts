@@ -27,10 +27,7 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-import {
-  generateWithProvider,
-  ProviderExecutionError,
-} from "@/lib/providers";
+import { generateWithProvider, ProviderExecutionError } from "@/lib/providers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -150,11 +147,12 @@ describe("provider execution contract", () => {
   it("fails closed on malformed successful responses", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ message: {} }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ message: {} }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
       ),
     );
 
@@ -172,11 +170,12 @@ describe("provider execution contract", () => {
   it("turns HTTP 429 into a bounded rate-limit error with retry guidance", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response("", {
-          status: 429,
-          headers: { "retry-after": "3" },
-        }),
+      vi.fn(
+        async () =>
+          new Response("", {
+            status: 429,
+            headers: { "retry-after": "3" },
+          }),
       ),
     );
 
@@ -219,7 +218,9 @@ describe("provider execution contract", () => {
       timeoutMs: 1000,
     });
     controller.abort();
-    await expect(pending).rejects.toMatchObject<Partial<ProviderExecutionError>>({
+    await expect(pending).rejects.toMatchObject<
+      Partial<ProviderExecutionError>
+    >({
       code: "cancelled",
     });
   });

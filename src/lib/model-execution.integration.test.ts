@@ -183,9 +183,7 @@ describeWithDatabase("governed model execution", () => {
       code: "cost_evidence_missing",
     });
     expect(generate).not.toHaveBeenCalled();
-    expect(
-      await db.spendReservation.count({ where: { tenantId } }),
-    ).toBe(0);
+    expect(await db.spendReservation.count({ where: { tenantId } })).toBe(0);
   });
 
   it("releases a reservation when provider execution fails", async () => {
@@ -223,18 +221,13 @@ describeWithDatabase("governed model execution", () => {
       where: { tenantId, requestId: "model-request-0004" },
     });
     expect(reservation.status).toBe("RELEASED");
-    expect(
-      await db.usageEvent.count({ where: { tenantId } }),
-    ).toBe(0);
+    expect(await db.usageEvent.count({ where: { tenantId } })).toBe(0);
   });
 
   it("uses UTF-8 bytes as a conservative input-token upper bound and exact rounded-up cost", () => {
-    expect(
-      estimateTokenUpperBound(
-        [{ role: "user", content: "£" }],
-        10,
-      ),
-    ).toBe(12);
+    expect(estimateTokenUpperBound([{ role: "user", content: "£" }], 10)).toBe(
+      12,
+    );
     expect(estimateModelCostMicrousd(1, 1)).toBe(1);
     expect(estimateModelCostMicrousd(1_001, 1_000)).toBe(1_001);
   });

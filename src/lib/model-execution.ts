@@ -81,9 +81,7 @@ export function resolveRegistryModelCost(
   if (!entry || entry.benchmark.costPer1kTokensUsd === null) return null;
   return {
     modelRegistryId: entry.id,
-    unitCostMicrousdPer1k: usdToMicrousd(
-      entry.benchmark.costPer1kTokensUsd,
-    ),
+    unitCostMicrousdPer1k: usdToMicrousd(entry.benchmark.costPer1kTokensUsd),
   };
 }
 
@@ -177,17 +175,20 @@ export async function executeGovernedModelCall(
         );
 
   const reservation = budgetPolicy
-    ? await reserveSpend({
-        tenantId: options.tenantId,
-        actorId: options.actorId,
-        requestId: options.requestId,
-        idempotencyKey: `model-reserve:${options.taskId}`,
-        estimatedCostMicrousd,
-        ttlSeconds: Math.min(
-          3600,
-          Math.max(30, Math.ceil(env.MODEL_REQUEST_TIMEOUT_MS / 1000) + 30),
-        ),
-      }, now)
+    ? await reserveSpend(
+        {
+          tenantId: options.tenantId,
+          actorId: options.actorId,
+          requestId: options.requestId,
+          idempotencyKey: `model-reserve:${options.taskId}`,
+          estimatedCostMicrousd,
+          ttlSeconds: Math.min(
+            3600,
+            Math.max(30, Math.ceil(env.MODEL_REQUEST_TIMEOUT_MS / 1000) + 30),
+          ),
+        },
+        now,
+      )
     : null;
 
   const startedAt = Date.now();
@@ -209,7 +210,8 @@ export async function executeGovernedModelCall(
           tenantId: options.tenantId,
           reservationId: reservation.reservation.id,
           actorId: options.actorId,
-          reason: "model dispatch failed before a metered response was available",
+          reason:
+            "model dispatch failed before a metered response was available",
         });
       } catch {
         // Preserve the original provider failure. Reservation expiry is the

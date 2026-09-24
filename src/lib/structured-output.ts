@@ -59,9 +59,7 @@ function jsonType(value: unknown): z.infer<typeof JsonPropertyTypeSchema> {
   }
 }
 
-export function outputContractFromManifest(
-  manifest: unknown,
-): OutputContract {
+export function outputContractFromManifest(manifest: unknown): OutputContract {
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
     return { mode: "text" };
   }

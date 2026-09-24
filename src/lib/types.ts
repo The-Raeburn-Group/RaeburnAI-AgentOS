@@ -39,14 +39,7 @@ export const AgentManifestSchema = z.object({
           .default([]),
         properties: z
           .record(
-            z.enum([
-              "string",
-              "number",
-              "boolean",
-              "array",
-              "object",
-              "null",
-            ]),
+            z.enum(["string", "number", "boolean", "array", "object", "null"]),
           )
           .default({}),
         additionalProperties: z.boolean().default(false),
