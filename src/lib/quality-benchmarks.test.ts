@@ -130,9 +130,9 @@ describe("quality benchmark gates", () => {
   it("rejects duplicate benchmark case identifiers", () => {
     const duplicateTool = structuredClone(toolBenchmark);
     duplicateTool.cases[1].id = duplicateTool.cases[0].id;
-    expect(() =>
-      evaluateToolBenchmark(duplicateTool, toolCandidate),
-    ).toThrow("duplicate tool benchmark case id");
+    expect(() => evaluateToolBenchmark(duplicateTool, toolCandidate)).toThrow(
+      "duplicate tool benchmark case id",
+    );
 
     const duplicatePerformance = structuredClone(performanceBenchmark);
     duplicatePerformance.cases[1].id = duplicatePerformance.cases[0].id;

@@ -523,8 +523,7 @@ async function seedRecoveryFixture(): Promise<void> {
         },
       });
 
-      const evaluationCandidateId =
-        `00000000-0000-4000-8000-00000000${suffix}a01`;
+      const evaluationCandidateId = `00000000-0000-4000-8000-00000000${suffix}a01`;
       await prisma.evaluationCandidate.create({
         data: {
           id: evaluationCandidateId,

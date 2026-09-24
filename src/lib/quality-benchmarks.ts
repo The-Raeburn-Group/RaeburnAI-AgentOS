@@ -1,8 +1,5 @@
 import { z } from "zod";
-import {
-  sha256,
-  verifyRaeburnBenchResultIntegrity,
-} from "@/lib/raeburnbench";
+import { sha256, verifyRaeburnBenchResultIntegrity } from "@/lib/raeburnbench";
 
 export const TOOL_BENCHMARK_VERSION = "raeburnai.tool-benchmark.v1" as const;
 export const PERFORMANCE_BENCHMARK_VERSION =
@@ -194,7 +191,9 @@ export function evaluateToolBenchmark(
   const absoluteFailures = caseResults.flatMap((result) =>
     result.reasons
       .filter((reason) =>
-        ["forbidden tool invoked", "tool call budget exceeded"].includes(reason),
+        ["forbidden tool invoked", "tool call budget exceeded"].includes(
+          reason,
+        ),
       )
       .map((reason) => result.caseId + ": " + reason),
   );
