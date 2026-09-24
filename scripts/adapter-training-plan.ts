@@ -94,8 +94,7 @@ process.stdout.write(
         evaluationRecords: dataset.manifest.records.evaluation,
         groupBy: dataset.manifest.split.groupBy,
         trainJsonlSha256: dataset.manifest.artifacts.trainJsonlSha256,
-        evaluationJsonlSha256:
-          dataset.manifest.artifacts.evaluationJsonlSha256,
+        evaluationJsonlSha256: dataset.manifest.artifacts.evaluationJsonlSha256,
         provenance: dataset.manifest.provenance,
       },
       plan: {
