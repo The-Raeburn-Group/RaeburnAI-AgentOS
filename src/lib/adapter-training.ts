@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { assertTrainingRecordAdmissible, type DatasetRecord } from "@/lib/dataset-provenance";
+import {
+  assertTrainingRecordAdmissible,
+  type DatasetRecord,
+} from "@/lib/dataset-provenance";
 import {
   evaluateModelRegistryFreshness,
   modelRegistryDigest,
@@ -90,7 +93,10 @@ export const AdapterTrainingConfigSchema = z
     targetModules: z.array(z.string().trim().min(1).max(128)).min(1),
     gradientCheckpointing: z.boolean().default(true),
     maxSequenceLength: z.number().int().min(128).max(1_000_000),
-    quantizationBits: z.union([z.literal(4), z.literal(8)]).nullable().default(null),
+    quantizationBits: z
+      .union([z.literal(4), z.literal(8)])
+      .nullable()
+      .default(null),
   })
   .superRefine((value, context) => {
     if (value.method === "qlora" && value.quantizationBits === null) {
@@ -234,7 +240,10 @@ function serializeRecords(records: DatasetRecord[]): string {
 
 export function parseTrainingJsonl(input: string): DatasetRecord[] {
   const normalized = input.endsWith("\n") ? input.slice(0, -1) : input;
-  if (!normalized || normalized.split("\n").some((line) => line.trim() === "")) {
+  if (
+    !normalized ||
+    normalized.split("\n").some((line) => line.trim() === "")
+  ) {
     throw new AdapterTrainingError("invalid_jsonl");
   }
 
@@ -294,9 +303,7 @@ function splitRecords(
       Math.round(rankedGroups.length * config.split.evaluationRatio),
     ),
   );
-  const evaluationGroups = new Set(
-    rankedGroups.slice(0, evaluationGroupCount),
-  );
+  const evaluationGroups = new Set(rankedGroups.slice(0, evaluationGroupCount));
 
   const train: DatasetRecord[] = [];
   const evaluation: DatasetRecord[] = [];
@@ -306,7 +313,9 @@ function splitRecords(
 
   return {
     train: train.sort((left, right) => left.id.localeCompare(right.id)),
-    evaluation: evaluation.sort((left, right) => left.id.localeCompare(right.id)),
+    evaluation: evaluation.sort((left, right) =>
+      left.id.localeCompare(right.id),
+    ),
     groupCount: groups.size,
     evaluationGroupCount,
   };
@@ -328,7 +337,10 @@ export function buildTrainingDataset(
     }
     ids.add(record.id);
     if (!config.domains.includes(record.domain)) {
-      throw new AdapterTrainingError("undeclared_training_domain", record.domain);
+      throw new AdapterTrainingError(
+        "undeclared_training_domain",
+        record.domain,
+      );
     }
   }
   for (const domain of config.domains) {
