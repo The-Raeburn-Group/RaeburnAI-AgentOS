@@ -507,8 +507,9 @@ export async function commitSpend(
 }> {
   const parsed = UsageCommitInputSchema.parse(input);
 
+  let expired = false;
   try {
-    return await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx) => {
       await tx.$queryRawUnsafe<Array<{ id: string }>>(
         'SELECT "id" FROM "SpendReservation" WHERE "id" = $1 AND "tenantId" = $2 FOR UPDATE',
         parsed.reservationId,
@@ -559,7 +560,8 @@ export async function commitSpend(
           where: { id: reservation.id },
           data: { status: "EXPIRED" },
         });
-        throw new UsageLedgerError("reservation_expired");
+        expired = true;
+        return null;
       }
 
       const occurredAt = new Date(parsed.occurredAt);
@@ -634,6 +636,10 @@ export async function commitSpend(
         overReservation,
       };
     });
+    if (expired || result === null) {
+      throw new UsageLedgerError("reservation_expired");
+    }
+    return result;
   } catch (error) {
     if (
       error &&
