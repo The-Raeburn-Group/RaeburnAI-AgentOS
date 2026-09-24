@@ -247,16 +247,18 @@ describeWithDatabase("governed configuration optimization", () => {
     const tenantId = tenantPrefix + "rejected";
     const { baseline, challenger } = await seedPair(tenantId);
     const degraded = evidence();
-    const degradedCandidate = structuredClone(referenceCandidate);
-    degradedCandidate.candidateId = "agent:research-expert";
-    degradedCandidate.version = "1.1.0";
-    degradedCandidate.outputs = degradedCandidate.outputs.map((output) => ({
-      ...output,
-      answer: "",
-      citations: [],
-      routeExperts: [],
-      abstained: false,
-    }));
+    const degradedCandidate = {
+      ...referenceCandidate,
+      candidateId: "agent:research-expert",
+      version: "1.1.0",
+      outputs: referenceCandidate.outputs.map((output) => ({
+        caseId: output.caseId,
+        answer: "",
+        citations: [],
+        routeExperts: [],
+        abstained: false,
+      })),
+    };
     degraded.challenger.raeburnBench = evaluateRaeburnBench(
       corpusFixture,
       degradedCandidate,
