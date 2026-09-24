@@ -11,6 +11,8 @@ import { setBudgetPolicy, UsageLedgerError } from "@/lib/usage-ledger";
 const databaseUrl = process.env.DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
 const tenantId = "governed-model-execution-tenant";
+const workflowId = "governed-model-execution-workflow";
+const runId = "governed-model-execution-run";
 
 async function clean() {
   await db.tenant.deleteMany({ where: { id: tenantId } });
@@ -23,6 +25,20 @@ async function seedTenant() {
       id: tenantId,
       slug: tenantId,
       name: "Governed model execution tenant",
+      workflows: {
+        create: {
+          id: workflowId,
+          name: "Governed model execution workflow",
+          goal: "Provide valid run attribution for metering tests.",
+          graph: {},
+          runs: {
+            create: {
+              id: runId,
+              input: {},
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -45,7 +61,7 @@ describeWithDatabase("governed model execution", () => {
       tenantId,
       actorId: "requester",
       requestId: "model-request-0001",
-      runId: "run-unreserved",
+      runId,
       taskId: "task-unreserved",
       expertSlug: "expert-a",
       provider: "ollama",
@@ -67,7 +83,7 @@ describeWithDatabase("governed model execution", () => {
     });
     expect(event.reservationId).toBeNull();
     expect(event.requestId).toBe("model-request-0001");
-    expect(event.runId).toBe("run-unreserved");
+    expect(event.runId).toBe(runId);
     expect(event.expertSlug).toBe("expert-a");
     expect(event.inputTokens).toBe(10);
     expect(event.outputTokens).toBe(5);
@@ -100,7 +116,7 @@ describeWithDatabase("governed model execution", () => {
       tenantId,
       actorId: "requester",
       requestId: "model-request-0002",
-      runId: "run-budgeted",
+      runId,
       taskId: "task-budgeted",
       expertSlug: "expert-a",
       provider: "ollama",
