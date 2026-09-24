@@ -22,6 +22,15 @@ function inputJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+function isPrismaUniqueViolation(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2002",
+  );
+}
+
 function storedManifestDigest(input: unknown): string | undefined {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return undefined;
@@ -108,7 +117,8 @@ export async function installExpertCatalogDraft(options: {
     },
   });
 
-  return db.$transaction(async (tx) => {
+  try {
+    return await db.$transaction(async (tx) => {
     const existing = await tx.agent.findUnique({
       where: {
         tenantId_slug_version: {
@@ -180,10 +190,48 @@ export async function installExpertCatalogDraft(options: {
       },
     });
 
+      return {
+        agent,
+        mode: "created_draft" as const,
+        manifestDigest,
+      };
+    });
+  } catch (error) {
+    if (!isPrismaUniqueViolation(error)) throw error;
+
+    const existing = await db.agent.findUnique({
+      where: {
+        tenantId_slug_version: {
+          tenantId: options.tenantId,
+          slug: manifest.slug,
+          version: manifest.version,
+        },
+      },
+    });
+    if (!existing || !storedManifestMatches(existing, manifest, manifestDigest)) {
+      throw new ExpertCatalogInstallError("expert_version_conflict");
+    }
+
+    await db.auditEvent.create({
+      data: {
+        tenantId: options.tenantId,
+        actor: options.actorId,
+        action: "expert.catalog.install_replayed",
+        metadata: {
+          agentId: existing.id,
+          slug: manifest.slug,
+          version: manifest.version,
+          status: existing.status,
+          manifestDigest,
+          reason: "concurrent_create",
+        },
+      },
+    });
+
     return {
-      agent,
-      mode: "created_draft" as const,
+      agent: existing,
+      mode: "existing_idempotent" as const,
       manifestDigest,
     };
-  });
+  }
 }
