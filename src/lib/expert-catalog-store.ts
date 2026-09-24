@@ -16,9 +16,7 @@ export class ExpertCatalogInstallError extends Error {
   }
 }
 
-export type ExpertCatalogInstallMode =
-  | "created_draft"
-  | "existing_idempotent";
+export type ExpertCatalogInstallMode = "created_draft" | "existing_idempotent";
 
 function inputJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -77,7 +75,8 @@ function storedManifestMatches(
     agent.modelName === manifest.modelName &&
     JSON.stringify(agent.marketplaceTags) ===
       JSON.stringify(manifest.marketplaceTags) &&
-    JSON.stringify(agent.requiredTools) === JSON.stringify(manifest.requiredTools) &&
+    JSON.stringify(agent.requiredTools) ===
+      JSON.stringify(manifest.requiredTools) &&
     agent.approvalRequired === manifest.approvalRequired &&
     agent.memoryScope === manifest.memoryScope
   );
@@ -87,7 +86,11 @@ export async function installExpertCatalogDraft(options: {
   tenantId: string;
   actorId: string;
   slug: string;
-}): Promise<{ agent: Agent; mode: ExpertCatalogInstallMode; manifestDigest: string }> {
+}): Promise<{
+  agent: Agent;
+  mode: ExpertCatalogInstallMode;
+  manifestDigest: string;
+}> {
   let pack;
   try {
     pack = buildExpertPack(options.slug);

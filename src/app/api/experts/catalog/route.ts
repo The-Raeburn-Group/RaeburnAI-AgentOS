@@ -58,7 +58,10 @@ export async function GET(request: Request) {
       : summaries;
 
     if (requestedSlug && packs.length === 0) {
-      return NextResponse.json({ error: "unknown_expert_pack" }, { status: 404 });
+      return NextResponse.json(
+        { error: "unknown_expert_pack" },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({

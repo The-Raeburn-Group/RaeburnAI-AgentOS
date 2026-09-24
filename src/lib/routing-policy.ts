@@ -262,7 +262,11 @@ const INTENT_RULES: readonly IntentRule[] = [
   },
   {
     intent: "operations",
-    phrases: ["operations workflow", "process improvement", "capacity planning"],
+    phrases: [
+      "operations workflow",
+      "process improvement",
+      "capacity planning",
+    ],
     tokens: ["operations", "workflow", "process", "capacity", "runbook"],
   },
   {
@@ -272,7 +276,11 @@ const INTENT_RULES: readonly IntentRule[] = [
   },
   {
     intent: "science",
-    phrases: ["scientific literature", "experiment design", "test a hypothesis"],
+    phrases: [
+      "scientific literature",
+      "experiment design",
+      "test a hypothesis",
+    ],
     tokens: ["science", "scientific", "experiment", "hypothesis", "laboratory"],
   },
   {

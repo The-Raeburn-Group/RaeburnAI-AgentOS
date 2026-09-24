@@ -65,10 +65,7 @@ describe("governed expert catalog", () => {
 
   it("routes every catalog probe to its exact expert without activating unreviewed models", () => {
     const summaries = listExpertPackSummaries();
-    const manifests = [
-      ...listExpertManifests(),
-      EVIDENCE_VERIFIER_MANIFEST,
-    ];
+    const manifests = [...listExpertManifests(), EVIDENCE_VERIFIER_MANIFEST];
 
     for (const summary of summaries) {
       const plan = planExpertRoute(

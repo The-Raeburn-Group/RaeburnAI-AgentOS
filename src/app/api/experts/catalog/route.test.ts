@@ -66,7 +66,10 @@ describe("expert catalog API", () => {
     expect(body.packs[0]).not.toHaveProperty("evaluationSeed");
     expect(
       body.packs.every(
-        (pack: { card: { lifecycle: string }; manifest: { modelName: string } }) =>
+        (pack: {
+          card: { lifecycle: string };
+          manifest: { modelName: string };
+        }) =>
           pack.card.lifecycle === "development" &&
           pack.manifest.modelName === "catalog-unassigned",
       ),
