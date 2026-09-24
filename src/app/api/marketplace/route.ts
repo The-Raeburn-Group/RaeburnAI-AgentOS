@@ -152,7 +152,10 @@ export async function POST(request: Request) {
     };
 
     const rejectConflict = async (
-      code: "verified_agent_version_immutable" | "agent_version_conflict",
+      code:
+        | "verified_agent_version_immutable"
+        | "deprecated_agent_version_immutable"
+        | "agent_version_conflict",
       existingId: string | null,
     ) => {
       await db.auditEvent.create({
@@ -177,20 +180,35 @@ export async function POST(request: Request) {
 
     let existing = await db.agent.findUnique({ where: key });
     let agent: StoredAgentRecord;
-    let writeMode: "created" | "updated" | "verified_idempotent";
+    let writeMode:
+      | "created"
+      | "updated"
+      | "verified_idempotent"
+      | "deprecated_idempotent";
 
-    if (existing?.status === AgentStatus.VERIFIED) {
+    if (
+      existing?.status === AgentStatus.VERIFIED ||
+      existing?.status === AgentStatus.DEPRECATED
+    ) {
       if (!verifiedVersionMatches(existing, manifest, manifestDigest)) {
-        return rejectConflict("verified_agent_version_immutable", existing.id);
+        return rejectConflict(
+          existing.status === AgentStatus.VERIFIED
+            ? "verified_agent_version_immutable"
+            : "deprecated_agent_version_immutable",
+          existing.id,
+        );
       }
       agent = existing;
-      writeMode = "verified_idempotent";
+      writeMode =
+        existing.status === AgentStatus.VERIFIED
+          ? "verified_idempotent"
+          : "deprecated_idempotent";
     } else if (existing) {
       const updated = await db.agent.updateMany({
         where: {
           id: existing.id,
           updatedAt: existing.updatedAt,
-          status: { not: AgentStatus.VERIFIED },
+          status: AgentStatus.DRAFT,
         },
         data,
       });
@@ -198,11 +216,16 @@ export async function POST(request: Request) {
       if (updated.count !== 1) {
         existing = await db.agent.findUnique({ where: key });
         if (
-          existing?.status === AgentStatus.VERIFIED &&
+          existing &&
+          (existing.status === AgentStatus.VERIFIED ||
+            existing.status === AgentStatus.DEPRECATED) &&
           verifiedVersionMatches(existing, manifest, manifestDigest)
         ) {
           agent = existing;
-          writeMode = "verified_idempotent";
+          writeMode =
+            existing.status === AgentStatus.VERIFIED
+              ? "verified_idempotent"
+              : "deprecated_idempotent";
         } else {
           return rejectConflict("agent_version_conflict", existing?.id ?? null);
         }
@@ -228,11 +251,16 @@ export async function POST(request: Request) {
       } catch (error) {
         existing = await db.agent.findUnique({ where: key });
         if (
-          existing?.status === AgentStatus.VERIFIED &&
+          existing &&
+          (existing.status === AgentStatus.VERIFIED ||
+            existing.status === AgentStatus.DEPRECATED) &&
           verifiedVersionMatches(existing, manifest, manifestDigest)
         ) {
           agent = existing;
-          writeMode = "verified_idempotent";
+          writeMode =
+            existing.status === AgentStatus.VERIFIED
+              ? "verified_idempotent"
+              : "deprecated_idempotent";
         } else if (existing) {
           return rejectConflict("agent_version_conflict", existing.id);
         } else {
