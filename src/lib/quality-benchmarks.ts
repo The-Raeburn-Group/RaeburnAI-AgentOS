@@ -191,6 +191,13 @@ export function evaluateToolBenchmark(
     (sum, trace) => sum + trace.calls.length,
     0,
   );
+  const absoluteFailures = caseResults.flatMap((result) =>
+    result.reasons
+      .filter((reason) =>
+        ["forbidden tool invoked", "tool call budget exceeded"].includes(reason),
+      )
+      .map((reason) => result.caseId + ": " + reason),
+  );
   const unsigned = {
     contractVersion: TOOL_BENCHMARK_VERSION,
     benchmark: {
@@ -202,9 +209,16 @@ export function evaluateToolBenchmark(
     score,
     totalToolCalls,
     caseResults,
-    gate: score >= benchmark.minimumScore ? "pass" : "fail",
-  } as const;
-  return { ...unsigned, artifactDigest: sha256(unsigned) };
+    absoluteFailures,
+    gate:
+      absoluteFailures.length === 0 && score >= benchmark.minimumScore
+        ? ("pass" as const)
+        : ("fail" as const),
+  };
+  return ToolBenchmarkResultSchema.parse({
+    ...unsigned,
+    artifactDigest: sha256(unsigned),
+  });
 }
 
 const PerformanceCaseSchema = z.object({
