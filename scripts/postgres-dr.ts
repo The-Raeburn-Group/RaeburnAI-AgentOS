@@ -6,6 +6,7 @@ import { dirname } from "node:path";
 import {
   AgentStatus,
   ApprovalStatus,
+  EvaluationCandidateStatus,
   PrismaClient,
   RunStatus,
   WorkflowJobStatus,
@@ -118,6 +119,8 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       approvals,
       auditEvents,
       workflowJobs,
+      evaluationCandidates,
+      evaluationCandidateOccurrences,
       migrations,
     ] = await Promise.all([
       prisma.tenant.findMany({ orderBy: { id: "asc" } }),
@@ -130,6 +133,10 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       prisma.approval.findMany({ orderBy: { id: "asc" } }),
       prisma.auditEvent.findMany({ orderBy: { id: "asc" } }),
       prisma.workflowJob.findMany({ orderBy: { id: "asc" } }),
+      prisma.evaluationCandidate.findMany({ orderBy: { id: "asc" } }),
+      prisma.evaluationCandidateOccurrence.findMany({
+        orderBy: { id: "asc" },
+      }),
       prisma.$queryRaw<
         Array<{
           migration_name: string;
@@ -158,6 +165,10 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
         Approval: fingerprintRows(approvals),
         AuditEvent: fingerprintRows(auditEvents),
         WorkflowJob: fingerprintRows(workflowJobs),
+        EvaluationCandidate: fingerprintRows(evaluationCandidates),
+        EvaluationCandidateOccurrence: fingerprintRows(
+          evaluationCandidateOccurrences,
+        ),
       },
     };
   } finally {
