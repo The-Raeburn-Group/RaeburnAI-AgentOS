@@ -1,0 +1,49 @@
+name: Model freshness review
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 5 * * *'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install deterministic dependencies
+        run: npm ci
+      - name: Generate JSON freshness report
+        run: npm run --silent models:freshness > model-freshness.json
+      - name: Generate review markdown
+        run: npm run --silent models:freshness -- --markdown > model-freshness.md
+      - name: Open, update or close the freshness review issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title="Model registry freshness review"
+          count="$(node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('model-freshness.json','utf8')); process.stdout.write(String(r.findings.length));")"
+          existing="$(gh issue list --repo "$REPOSITORY" --state open --search "$title in:title" --json number,title --jq '.[] | select(.title == "Model registry freshness review") | .number' | head -n1)"
+
+          if [ "$count" -gt 0 ]; then
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --repo "$REPOSITORY" --body-file model-freshness.md
+            else
+              gh issue create --repo "$REPOSITORY" --title "$title" --body-file model-freshness.md
+            fi
+          elif [ -n "$existing" ]; then
+            gh issue close "$existing" --repo "$REPOSITORY" --comment "The scheduled model registry check currently reports no freshness or governance findings."
+          fi

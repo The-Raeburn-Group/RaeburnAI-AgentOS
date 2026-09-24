@@ -51,6 +51,13 @@ enum EvaluationCandidateStatus {
   PROMOTED
 }
 
+enum OptimizationExperimentStatus {
+  EVALUATED
+  APPROVED
+  REJECTED
+  PROMOTED
+}
+
 model Tenant {
   id          String       @id @default(uuid())
   name        String
@@ -66,7 +73,8 @@ model Tenant {
   approvals   Approval[]
   auditEvents          AuditEvent[]
   jobs                 WorkflowJob[]
-  evaluationCandidates EvaluationCandidate[]
+  evaluationCandidates    EvaluationCandidate[]
+  optimizationExperiments OptimizationExperiment[]
 }
 
 model Agent {
@@ -88,7 +96,9 @@ model Agent {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tasks            AgentTask[]
+  tasks                            AgentTask[]
+  optimizationBaselineExperiments  OptimizationExperiment[] @relation("OptimizationBaseline")
+  optimizationChallengerExperiments OptimizationExperiment[] @relation("OptimizationChallenger")
 
   @@unique([tenantId, slug, version])
   @@index([tenantId, status])
@@ -296,4 +306,34 @@ model EvaluationCandidateOccurrence {
   sourceEvent   AuditEvent          @relation(fields: [sourceEventId], references: [id], onDelete: Cascade)
 
   @@index([candidateId, createdAt])
+}
+
+
+model OptimizationExperiment {
+  id                     String                       @id @default(uuid())
+  tenantId               String
+  baselineAgentId        String
+  challengerAgentId      String
+  baselineManifestDigest String
+  challengerManifestDigest String
+  artifactDigest         String
+  policy                 Json
+  evidence               Json
+  result                 Json
+  status                 OptimizationExperimentStatus @default(EVALUATED)
+  createdBy              String
+  reviewedBy             String?
+  reviewNote             String?
+  reviewedAt             DateTime?
+  promotedAt             DateTime?
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+  tenant                 Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  baselineAgent          Agent                        @relation("OptimizationBaseline", fields: [baselineAgentId], references: [id], onDelete: Restrict)
+  challengerAgent        Agent                        @relation("OptimizationChallenger", fields: [challengerAgentId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, artifactDigest])
+  @@index([tenantId, status, createdAt])
+  @@index([baselineAgentId])
+  @@index([challengerAgentId])
 }

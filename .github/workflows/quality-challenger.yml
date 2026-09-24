@@ -12,6 +12,8 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://unused:unused@localhost:5432/unused?schema=public
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -24,5 +26,9 @@ jobs:
         run: npm ci
       - name: Generate Prisma client
         run: npm run db:generate
+      - name: Validate model registry
+        run: npm run models:verify
       - name: Execute benchmark promotion gate
         run: npm run bench:quality
+      - name: Execute offline configuration optimization gate
+        run: npm run bench:optimization

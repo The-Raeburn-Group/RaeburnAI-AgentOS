@@ -65,6 +65,10 @@ jobs:
         run: npm run bench:evidence
       - name: Gate tool-use, latency/cost and challenger quality
         run: npm run bench:quality
+      - name: Validate governed model registry
+        run: npm run models:verify
+      - name: Gate offline expert configuration optimization
+        run: npm run bench:optimization
       - name: Install PostgreSQL client tools
         run: |
           sudo apt-get update

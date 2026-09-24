@@ -1,0 +1,38 @@
+{
+  "contractVersion": "raeburnai.model-registry.v1",
+  "registryVersion": "0.1.0",
+  "generatedAt": "2026-09-24T08:00:00.000Z",
+  "entries": [
+    {
+      "id": "ollama.llama3_1.configured",
+      "provider": "ollama",
+      "model": "llama3.1",
+      "revision": "configured-default",
+      "lifecycle": "candidate",
+      "capabilities": ["general"],
+      "modalities": ["text"],
+      "contextWindow": null,
+      "toolSupport": "unknown",
+      "privacy": "local",
+      "licensing": {
+        "identifier": "unverified-repository-declaration",
+        "technicalReview": "unreviewed",
+        "note": "This records the repository default only. It is not a legal licence approval or a benchmarked production recommendation."
+      },
+      "benchmark": {
+        "qualityScore": null,
+        "p95LatencyMs": null,
+        "costPer1kTokensUsd": null,
+        "evidenceDigests": []
+      },
+      "freshness": {
+        "observedAt": "2026-09-24T08:00:00.000Z",
+        "maxAgeDays": 30,
+        "providerStatus": "unknown",
+        "sourceRef": "AgentOS DEFAULT_MODEL repository configuration",
+        "deprecationAt": null
+      },
+      "notes": "Candidate-only bootstrap entry. The registry intentionally fails closed for governed automatic selection until technical review and benchmark evidence exist."
+    }
+  ]
+}
