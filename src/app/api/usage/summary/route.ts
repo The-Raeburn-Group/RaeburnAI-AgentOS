@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
-import {
-  HumanAuthError,
-  requireHumanPermission,
-} from "@/lib/admin-auth";
-import {
-  TenantAccessError,
-  requireHumanTenant,
-} from "@/lib/human-tenant";
+import { HumanAuthError, requireHumanPermission } from "@/lib/admin-auth";
+import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 import { getUsageSummary } from "@/lib/usage-ledger";
 
 function authError(error: unknown) {
   if (error instanceof TenantAccessError) {
-    return NextResponse.json({ error: "tenant_access_denied" }, { status: 403 });
+    return NextResponse.json(
+      { error: "tenant_access_denied" },
+      { status: 403 },
+    );
   }
   if (!(error instanceof HumanAuthError)) return null;
   if (error.code === "auth_unconfigured") {
@@ -68,7 +65,9 @@ export async function GET(request: Request) {
       }),
     );
   } catch (error) {
-    return authError(error) ??
-      NextResponse.json({ error: "usage_summary_unavailable" }, { status: 500 });
+    return (
+      authError(error) ??
+      NextResponse.json({ error: "usage_summary_unavailable" }, { status: 500 })
+    );
   }
 }
