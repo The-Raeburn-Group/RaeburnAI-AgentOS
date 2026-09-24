@@ -971,6 +971,15 @@ export async function releaseModelSpend(options: {
   });
 }
 
+export async function listSpendBudgets(
+  tenantId: string,
+): Promise<SpendBudget[]> {
+  return db.spendBudget.findMany({
+    where: { tenantId },
+    orderBy: [{ periodStart: "desc" }, { createdAt: "desc" }],
+  });
+}
+
 export async function getSpendSummary(options: {
   tenantId: string;
   from: Date;
