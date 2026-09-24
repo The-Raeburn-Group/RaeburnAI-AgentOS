@@ -19,7 +19,9 @@ CREATE TABLE "OptimizationExperiment" (
     "promotedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "OptimizationExperiment_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "OptimizationExperiment_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "OptimizationExperiment_distinct_agents_check"
+      CHECK ("baselineAgentId" <> "challengerAgentId")
 );
 
 CREATE UNIQUE INDEX "OptimizationExperiment_tenantId_artifactDigest_key"
@@ -45,3 +47,37 @@ ALTER TABLE "OptimizationExperiment"
   ADD CONSTRAINT "OptimizationExperiment_challengerAgentId_fkey"
   FOREIGN KEY ("challengerAgentId") REFERENCES "Agent"("id")
   ON DELETE RESTRICT ON UPDATE CASCADE;
+
+
+CREATE OR REPLACE FUNCTION "enforce_optimization_experiment_tenant"()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM "Agent"
+    WHERE "id" = NEW."baselineAgentId"
+      AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'optimization_baseline_tenant_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM "Agent"
+    WHERE "id" = NEW."challengerAgentId"
+      AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'optimization_challenger_tenant_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "OptimizationExperiment_tenant_guard"
+BEFORE INSERT OR UPDATE OF "tenantId", "baselineAgentId", "challengerAgentId"
+ON "OptimizationExperiment"
+FOR EACH ROW
+EXECUTE FUNCTION "enforce_optimization_experiment_tenant"();
