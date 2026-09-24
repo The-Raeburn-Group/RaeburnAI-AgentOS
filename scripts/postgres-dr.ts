@@ -522,6 +522,41 @@ async function seedRecoveryFixture(): Promise<void> {
           updatedAt: createdAt,
         },
       });
+
+      const evaluationCandidateId =
+        `00000000-0000-4000-8000-00000000${suffix}a01`;
+      await prisma.evaluationCandidate.create({
+        data: {
+          id: evaluationCandidateId,
+          tenantId,
+          fingerprint: suffix.repeat(64),
+          failureKind: "execution",
+          severity: "high",
+          summary: `tenant-${suffix} recovery evaluation candidate`,
+          reasonLabels: ["dr_fixture", "execution"],
+          metadata: {
+            qualityContractVersion: "raeburnai.quality-loop.v1",
+            sourceEventId: `00000000-0000-4000-8000-00000000${suffix}801`,
+            sourceAction: "dr.fixture.created",
+            redactionCount: 0,
+          },
+          occurrenceCount: 1,
+          firstSeenAt: createdAt,
+          lastSeenAt: createdAt,
+          status: EvaluationCandidateStatus.PENDING_REVIEW,
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
+      await prisma.evaluationCandidateOccurrence.create({
+        data: {
+          id: `00000000-0000-4000-8000-00000000${suffix}a02`,
+          candidateId: evaluationCandidateId,
+          sourceEventId: `00000000-0000-4000-8000-00000000${suffix}801`,
+          createdAt,
+        },
+      });
     }
   } finally {
     await prisma.$disconnect();
