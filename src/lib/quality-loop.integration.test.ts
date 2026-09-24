@@ -1,5 +1,5 @@
 import { EvaluationCandidateStatus } from "@prisma/client";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import {
   QualityLoopError,
@@ -10,14 +10,14 @@ import {
 
 const databaseUrl = process.env.DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
-const tenantId = "quality-loop-tenant";
+const tenantPrefix = "quality-loop-tenant-";
 
 async function cleanFixtures() {
-  await db.tenant.deleteMany({ where: { id: tenantId } });
+  await db.tenant.deleteMany({ where: { id: { startsWith: tenantPrefix } } });
 }
 
-async function seedTenant() {
-  await cleanFixtures();
+async function seedTenant(tenantId: string) {
+  await db.tenant.deleteMany({ where: { id: tenantId } });
   await db.tenant.create({
     data: { id: tenantId, slug: tenantId, name: "Quality Loop Tenant" },
   });
@@ -64,10 +64,11 @@ function counterexample(candidateId: string) {
 }
 
 describeWithDatabase("durable quality loop", () => {
-  beforeEach(seedTenant);
   afterAll(cleanFixtures);
 
   it("projects repeated failures into one candidate and never rescans processed events", async () => {
+    const tenantId = tenantPrefix + "dedupe";
+    await seedTenant(tenantId);
     await db.auditEvent.createMany({
       data: [
         {
@@ -93,7 +94,7 @@ describeWithDatabase("durable quality loop", () => {
       ],
     });
 
-    const first = await ingestFailureAuditEvents();
+    const first = await ingestFailureAuditEvents({ tenantId });
     expect(first).toMatchObject({ scanned: 2, projected: 2, skipped: 0 });
 
     const candidates = await db.evaluationCandidate.findMany({
@@ -109,11 +110,13 @@ describeWithDatabase("durable quality loop", () => {
     expect(candidates[0]?.summary).toContain("[REDACTED:EMAIL]");
     expect(candidates[0]?.occurrences).toHaveLength(2);
 
-    const second = await ingestFailureAuditEvents();
+    const second = await ingestFailureAuditEvents({ tenantId });
     expect(second).toEqual({ scanned: 0, projected: 0, skipped: 0 });
   });
 
   it("requires human acceptance and provenance binding before promotion", async () => {
+    const tenantId = tenantPrefix + "promotion";
+    await seedTenant(tenantId);
     await db.auditEvent.create({
       data: {
         id: "quality-source-3",
@@ -123,7 +126,7 @@ describeWithDatabase("durable quality loop", () => {
         metadata: { error: "schema validation failed", taskId: "task-1" },
       },
     });
-    await ingestFailureAuditEvents();
+    await ingestFailureAuditEvents({ tenantId });
     const candidate = await db.evaluationCandidate.findFirstOrThrow({
       where: { tenantId },
     });
@@ -174,6 +177,8 @@ describeWithDatabase("durable quality loop", () => {
   });
 
   it("allows only one conflicting reviewer transition", async () => {
+    const tenantId = tenantPrefix + "race";
+    await seedTenant(tenantId);
     await db.auditEvent.create({
       data: {
         id: "quality-source-race",
@@ -183,7 +188,7 @@ describeWithDatabase("durable quality loop", () => {
         metadata: { error: "provider request failed" },
       },
     });
-    await ingestFailureAuditEvents();
+    await ingestFailureAuditEvents({ tenantId });
     const candidate = await db.evaluationCandidate.findFirstOrThrow({
       where: { tenantId },
     });
@@ -217,6 +222,8 @@ describeWithDatabase("durable quality loop", () => {
   });
 
   it("keeps rejected candidates terminal", async () => {
+    const tenantId = tenantPrefix + "terminal";
+    await seedTenant(tenantId);
     await db.auditEvent.create({
       data: {
         id: "quality-source-4",
@@ -226,7 +233,7 @@ describeWithDatabase("durable quality loop", () => {
         metadata: { error: "adjudication result rejected" },
       },
     });
-    await ingestFailureAuditEvents();
+    await ingestFailureAuditEvents({ tenantId });
     const candidate = await db.evaluationCandidate.findFirstOrThrow({
       where: { tenantId },
     });
