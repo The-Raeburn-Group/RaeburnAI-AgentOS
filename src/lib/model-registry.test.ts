@@ -8,6 +8,15 @@ import {
   type ModelRegistry,
 } from "@/lib/model-registry";
 
+function captureError(run: () => unknown): unknown {
+  try {
+    run();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("expected function to throw");
+}
+
 function registry(): ModelRegistry {
   return {
     contractVersion: "raeburnai.model-registry.v1",
@@ -140,7 +149,7 @@ describe("model registry", () => {
     input.entries[0].benchmark.p95LatencyMs = null;
     input.entries[1].benchmark.p95LatencyMs = null;
 
-    expect(() =>
+    expect(captureError(() =>
       selectRegistryModel(
         input,
         {
@@ -149,7 +158,7 @@ describe("model registry", () => {
         },
         new Date("2026-09-24T10:00:00.000Z"),
       ),
-    ).toMatchObject<Partial<ModelRegistryError>>({
+    )).toMatchObject<Partial<ModelRegistryError>>({
       code: "no_eligible_model",
     });
   });
@@ -159,23 +168,23 @@ describe("model registry", () => {
     input.entries.forEach((entry) => {
       entry.licensing.technicalReview = "blocked";
     });
-    expect(() =>
+    expect(captureError(() =>
       selectRegistryModel(
         input,
         { requiredCapabilities: ["general"] },
         new Date("2026-09-24T10:00:00.000Z"),
       ),
-    ).toMatchObject<Partial<ModelRegistryError>>({
+    )).toMatchObject<Partial<ModelRegistryError>>({
       code: "no_eligible_model",
     });
   });
 
   it("does not silently accept zero selection weights", () => {
-    expect(() =>
+    expect(captureError(() =>
       selectRegistryModel(registry(), {
         weights: { quality: 0, latency: 0, cost: 0 },
       }),
-    ).toMatchObject<Partial<ModelRegistryError>>({
+    )).toMatchObject<Partial<ModelRegistryError>>({
       code: "invalid_selection_weights",
     });
   });
