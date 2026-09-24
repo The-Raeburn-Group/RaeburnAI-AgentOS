@@ -14,6 +14,18 @@ const envSchema = z.object({
     .enum(["openai", "openrouter", "ollama"])
     .default("ollama"),
   DEFAULT_MODEL: z.string().default("llama3.1"),
+  PROVIDER_REQUEST_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(300000)
+    .default(60000),
+  PROVIDER_MAX_RESPONSE_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .max(16777216)
+    .default(2097152),
   APPROVAL_REQUIRED_FOR_EXTERNAL_ACTIONS: z.coerce.boolean().default(true),
   APPROVAL_TTL_MINUTES: z.coerce.number().int().min(5).max(10080).default(60),
   APPROVAL_SLA_LOW_MINUTES: z.coerce
