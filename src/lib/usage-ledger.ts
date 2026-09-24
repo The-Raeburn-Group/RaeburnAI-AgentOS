@@ -55,12 +55,7 @@ export const SpendReservationInputSchema = z.object({
 
 const UsageMetadataSchema = z
   .record(
-    z.union([
-      z.string().max(500),
-      z.number().finite(),
-      z.boolean(),
-      z.null(),
-    ]),
+    z.union([z.string().max(500), z.number().finite(), z.boolean(), z.null()]),
   )
   .superRefine((value, context) => {
     const keys = Object.keys(value);
@@ -81,46 +76,48 @@ const UsageMetadataSchema = z
     });
   });
 
-export const UsageCommitInputSchema = z.object({
-  tenantId: z.string().trim().min(1).max(256),
-  reservationId: z.string().uuid(),
-  idempotencyKey: IdempotencyKeySchema,
-  actorId: z.string().trim().min(1).max(256),
-  runId: z.string().trim().min(1).max(256).optional(),
-  category: z.enum(["model", "tool", "retrieval", "workflow", "other"]),
-  provider: z.string().trim().min(1).max(128).optional(),
-  model: z.string().trim().min(1).max(256).optional(),
-  modelRegistryId: z.string().trim().min(1).max(256).optional(),
-  expertSlug: z.string().trim().min(1).max(256).optional(),
-  toolName: z.string().trim().min(1).max(256).optional(),
-  inputTokens: z.number().int().min(0).max(2_000_000_000).default(0),
-  outputTokens: z.number().int().min(0).max(2_000_000_000).default(0),
-  latencyMs: z.number().int().min(0).max(2_000_000_000).optional(),
-  actualCostMicrousd: MicrousdSchema,
-  billableMetric: z.string().trim().min(1).max(128).default("request"),
-  billableUnits: z.number().int().min(1).max(2_000_000_000).default(1),
-  metadata: UsageMetadataSchema.default({}),
-  occurredAt: z.string().datetime({ offset: true }),
-}).superRefine((value, context) => {
-  if (
-    value.category === "model" &&
-    !value.modelRegistryId &&
-    !(value.provider && value.model)
-  ) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["model"],
-      message: "model usage requires modelRegistryId or provider + model",
-    });
-  }
-  if (value.category === "tool" && !value.toolName) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["toolName"],
-      message: "tool usage requires toolName",
-    });
-  }
-});
+export const UsageCommitInputSchema = z
+  .object({
+    tenantId: z.string().trim().min(1).max(256),
+    reservationId: z.string().uuid(),
+    idempotencyKey: IdempotencyKeySchema,
+    actorId: z.string().trim().min(1).max(256),
+    runId: z.string().trim().min(1).max(256).optional(),
+    category: z.enum(["model", "tool", "retrieval", "workflow", "other"]),
+    provider: z.string().trim().min(1).max(128).optional(),
+    model: z.string().trim().min(1).max(256).optional(),
+    modelRegistryId: z.string().trim().min(1).max(256).optional(),
+    expertSlug: z.string().trim().min(1).max(256).optional(),
+    toolName: z.string().trim().min(1).max(256).optional(),
+    inputTokens: z.number().int().min(0).max(2_000_000_000).default(0),
+    outputTokens: z.number().int().min(0).max(2_000_000_000).default(0),
+    latencyMs: z.number().int().min(0).max(2_000_000_000).optional(),
+    actualCostMicrousd: MicrousdSchema,
+    billableMetric: z.string().trim().min(1).max(128).default("request"),
+    billableUnits: z.number().int().min(1).max(2_000_000_000).default(1),
+    metadata: UsageMetadataSchema.default({}),
+    occurredAt: z.string().datetime({ offset: true }),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.category === "model" &&
+      !value.modelRegistryId &&
+      !(value.provider && value.model)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["model"],
+        message: "model usage requires modelRegistryId or provider + model",
+      });
+    }
+    if (value.category === "tool" && !value.toolName) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["toolName"],
+        message: "tool usage requires toolName",
+      });
+    }
+  });
 
 export class UsageLedgerError extends Error {
   constructor(
@@ -450,11 +447,7 @@ export async function reserveSpend(
         };
       }
 
-      const snapshot = await budgetSnapshotWithClient(
-        tx,
-        parsed.tenantId,
-        now,
-      );
+      const snapshot = await budgetSnapshotWithClient(tx, parsed.tenantId, now);
       const decision = reservationDecision({
         policy,
         snapshot,
@@ -854,9 +847,9 @@ function formatAggregate(key: string, row: AggregateFields) {
   };
 }
 
-function sortCostRows<T extends { key: string; cost: { microusd: string } | null }>(
-  rows: T[],
-): T[] {
+function sortCostRows<
+  T extends { key: string; cost: { microusd: string } | null },
+>(rows: T[]): T[] {
   return rows.sort((left, right) => {
     const leftCost = BigInt(left.cost?.microusd ?? "0");
     const rightCost = BigInt(right.cost?.microusd ?? "0");
