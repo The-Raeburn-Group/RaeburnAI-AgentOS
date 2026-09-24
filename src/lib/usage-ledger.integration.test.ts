@@ -318,6 +318,42 @@ describe("durable usage metering and budgets", () => {
     expect(stored.status).toBe("EXPIRED");
   });
 
+  it("persists and rejects an idempotent reservation replay after expiry", async () => {
+    const tenantId = await tenant("expired-replay");
+    await policy(tenantId);
+    const start = new Date("2026-09-24T12:00:00.000Z");
+    const first = await reserveSpend(
+      {
+        tenantId,
+        actorId: "router",
+        requestId: "request-expired-replay",
+        idempotencyKey: "reserve-expired-replay",
+        estimatedCostMicrousd: 100_000,
+        ttlSeconds: 30,
+      },
+      start,
+    );
+
+    await expect(
+      reserveSpend(
+        {
+          tenantId,
+          actorId: "router",
+          requestId: "request-expired-replay",
+          idempotencyKey: "reserve-expired-replay",
+          estimatedCostMicrousd: 100_000,
+          ttlSeconds: 30,
+        },
+        new Date("2026-09-24T12:00:31.000Z"),
+      ),
+    ).rejects.toMatchObject({ code: "reservation_expired" });
+
+    const stored = await db.spendReservation.findUniqueOrThrow({
+      where: { id: first.reservation.id },
+    });
+    expect(stored.status).toBe("EXPIRED");
+  });
+
   it("records actual overage truthfully even when the reservation estimate was too low", async () => {
     const tenantId = await tenant("overage");
     await policy(tenantId);
