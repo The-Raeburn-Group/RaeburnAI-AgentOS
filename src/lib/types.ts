@@ -26,6 +26,27 @@ export const AgentManifestSchema = z.object({
     })
     .default({}),
   approvalRequired: z.boolean().default(true),
+  outputContract: z
+    .discriminatedUnion("mode", [
+      z.object({
+        mode: z.literal("text"),
+      }),
+      z.object({
+        mode: z.literal("json"),
+        required: z
+          .array(z.string().trim().min(1).max(100))
+          .max(100)
+          .default([]),
+        properties: z
+          .record(
+            z.enum(["string", "number", "boolean", "array", "object", "null"]),
+          )
+          .default({}),
+        additionalProperties: z.boolean().default(false),
+        maxBytes: z.number().int().min(2).max(1_000_000).default(100_000),
+      }),
+    ])
+    .optional(),
   memoryScope: z
     .enum(["agent", "workflow", "workspace", "tenant"])
     .default("workspace"),
@@ -100,5 +121,7 @@ export type ProviderResponse = {
   text: string;
   provider: string;
   model: string;
+  promptTokens?: number;
+  completionTokens?: number;
   tokens?: number;
 };

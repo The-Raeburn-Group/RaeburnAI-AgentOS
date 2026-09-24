@@ -119,6 +119,49 @@ export const UsageCommitInputSchema = z
     }
   });
 
+export const UnreservedUsageInputSchema = z
+  .object({
+    tenantId: z.string().trim().min(1).max(256),
+    requestId: z.string().trim().min(1).max(256),
+    idempotencyKey: IdempotencyKeySchema,
+    actorId: z.string().trim().min(1).max(256),
+    runId: z.string().trim().min(1).max(256).optional(),
+    category: z.enum(["model", "tool", "retrieval", "workflow", "other"]),
+    provider: z.string().trim().min(1).max(128).optional(),
+    model: z.string().trim().min(1).max(256).optional(),
+    modelRegistryId: z.string().trim().min(1).max(256).optional(),
+    expertSlug: z.string().trim().min(1).max(256).optional(),
+    toolName: z.string().trim().min(1).max(256).optional(),
+    inputTokens: z.number().int().min(0).max(2_000_000_000).default(0),
+    outputTokens: z.number().int().min(0).max(2_000_000_000).default(0),
+    latencyMs: z.number().int().min(0).max(2_000_000_000).optional(),
+    actualCostMicrousd: MicrousdSchema,
+    billableMetric: z.string().trim().min(1).max(128).default("request"),
+    billableUnits: z.number().int().min(1).max(2_000_000_000).default(1),
+    metadata: UsageMetadataSchema.default({}),
+    occurredAt: z.string().datetime({ offset: true }),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.category === "model" &&
+      !value.modelRegistryId &&
+      !(value.provider && value.model)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["model"],
+        message: "model usage requires modelRegistryId or provider + model",
+      });
+    }
+    if (value.category === "tool" && !value.toolName) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["toolName"],
+        message: "tool usage requires toolName",
+      });
+    }
+  });
+
 export class UsageLedgerError extends Error {
   constructor(
     public readonly code:
@@ -129,7 +172,8 @@ export class UsageLedgerError extends Error {
       | "reservation_not_found"
       | "reservation_expired"
       | "reservation_invalid_state"
-      | "usage_event_not_found",
+      | "usage_event_not_found"
+      | "cost_evidence_missing",
     public readonly detail?: string,
   ) {
     super(detail ? code + ": " + detail : code);
@@ -554,6 +598,106 @@ function usageEventDigest(
     metadata: input.metadata,
     occurredAt: input.occurredAt,
   });
+}
+
+export async function recordUnreservedUsage(
+  input: unknown,
+): Promise<{ event: UsageEvent; idempotent: boolean }> {
+  const parsed = UnreservedUsageInputSchema.parse(input);
+  const eventDigest = digest({
+    contractVersion: USAGE_LEDGER_CONTRACT_VERSION,
+    tenantId: parsed.tenantId,
+    reservationId: null,
+    requestId: parsed.requestId,
+    runId: parsed.runId ?? null,
+    actorId: parsed.actorId,
+    category: parsed.category,
+    provider: parsed.provider ?? null,
+    model: parsed.model ?? null,
+    modelRegistryId: parsed.modelRegistryId ?? null,
+    expertSlug: parsed.expertSlug ?? null,
+    toolName: parsed.toolName ?? null,
+    inputTokens: parsed.inputTokens,
+    outputTokens: parsed.outputTokens,
+    latencyMs: parsed.latencyMs ?? null,
+    costMicrousd: parsed.actualCostMicrousd,
+    billableMetric: parsed.billableMetric,
+    billableUnits: parsed.billableUnits,
+    metadata: parsed.metadata,
+    occurredAt: parsed.occurredAt,
+  });
+
+  try {
+    return await db.$transaction(async (tx) => {
+      const existing = await tx.usageEvent.findUnique({
+        where: {
+          tenantId_idempotencyKey: {
+            tenantId: parsed.tenantId,
+            idempotencyKey: parsed.idempotencyKey,
+          },
+        },
+      });
+      if (existing) {
+        if (existing.eventDigest !== eventDigest) {
+          throw new UsageLedgerError("idempotency_conflict");
+        }
+        return { event: existing, idempotent: true };
+      }
+
+      const event = await tx.usageEvent.create({
+        data: {
+          tenantId: parsed.tenantId,
+          reservationId: null,
+          idempotencyKey: parsed.idempotencyKey,
+          requestId: parsed.requestId,
+          runId: parsed.runId ?? null,
+          actorId: parsed.actorId,
+          category: parsed.category,
+          provider: parsed.provider ?? null,
+          model: parsed.model ?? null,
+          modelRegistryId: parsed.modelRegistryId ?? null,
+          expertSlug: parsed.expertSlug ?? null,
+          toolName: parsed.toolName ?? null,
+          inputTokens: parsed.inputTokens,
+          outputTokens: parsed.outputTokens,
+          latencyMs: parsed.latencyMs ?? null,
+          costMicrousd: bigint(parsed.actualCostMicrousd),
+          billableMetric: parsed.billableMetric,
+          billableUnits: parsed.billableUnits,
+          metadata: inputJson(parsed.metadata),
+          eventDigest,
+          occurredAt: new Date(parsed.occurredAt),
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          tenantId: parsed.tenantId,
+          runId: parsed.runId ?? null,
+          actor: parsed.actorId,
+          action: "usage.event.recorded_unreserved",
+          metadata: {
+            contractVersion: USAGE_LEDGER_CONTRACT_VERSION,
+            usageEventId: event.id,
+            requestId: parsed.requestId,
+            category: event.category,
+            costMicrousd: event.costMicrousd.toString(),
+            eventDigest,
+          },
+        },
+      });
+      return { event, idempotent: false };
+    });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2002"
+    ) {
+      throw new UsageLedgerError("idempotency_conflict");
+    }
+    throw error;
+  }
 }
 
 export async function commitSpend(

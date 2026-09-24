@@ -19,7 +19,15 @@ import {
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { resolveTenantReference } from "@/lib/human-tenant";
-import { generateWithProvider } from "@/lib/providers";
+import { executeGovernedModelCall } from "@/lib/model-execution";
+import {
+  type ProviderGenerationOptions,
+  generateWithProvider,
+} from "@/lib/providers";
+import {
+  enforceStructuredOutput,
+  outputContractFromManifest,
+} from "@/lib/structured-output";
 import {
   WorkflowRunRequestSchema,
   type ProviderResponse,
@@ -33,14 +41,9 @@ export interface WorkflowExecutionContext {
   requestId: string;
 }
 
-export type WorkflowModelGenerator = (options: {
-  provider?: string;
-  model?: string;
-  messages: Array<{
-    role: "system" | "user" | "assistant";
-    content: string;
-  }>;
-}) => Promise<ProviderResponse>;
+export type WorkflowModelGenerator = (
+  options: ProviderGenerationOptions,
+) => Promise<ProviderResponse>;
 
 interface ApprovalPayload {
   agentId: string;
@@ -242,19 +245,31 @@ async function executeAgentTask(options: {
     data: { status: RunStatus.RUNNING },
   });
 
+  const outputContract = outputContractFromManifest(options.agent.manifest);
+  const messages = [
+    { role: "system" as const, content: options.agent.systemPrompt },
+    { role: "user" as const, content: options.sharedContext },
+  ];
+
   try {
-    const response = await options.generate({
+    const execution = await executeGovernedModelCall({
+      tenantId: options.tenant.id,
+      actorId: options.actorId,
+      requestId: options.requestId,
+      runId: options.run.id,
+      taskId: options.taskId,
+      expertSlug: options.agent.slug,
       provider: options.agent.modelProvider,
       model: options.agent.modelName,
-      messages: [
-        { role: "system", content: options.agent.systemPrompt },
-        { role: "user", content: options.sharedContext },
-      ],
+      messages,
+      responseFormat: outputContract.mode,
+      generate: options.generate,
     });
+    enforceStructuredOutput(execution.response.text, outputContract);
 
     await db.agentTask.update({
       where: { id: options.taskId },
-      data: { status: RunStatus.SUCCEEDED, output: response },
+      data: { status: RunStatus.SUCCEEDED, output: execution.response },
     });
     await db.auditEvent.create({
       data: {
@@ -263,16 +278,23 @@ async function executeAgentTask(options: {
         actor: options.agent.slug,
         action: "agent.completed",
         metadata: {
-          provider: response.provider,
-          model: response.model,
-          tokens: response.tokens ?? null,
+          provider: execution.response.provider,
+          model: execution.response.model,
+          promptTokens: execution.response.promptTokens ?? null,
+          completionTokens: execution.response.completionTokens ?? null,
+          tokens: execution.response.tokens ?? null,
+          usageEventId: execution.usageEventId,
+          costMicrousd: execution.costMicrousd,
+          budgetBreached: execution.budgetBreached,
+          overReservation: execution.overReservation,
+          outputContract: outputContract.mode,
           requestId: options.requestId,
           initiatedBy: options.actorId,
           taskId: options.taskId,
         },
       },
     });
-    return response;
+    return execution.response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     await db.$transaction([
