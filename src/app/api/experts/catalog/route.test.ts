@@ -64,6 +64,7 @@ describe("expert catalog API", () => {
     expect(body.catalogDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(body.packs).toHaveLength(20);
     expect(body.packs[0]).not.toHaveProperty("evaluationSeed");
+    expect(body.packs[0].manifest).not.toHaveProperty("systemPrompt");
     expect(
       body.packs.every(
         (pack: {
