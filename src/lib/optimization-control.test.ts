@@ -101,16 +101,18 @@ describe("optimization evidence", () => {
 
   it("fails the optimization decision when challenger quality regresses", () => {
     const baseline = bundle("agent:research-expert", "1.0.0");
-    const degradedCandidate = structuredClone(referenceCandidate);
-    degradedCandidate.candidateId = "agent:research-expert";
-    degradedCandidate.version = "1.1.0";
-    degradedCandidate.outputs = degradedCandidate.outputs.map((output) => ({
-      ...output,
-      answer: "",
-      abstained: false,
-      citations: [],
-      routeExperts: [],
-    }));
+    const degradedCandidate = {
+      ...referenceCandidate,
+      candidateId: "agent:research-expert",
+      version: "1.1.0",
+      outputs: referenceCandidate.outputs.map((output) => ({
+        caseId: output.caseId,
+        answer: "",
+        abstained: false,
+        citations: [],
+        routeExperts: [],
+      })),
+    };
     const challenger = bundle("agent:research-expert", "1.1.0");
     challenger.raeburnBench = evaluateRaeburnBench(
       corpusFixture,
