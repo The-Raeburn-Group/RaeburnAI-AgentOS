@@ -98,7 +98,7 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({ candidates });
   } catch (error) {
-    return apiError(error, "quality.candidates.list");
+    return qualityError(error) ?? apiError(error, "quality.candidates.list");
   }
 }
 
