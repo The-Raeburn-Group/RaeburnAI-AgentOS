@@ -71,6 +71,11 @@ enum UsageCostBasis {
   UNKNOWN
 }
 
+enum UsageOutcome {
+  SUCCEEDED
+  FAILED
+}
+
 model Tenant {
   id          String       @id @default(uuid())
   name        String
@@ -420,6 +425,7 @@ model UsageLedgerEntry {
   estimatedCostMicros       BigInt?
   actualCostMicros          BigInt?
   costBasis                 UsageCostBasis
+  outcome                   UsageOutcome
   billableUnit              String         @default("model_call")
   billableQuantity          Int            @default(1)
   occurredAt                DateTime       @default(now())
