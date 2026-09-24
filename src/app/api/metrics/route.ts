@@ -29,8 +29,23 @@ export async function GET() {
     const identity = await requireHumanPermission("metrics.read");
     const tenant = await requireHumanTenant(identity);
 
-    const [runCounts, approvalCounts, memoryCounts, expiredMemories] =
-      await Promise.all([
+    const now = new Date();
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+    );
+    const monthEnd = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
+    );
+
+    const [
+      runCounts,
+      approvalCounts,
+      memoryCounts,
+      expiredMemories,
+      monthlyUsage,
+      activeReservations,
+      budgetPolicy,
+    ] = await Promise.all([
         db.workflowRun.groupBy({
           by: ["status"],
           where: { tenantId: tenant.id },
@@ -49,8 +64,27 @@ export async function GET() {
         db.memory.count({
           where: {
             tenantId: tenant.id,
-            expiresAt: { lte: new Date() },
+            expiresAt: { lte: now },
           },
+        }),
+        db.usageEvent.aggregate({
+          where: {
+            tenantId: tenant.id,
+            occurredAt: { gte: monthStart, lt: monthEnd },
+          },
+          _count: { _all: true },
+          _sum: { costMicrousd: true },
+        }),
+        db.spendReservation.aggregate({
+          where: {
+            tenantId: tenant.id,
+            status: "RESERVED",
+            expiresAt: { gt: now },
+          },
+          _sum: { estimatedCostMicrousd: true },
+        }),
+        db.budgetPolicy.findUnique({
+          where: { tenantId: tenant.id },
         }),
       ]);
 
@@ -79,6 +113,31 @@ export async function GET() {
       help: "Tenant durable memory records awaiting expiry purge",
       registers: [registry],
     });
+    const monthlyUsageCost = new Gauge({
+      name: "agentos_usage_monthly_cost_microusd",
+      help: "Tenant committed usage cost in the current UTC month",
+      registers: [registry],
+    });
+    const monthlyUsageEvents = new Gauge({
+      name: "agentos_usage_monthly_events_total",
+      help: "Tenant committed usage events in the current UTC month",
+      registers: [registry],
+    });
+    const activeReservedCost = new Gauge({
+      name: "agentos_usage_reserved_cost_microusd",
+      help: "Tenant active pre-spend reservations in micro-USD",
+      registers: [registry],
+    });
+    const monthlyBudgetLimit = new Gauge({
+      name: "agentos_budget_monthly_limit_microusd",
+      help: "Configured tenant monthly budget limit in micro-USD",
+      registers: [registry],
+    });
+    const budgetUtilization = new Gauge({
+      name: "agentos_budget_utilization_ratio",
+      help: "Committed plus reserved cost divided by monthly budget limit",
+      registers: [registry],
+    });
 
     runCounts.forEach((row) =>
       workflowRuns.set({ status: row.status }, row._count),
@@ -93,6 +152,25 @@ export async function GET() {
       ),
     );
     memoryExpired.set(expiredMemories);
+
+    const spentMicrousd = monthlyUsage._sum.costMicrousd ?? 0n;
+    const reservedMicrousd =
+      activeReservations._sum.estimatedCostMicrousd ?? 0n;
+    monthlyUsageCost.set(Number(spentMicrousd));
+    monthlyUsageEvents.set(monthlyUsage._count._all);
+    activeReservedCost.set(Number(reservedMicrousd));
+    if (
+      budgetPolicy?.monthlyLimitMicrousd !== null &&
+      budgetPolicy?.monthlyLimitMicrousd !== undefined
+    ) {
+      monthlyBudgetLimit.set(Number(budgetPolicy.monthlyLimitMicrousd));
+      if (budgetPolicy.monthlyLimitMicrousd > 0n) {
+        budgetUtilization.set(
+          Number(spentMicrousd + reservedMicrousd) /
+            Number(budgetPolicy.monthlyLimitMicrousd),
+        );
+      }
+    }
 
     return new NextResponse(await registry.metrics(), {
       headers: {
