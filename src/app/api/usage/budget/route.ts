@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import {
-  HumanAuthError,
-  requireHumanPermission,
-} from "@/lib/admin-auth";
-import {
-  TenantAccessError,
-  requireHumanTenant,
-} from "@/lib/human-tenant";
+import { HumanAuthError, requireHumanPermission } from "@/lib/admin-auth";
+import { TenantAccessError, requireHumanTenant } from "@/lib/human-tenant";
 import {
   BudgetPolicyInputSchema,
   UsageLedgerError,
@@ -18,7 +12,10 @@ import {
 
 function authError(error: unknown) {
   if (error instanceof TenantAccessError) {
-    return NextResponse.json({ error: "tenant_access_denied" }, { status: 403 });
+    return NextResponse.json(
+      { error: "tenant_access_denied" },
+      { status: 403 },
+    );
   }
   if (!(error instanceof HumanAuthError)) return null;
   if (error.code === "auth_unconfigured") {
@@ -82,6 +79,9 @@ export async function PUT(request: Request) {
     if (error instanceof UsageLedgerError) {
       return NextResponse.json({ error: error.code }, { status: 422 });
     }
-    return NextResponse.json({ error: "budget_update_failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "budget_update_failed" },
+      { status: 500 },
+    );
   }
 }
