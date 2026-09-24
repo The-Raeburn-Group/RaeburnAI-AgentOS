@@ -59,6 +59,49 @@ export const ToolBenchmarkCandidateSchema = z.object({
   ),
 });
 
+const ToolBenchmarkCaseResultSchema = z.object({
+  caseId: z.string(),
+  passed: z.boolean(),
+  score: z.number().min(0).max(1),
+  reasons: z.array(z.string()),
+});
+
+export const ToolBenchmarkResultSchema = z.object({
+  contractVersion: z.literal(TOOL_BENCHMARK_VERSION),
+  benchmark: z.object({
+    id: z.string(),
+    version: z.string(),
+    digest: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+  candidate: CandidateIdentitySchema,
+  score: z.number().min(0).max(1),
+  totalToolCalls: z.number().int().min(0),
+  caseResults: z.array(ToolBenchmarkCaseResultSchema),
+  absoluteFailures: z.array(z.string()),
+  gate: z.enum(["pass", "fail"]),
+  artifactDigest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+export type ToolBenchmarkResult = z.infer<typeof ToolBenchmarkResultSchema>;
+
+function withoutArtifactDigest<T extends { artifactDigest: string }>(
+  result: T,
+): Omit<T, "artifactDigest"> {
+  const { artifactDigest, ...unsigned } = result;
+  void artifactDigest;
+  return unsigned;
+}
+
+export function verifyToolBenchmarkResultIntegrity(
+  input: unknown,
+): ToolBenchmarkResult {
+  const result = ToolBenchmarkResultSchema.parse(input);
+  if (sha256(withoutArtifactDigest(result)) !== result.artifactDigest) {
+    throw new Error("tool_benchmark_integrity_invalid");
+  }
+  return result;
+}
+
 function serializedCalls(
   calls: Array<z.infer<typeof ToolCallSchema>>,
 ): string[] {
