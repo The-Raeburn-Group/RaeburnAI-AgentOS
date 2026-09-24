@@ -1,7 +1,10 @@
 import { AgentStatus, type Agent, type Prisma } from "@prisma/client";
 import { agentManifestDigest } from "@/lib/collaboration";
 import { db } from "@/lib/db";
-import { buildExpertPack } from "@/lib/expert-catalog";
+import {
+  buildExpertPack,
+  listExpertPackSlugs,
+} from "@/lib/expert-catalog";
 import { AgentManifestSchema, type AgentManifest } from "@/lib/types";
 
 export class ExpertCatalogInstallError extends Error {
@@ -100,12 +103,10 @@ export async function installExpertCatalogDraft(options: {
   mode: ExpertCatalogInstallMode;
   manifestDigest: string;
 }> {
-  let pack;
-  try {
-    pack = buildExpertPack(options.slug);
-  } catch {
+  if (!listExpertPackSlugs().includes(options.slug)) {
     throw new ExpertCatalogInstallError("unknown_expert_pack");
   }
+  const pack = buildExpertPack(options.slug);
 
   const manifest = pack.manifest;
   const manifestDigest = agentManifestDigest(manifest);
