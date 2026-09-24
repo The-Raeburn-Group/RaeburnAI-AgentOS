@@ -262,6 +262,48 @@ export const PerformanceCandidateSchema = z.object({
   ),
 });
 
+const PerformanceCaseResultSchema = z.object({
+  caseId: z.string(),
+  passed: z.boolean(),
+  latencyMs: z.number().finite().min(0).nullable(),
+  costUsd: z.number().finite().min(0).nullable(),
+  reasons: z.array(z.string()),
+});
+
+export const PerformanceBenchmarkResultSchema = z.object({
+  contractVersion: z.literal(PERFORMANCE_BENCHMARK_VERSION),
+  benchmark: z.object({
+    id: z.string(),
+    version: z.string(),
+    digest: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+  candidate: CandidateIdentitySchema,
+  meanLatencyMs: z.number().finite().min(0),
+  p50LatencyMs: z.number().finite().min(0),
+  p95LatencyMs: z.number().finite().min(0),
+  totalCostUsd: z.number().finite().min(0),
+  measuredTokenCases: z.number().int().min(0),
+  totalInputTokens: z.number().int().min(0),
+  totalOutputTokens: z.number().int().min(0),
+  caseResults: z.array(PerformanceCaseResultSchema),
+  gate: z.enum(["pass", "fail"]),
+  artifactDigest: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+export type PerformanceBenchmarkResult = z.infer<
+  typeof PerformanceBenchmarkResultSchema
+>;
+
+export function verifyPerformanceBenchmarkResultIntegrity(
+  input: unknown,
+): PerformanceBenchmarkResult {
+  const result = PerformanceBenchmarkResultSchema.parse(input);
+  if (sha256(withoutArtifactDigest(result)) !== result.artifactDigest) {
+    throw new Error("performance_benchmark_integrity_invalid");
+  }
+  return result;
+}
+
 export function evaluatePerformanceBenchmark(
   benchmarkInput: unknown,
   candidateInput: unknown,
