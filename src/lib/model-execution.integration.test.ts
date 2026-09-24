@@ -25,20 +25,23 @@ async function seedTenant() {
       id: tenantId,
       slug: tenantId,
       name: "Governed model execution tenant",
-      workflows: {
-        create: {
-          id: workflowId,
-          name: "Governed model execution workflow",
-          goal: "Provide valid run attribution for metering tests.",
-          graph: {},
-          runs: {
-            create: {
-              id: runId,
-              input: {},
-            },
-          },
-        },
-      },
+    },
+  });
+  await db.workflow.create({
+    data: {
+      id: workflowId,
+      tenantId,
+      name: "Governed model execution workflow",
+      goal: "Provide valid run attribution for metering tests.",
+      graph: {},
+    },
+  });
+  await db.workflowRun.create({
+    data: {
+      id: runId,
+      tenantId,
+      workflowId,
+      input: {},
     },
   });
 }
