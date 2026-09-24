@@ -46,6 +46,18 @@ const envSchema = z.object({
   APPROVAL_ESCALATION_OWNER_CRITICAL: escalationOwner.default("admin"),
   MAX_AGENT_STEPS: z.coerce.number().int().positive().default(12),
   MAX_WORKFLOW_RUNTIME_SECONDS: z.coerce.number().int().positive().default(900),
+  MODEL_REQUEST_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(900000)
+    .default(120000),
+  MODEL_MAX_OUTPUT_TOKENS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(131072)
+    .default(4096),
   WORKFLOW_JOB_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(3),
   WORKFLOW_JOB_LEASE_SECONDS: z.coerce
     .number()
