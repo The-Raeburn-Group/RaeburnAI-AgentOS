@@ -405,7 +405,7 @@ export async function reserveSpend(
   const payloadHash = reservationPayloadHash(parsed);
 
   try {
-    return await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx) => {
       await tx.$queryRawUnsafe<Array<{ id: string }>>(
         'SELECT "id" FROM "BudgetPolicy" WHERE "tenantId" = $1 FOR UPDATE',
         parsed.tenantId,
@@ -505,6 +505,10 @@ export async function reserveSpend(
         reasons: decision.reasons,
       };
     });
+    if (result.reservation.status === "EXPIRED") {
+      throw new UsageLedgerError("reservation_expired");
+    }
+    return result;
   } catch (error) {
     if (error instanceof UsageLedgerError && error.code === "budget_exceeded") {
       const policy = await db.budgetPolicy.findUnique({
