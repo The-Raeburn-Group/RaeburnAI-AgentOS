@@ -71,6 +71,8 @@ jobs:
         run: npm run models:verify
       - name: Gate offline expert configuration optimization
         run: npm run bench:optimization
+      - name: Verify governed adapter training preparation
+        run: npm run training:verify
       - name: Install PostgreSQL client tools
         run: |
           sudo apt-get update
