@@ -53,6 +53,34 @@ export const SpendReservationInputSchema = z.object({
   ttlSeconds: z.number().int().min(30).max(3600).default(300),
 });
 
+const UsageMetadataSchema = z
+  .record(
+    z.union([
+      z.string().max(500),
+      z.number().finite(),
+      z.boolean(),
+      z.null(),
+    ]),
+  )
+  .superRefine((value, context) => {
+    const keys = Object.keys(value);
+    if (keys.length > 32) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "usage metadata may contain at most 32 fields",
+      });
+    }
+    keys.forEach((key) => {
+      if (!/^[A-Za-z0-9._:-]{1,64}$/.test(key)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: "usage metadata key is invalid",
+        });
+      }
+    });
+  });
+
 export const UsageCommitInputSchema = z.object({
   tenantId: z.string().trim().min(1).max(256),
   reservationId: z.string().uuid(),
@@ -71,8 +99,27 @@ export const UsageCommitInputSchema = z.object({
   actualCostMicrousd: MicrousdSchema,
   billableMetric: z.string().trim().min(1).max(128).default("request"),
   billableUnits: z.number().int().min(1).max(2_000_000_000).default(1),
-  metadata: z.record(z.unknown()).default({}),
+  metadata: UsageMetadataSchema.default({}),
   occurredAt: z.string().datetime({ offset: true }),
+}).superRefine((value, context) => {
+  if (
+    value.category === "model" &&
+    !value.modelRegistryId &&
+    !(value.provider && value.model)
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["model"],
+      message: "model usage requires modelRegistryId or provider + model",
+    });
+  }
+  if (value.category === "tool" && !value.toolName) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["toolName"],
+      message: "tool usage requires toolName",
+    });
+  }
 });
 
 export class UsageLedgerError extends Error {
@@ -379,6 +426,21 @@ export async function reserveSpend(
       if (existing) {
         if (existing.payloadHash !== payloadHash) {
           throw new UsageLedgerError("idempotency_conflict");
+        }
+        if (
+          existing.status === "RESERVED" &&
+          existing.expiresAt.getTime() <= now.getTime()
+        ) {
+          const expired = await tx.spendReservation.update({
+            where: { id: existing.id },
+            data: { status: "EXPIRED" },
+          });
+          return {
+            reservation: expired,
+            idempotent: true,
+            warning: expired.warning,
+            reasons: ["reservation expired before idempotent replay"],
+          };
         }
         return {
           reservation: existing,
