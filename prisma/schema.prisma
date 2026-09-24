@@ -75,6 +75,9 @@ model Tenant {
   jobs                 WorkflowJob[]
   evaluationCandidates    EvaluationCandidate[]
   optimizationExperiments OptimizationExperiment[]
+  usageEvents             UsageEvent[]
+  spendReservations       SpendReservation[]
+  budgetPolicy            BudgetPolicy?
 }
 
 model Agent {
@@ -336,4 +339,78 @@ model OptimizationExperiment {
   @@index([tenantId, status, createdAt])
   @@index([baselineAgentId])
   @@index([challengerAgentId])
+}
+
+
+model BudgetPolicy {
+  id                     String   @id @default(uuid())
+  tenantId               String   @unique
+  currency               String   @default("USD")
+  monthlyLimitMicrousd   BigInt?
+  perRequestLimitMicrousd BigInt?
+  warningRatio           Float    @default(0.8)
+  enforcementMode        String   @default("hard")
+  fallbackMode           String   @default("block")
+  version                Int      @default(1)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  tenant                 Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
+}
+
+model SpendReservation {
+  id                       String   @id @default(uuid())
+  tenantId                 String
+  idempotencyKey           String
+  payloadHash              String
+  requestId                String
+  actorId                  String
+  estimatedCostMicrousd    BigInt
+  committedCostMicrousd    BigInt?
+  status                   String   @default("RESERVED")
+  policyVersion            Int
+  expiresAt                DateTime
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  tenant                   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  usageEvent               UsageEvent?
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status, expiresAt])
+  @@index([tenantId, requestId])
+}
+
+model UsageEvent {
+  id              String   @id @default(uuid())
+  tenantId        String
+  reservationId   String?  @unique
+  idempotencyKey  String
+  requestId       String
+  runId           String?
+  actorId         String
+  category        String
+  provider        String?
+  model           String?
+  modelRegistryId String?
+  expertSlug      String?
+  toolName        String?
+  inputTokens     Int      @default(0)
+  outputTokens    Int      @default(0)
+  latencyMs       Int?
+  costMicrousd    BigInt   @default(0)
+  billableMetric  String   @default("request")
+  billableUnits   Int      @default(1)
+  metadata        Json
+  eventDigest     String
+  occurredAt      DateTime
+  createdAt       DateTime @default(now())
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservation     SpendReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, category, occurredAt])
+  @@index([tenantId, requestId])
+  @@index([tenantId, billableMetric, occurredAt])
 }
