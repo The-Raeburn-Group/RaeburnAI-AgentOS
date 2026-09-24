@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DatasetAdmissibilityError } from "@/lib/dataset-provenance";
 import { GET, POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
@@ -64,10 +65,61 @@ describe("quality candidate API", () => {
     expect(response.status).toBe(200);
     expect(mocks.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ tenantId: "tenant-a" }),
+        where: expect.objectContaining({
+          tenantId: "tenant-a",
+          status: "PENDING_REVIEW",
+        }),
         take: 100,
       }),
     );
+  });
+
+  it("allows accepted candidates to be rediscovered explicitly", async () => {
+    vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "quality-test-token");
+    mocks.findMany.mockResolvedValue([
+      { id: "candidate-accepted", status: "ACCEPTED" },
+    ]);
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/api/quality/candidates?status=ACCEPTED",
+        { headers: headers() },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          tenantId: "tenant-a",
+          status: "ACCEPTED",
+        },
+      }),
+    );
+  });
+
+  it("maps inadmissible promotion records to a stable client error", async () => {
+    vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "quality-test-token");
+    mocks.promote.mockRejectedValue(
+      new DatasetAdmissibilityError("purpose_not_permitted"),
+    );
+
+    const response = await POST(
+      new Request("http://localhost:3000/api/quality/candidates", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({
+          action: "promote",
+          candidateId: "11111111-1111-4111-8111-111111111111",
+          record: {},
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toEqual({
+      error: "purpose_not_permitted",
+    });
   });
 
   it("routes review commands through the authenticated reviewer identity", async () => {
