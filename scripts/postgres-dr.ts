@@ -9,6 +9,9 @@ import {
   EvaluationCandidateStatus,
   OptimizationExperimentStatus,
   PrismaClient,
+  SpendReservationStatus,
+  UsageCostBasis,
+  UsageOutcome,
   RunStatus,
   WorkflowJobStatus,
 } from "@prisma/client";
@@ -123,6 +126,9 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       evaluationCandidates,
       evaluationCandidateOccurrences,
       optimizationExperiments,
+      spendBudgets,
+      spendReservations,
+      usageLedgerEntries,
       migrations,
     ] = await Promise.all([
       prisma.tenant.findMany({ orderBy: { id: "asc" } }),
@@ -140,6 +146,9 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
         orderBy: { id: "asc" },
       }),
       prisma.optimizationExperiment.findMany({ orderBy: { id: "asc" } }),
+      prisma.spendBudget.findMany({ orderBy: { id: "asc" } }),
+      prisma.spendReservation.findMany({ orderBy: { id: "asc" } }),
+      prisma.usageLedgerEntry.findMany({ orderBy: { id: "asc" } }),
       prisma.$queryRaw<
         Array<{
           migration_name: string;
@@ -173,6 +182,9 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
           evaluationCandidateOccurrences,
         ),
         OptimizationExperiment: fingerprintRows(optimizationExperiments),
+        SpendBudget: fingerprintRows(spendBudgets),
+        SpendReservation: fingerprintRows(spendReservations),
+        UsageLedgerEntry: fingerprintRows(usageLedgerEntries),
       },
     };
   } finally {
@@ -620,6 +632,69 @@ async function seedRecoveryFixture(): Promise<void> {
           reviewedAt: createdAt,
           createdAt,
           updatedAt: createdAt,
+        },
+      });
+
+      const budgetId = `00000000-0000-4000-8000-00000000${suffix}c01`;
+      const reservationId = `00000000-0000-4000-8000-00000000${suffix}c02`;
+      await prisma.spendBudget.create({
+        data: {
+          id: budgetId,
+          tenantId,
+          name: "dr-monthly-budget",
+          periodStart: new Date("2026-09-01T00:00:00.000Z"),
+          periodEnd: new Date("2026-10-01T00:00:00.000Z"),
+          softLimitMicros: 5_000_000n,
+          hardLimitMicros: 10_000_000n,
+          enabled: true,
+          createdBy: `finance-${suffix}`,
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+      await prisma.spendReservation.create({
+        data: {
+          id: reservationId,
+          tenantId,
+          budgetId,
+          runId,
+          taskId: `00000000-0000-4000-8000-00000000${suffix}401`,
+          idempotencyKey: `dr-spend-${suffix}`,
+          provider: "ollama",
+          model: "dr-model",
+          estimatedTokens: 1000,
+          unitCostMicrosPer1k: 1_000n,
+          reservedMicros: 1_000n,
+          settledMicros: 900n,
+          actualTokens: 900,
+          status: SpendReservationStatus.SETTLED,
+          createdAt,
+          settledAt: new Date(createdAt.getTime() + 750),
+        },
+      });
+      await prisma.usageLedgerEntry.create({
+        data: {
+          id: `00000000-0000-4000-8000-00000000${suffix}c03`,
+          tenantId,
+          reservationId,
+          idempotencyKey: `dr-usage-${suffix}`,
+          runId,
+          taskId: `00000000-0000-4000-8000-00000000${suffix}401`,
+          requestId: `dr-usage-request-${suffix}`,
+          provider: "ollama",
+          model: "dr-model",
+          estimatedTokens: 1000,
+          totalTokens: 900,
+          latencyMs: 125,
+          unitCostMicrosPer1k: 1_000n,
+          estimatedCostMicros: 1_000n,
+          actualCostMicros: 900n,
+          costBasis: UsageCostBasis.REGISTRY_ACTUAL_TOKENS,
+          outcome: UsageOutcome.SUCCEEDED,
+          billableUnit: "model_call",
+          billableQuantity: 1,
+          occurredAt: new Date(createdAt.getTime() + 750),
+          createdAt,
         },
       });
     }
