@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
+import referenceCandidate from "../../benchmarks/candidates/reference.v0.json";
+import corpusFixture from "../../benchmarks/raeburnbench.seed.v0.json";
 import {
   evaluateChallengerGate,
   evaluatePerformanceBenchmark,
   evaluateToolBenchmark,
 } from "@/lib/quality-benchmarks";
+import { evaluateRaeburnBench } from "@/lib/raeburnbench";
 
-const candidate = { id: "reference-quality", version: "0.1.0" };
+const candidate = {
+  id: referenceCandidate.candidateId,
+  version: referenceCandidate.version,
+};
 
 const toolBenchmark = {
   contractVersion: "raeburnai.tool-benchmark.v1",
@@ -62,28 +68,77 @@ const performanceCandidate = {
   ],
 };
 
+function raeburnBench() {
+  return evaluateRaeburnBench(corpusFixture, referenceCandidate);
+}
+
 describe("quality benchmark gates", () => {
   it("passes deterministic expected tool traces and emits integrity evidence", () => {
     const result = evaluateToolBenchmark(toolBenchmark, toolCandidate);
     expect(result.gate).toBe("pass");
     expect(result.score).toBe(1);
+    expect(result.absoluteFailures).toEqual([]);
     expect(result.artifactDigest).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("fails closed on extra or forbidden tool calls", () => {
-    const changed = structuredClone(toolCandidate);
-    changed.traces[0]?.calls.push({
+  it("preserves tool-call order in exact trace grading", () => {
+    const benchmark = structuredClone(toolBenchmark);
+    benchmark.cases[0] = {
+      id: "tool.read.001",
+      expectedCalls: [
+        { tool: "knowledge", action: "read", succeeded: true },
+        { tool: "evidence", action: "verify", succeeded: true },
+      ],
+      forbiddenTools: ["payments"],
+      maxCalls: 2,
+    };
+    const challenger = structuredClone(toolCandidate);
+    challenger.traces[0] = {
+      caseId: "tool.read.001",
+      calls: [
+        { tool: "evidence", action: "verify", succeeded: true },
+        { tool: "knowledge", action: "read", succeeded: true },
+      ],
+    };
+
+    const result = evaluateToolBenchmark(benchmark, challenger);
+    expect(result.gate).toBe("fail");
+    expect(result.caseResults[0]?.reasons).toContain(
+      "tool trace does not exactly match expected calls",
+    );
+  });
+
+  it("makes forbidden tools and call budgets absolute failures below a permissive score threshold", () => {
+    const benchmark = structuredClone(toolBenchmark);
+    benchmark.minimumScore = 0.5;
+    const challenger = structuredClone(toolCandidate);
+    challenger.traces[0]?.calls.push({
       tool: "payments",
       action: "transfer",
       succeeded: true,
     });
 
-    const result = evaluateToolBenchmark(toolBenchmark, changed);
+    const result = evaluateToolBenchmark(benchmark, challenger);
+    expect(result.score).toBeGreaterThanOrEqual(0.5);
     expect(result.gate).toBe("fail");
-    expect(result.caseResults[0]?.reasons).toContain(
-      "tool call budget exceeded",
-    );
-    expect(result.caseResults[0]?.reasons).toContain("forbidden tool invoked");
+    expect(result.absoluteFailures).toEqual([
+      "tool.read.001: tool call budget exceeded",
+      "tool.read.001: forbidden tool invoked",
+    ]);
+  });
+
+  it("rejects duplicate benchmark case identifiers", () => {
+    const duplicateTool = structuredClone(toolBenchmark);
+    duplicateTool.cases[1].id = duplicateTool.cases[0].id;
+    expect(() =>
+      evaluateToolBenchmark(duplicateTool, toolCandidate),
+    ).toThrow("duplicate tool benchmark case id");
+
+    const duplicatePerformance = structuredClone(performanceBenchmark);
+    duplicatePerformance.cases[1].id = duplicatePerformance.cases[0].id;
+    expect(() =>
+      evaluatePerformanceBenchmark(duplicatePerformance, performanceCandidate),
+    ).toThrow("duplicate performance benchmark case id");
   });
 
   it("fails performance cases when either latency or cost budget is exceeded", () => {
@@ -103,18 +158,14 @@ describe("quality benchmark gates", () => {
     ]);
   });
 
-  it("promotes only the same candidate when every independent gate passes", () => {
+  it("promotes only the same candidate when every independently verified gate passes", () => {
     const tool = evaluateToolBenchmark(toolBenchmark, toolCandidate);
     const performance = evaluatePerformanceBenchmark(
       performanceBenchmark,
       performanceCandidate,
     );
     const result = evaluateChallengerGate({
-      raeburnBench: {
-        candidate,
-        gate: { status: "pass" },
-        artifactDigest: "a".repeat(64),
-      },
+      raeburnBench: raeburnBench(),
       toolBenchmark: tool,
       performanceBenchmark: performance,
     });
@@ -129,11 +180,7 @@ describe("quality benchmark gates", () => {
       candidate: { id: "different", version: "0.1.0" },
     });
     const result = evaluateChallengerGate({
-      raeburnBench: {
-        candidate,
-        gate: { status: "pass" },
-        artifactDigest: "b".repeat(64),
-      },
+      raeburnBench: raeburnBench(),
       toolBenchmark: tool,
       performanceBenchmark: performance,
     });
@@ -141,5 +188,23 @@ describe("quality benchmark gates", () => {
     expect(result.reasons).toContain(
       "benchmark artifacts refer to different candidates",
     );
+  });
+
+  it("refuses tampered benchmark artifacts before a challenger decision", () => {
+    const tool = evaluateToolBenchmark(toolBenchmark, toolCandidate);
+    const performance = evaluatePerformanceBenchmark(
+      performanceBenchmark,
+      performanceCandidate,
+    );
+    const tampered = structuredClone(tool);
+    tampered.gate = "fail";
+
+    expect(() =>
+      evaluateChallengerGate({
+        raeburnBench: raeburnBench(),
+        toolBenchmark: tampered,
+        performanceBenchmark: performance,
+      }),
+    ).toThrow("tool_benchmark_integrity_invalid");
   });
 });
