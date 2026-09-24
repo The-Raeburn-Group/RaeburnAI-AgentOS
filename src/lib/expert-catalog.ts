@@ -764,7 +764,8 @@ const profiles: readonly ExpertProfile[] = [
       "risk-benefit synthesis",
       "guideline comparison",
     ],
-    routingProbe: "Review clinical evidence for a health research question.",
+    routingProbe:
+      "Assess a clinical diagnosis and treatment question using medical literature.",
     intendedUses: [
       "Clinical-literature research and evidence synthesis.",
       "Study and guideline interpretation.",
