@@ -32,6 +32,36 @@ export const ExpertCardSchema = z.object({
   evidenceRequired: z.boolean(),
   benchmarkRequirement: z.string().trim().min(10).max(512),
   seedCaseCount: z.number().int().min(100),
+  license: z.object({
+    identifier: z.string().trim().min(1).max(128),
+    scope: z.string().trim().min(3).max(256),
+  }),
+  dataProvenance: z.object({
+    sourceKind: z.literal("synthetic"),
+    jurisdiction: z.string().trim().min(2).max(32),
+    containsPersonalData: z.literal(false),
+    containsSpecialCategoryData: z.literal(false),
+  }),
+  evaluation: z.object({
+    suites: z.array(z.string().trim().min(1).max(128)).min(1),
+    privateHeldout: z.boolean(),
+  }),
+  safety: z.object({
+    riskTier: z.enum(["low", "medium", "high", "critical"]),
+    approvalRequired: z.boolean(),
+    evidenceRequired: z.boolean(),
+  }),
+  releaseHistory: z
+    .array(
+      z.object({
+        version: z.string().trim().min(1).max(64),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        lifecycle: z.literal("development"),
+      }),
+    )
+    .min(1),
+  jurisdictionLimits: z.array(z.string().trim().min(3).max(256)).min(1),
+  temporalLimits: z.array(z.string().trim().min(3).max(256)).min(1),
 });
 
 export const ExpertPackSchema = z
@@ -935,6 +965,40 @@ function expertCard(profile: ExpertProfile): ExpertCard {
     benchmarkRequirement:
       "A pack must beat the governed incumbent on protected domain, safety and tool-use evaluation before any specialist promotion claim.",
     seedCaseCount: 100,
+    license: {
+      identifier: "Apache-2.0",
+      scope:
+        "Repository catalog definition and synthetic seed records only; no third-party model licence is asserted.",
+    },
+    dataProvenance: {
+      sourceKind: "synthetic",
+      jurisdiction: "GB",
+      containsPersonalData: false,
+      containsSpecialCategoryData: false,
+    },
+    evaluation: {
+      suites: ["expert-seed-v1"],
+      privateHeldout: false,
+    },
+    safety: {
+      riskTier: profile.riskTier,
+      approvalRequired:
+        profile.riskTier === "high" || profile.riskTier === "critical",
+      evidenceRequired: profile.evidenceRequired,
+    },
+    releaseHistory: [
+      {
+        version: "0.1.0",
+        date: "2026-09-24",
+        lifecycle: "development",
+      },
+    ],
+    jurisdictionLimits: [
+      "GB is the synthetic seed context only; jurisdiction-specific competence is not established by this development pack.",
+    ],
+    temporalLimits: [
+      "The development pack has no guaranteed knowledge cutoff or current-law/current-guidance assurance; live retrieval and dated evidence remain required.",
+    ],
   });
 }
 
