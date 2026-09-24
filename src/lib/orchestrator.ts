@@ -21,6 +21,12 @@ import { env } from "@/lib/env";
 import { resolveTenantReference } from "@/lib/human-tenant";
 import { generateWithProvider } from "@/lib/providers";
 import {
+  beginModelSpend,
+  recordFailedModelSpend,
+  settleModelSpend,
+  SpendGovernanceError,
+} from "@/lib/spend-governance";
+import {
   WorkflowRunRequestSchema,
   type ProviderResponse,
   type WorkflowRunRequest,
@@ -242,15 +248,46 @@ async function executeAgentTask(options: {
     data: { status: RunStatus.RUNNING },
   });
 
+  const messages = [
+    { role: "system" as const, content: options.agent.systemPrompt },
+    { role: "user" as const, content: options.sharedContext },
+  ];
+  let spendGuard:
+    | Awaited<ReturnType<typeof beginModelSpend>>
+    | undefined;
+  let spendFinalized = false;
+  let providerStartedAt = 0;
+
   try {
+    spendGuard = await beginModelSpend({
+      tenantId: options.tenant.id,
+      runId: options.run.id,
+      taskId: options.taskId,
+      requestId: options.requestId,
+      actorId: options.actorId,
+      provider: options.agent.modelProvider,
+      model: options.agent.modelName,
+      messages,
+    });
+
+    providerStartedAt = Date.now();
     const response = await options.generate({
       provider: options.agent.modelProvider,
       model: options.agent.modelName,
-      messages: [
-        { role: "system", content: options.agent.systemPrompt },
-        { role: "user", content: options.sharedContext },
-      ],
+      messages,
     });
+    const latencyMs = Math.max(0, Date.now() - providerStartedAt);
+    const settlement = await settleModelSpend({
+      guard: spendGuard,
+      actorId: options.actorId,
+      totalTokens: response.tokens,
+      latencyMs,
+    });
+    spendFinalized = true;
+
+    if (settlement.hardLimitOverrun) {
+      throw new SpendGovernanceError("hard_budget_overrun");
+    }
 
     await db.agentTask.update({
       where: { id: options.taskId },
@@ -266,6 +303,14 @@ async function executeAgentTask(options: {
           provider: response.provider,
           model: response.model,
           tokens: response.tokens ?? null,
+          latencyMs,
+          usageId: settlement.ledger.id,
+          actualCostMicros:
+            settlement.ledger.actualCostMicros?.toString() ?? null,
+          estimatedCostMicros:
+            settlement.ledger.estimatedCostMicros?.toString() ?? null,
+          costBasis: settlement.ledger.costBasis,
+          softLimitExceeded: settlement.softLimitExceeded,
           requestId: options.requestId,
           initiatedBy: options.actorId,
           taskId: options.taskId,
@@ -275,6 +320,40 @@ async function executeAgentTask(options: {
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    if (spendGuard && !spendFinalized) {
+      const latencyMs =
+        providerStartedAt > 0 ? Math.max(0, Date.now() - providerStartedAt) : 0;
+      try {
+        await recordFailedModelSpend({
+          guard: spendGuard,
+          actorId: options.actorId,
+          latencyMs,
+          reason: message,
+        });
+        spendFinalized = true;
+      } catch (meteringError) {
+        const meteringMessage =
+          meteringError instanceof Error
+            ? meteringError.message
+            : "unknown spend metering failure";
+        await db.auditEvent.create({
+          data: {
+            tenantId: options.tenant.id,
+            runId: options.run.id,
+            actor: options.actorId,
+            action: "spend.metering_failed",
+            metadata: {
+              requestId: options.requestId,
+              taskId: options.taskId,
+              provider: options.agent.modelProvider,
+              model: options.agent.modelName,
+              error: meteringMessage,
+            },
+          },
+        });
+      }
+    }
+
     await db.$transaction([
       db.agentTask.update({
         where: { id: options.taskId },
@@ -303,6 +382,7 @@ async function executeAgentTask(options: {
             initiatedBy: options.actorId,
             taskId: options.taskId,
             error: message,
+            spendFinalized,
           },
         },
       }),
