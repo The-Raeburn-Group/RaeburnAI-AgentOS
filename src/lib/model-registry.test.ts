@@ -135,6 +135,25 @@ describe("model registry", () => {
     expect(result.score).toBeGreaterThan(0.7);
   });
 
+  it("rejects candidates with unknown metrics when those metrics carry routing weight", () => {
+    const input = registry();
+    input.entries[0].benchmark.p95LatencyMs = null;
+    input.entries[1].benchmark.p95LatencyMs = null;
+
+    expect(() =>
+      selectRegistryModel(
+        input,
+        {
+          requiredCapabilities: ["general"],
+          weights: { quality: 0.8, latency: 0.2, cost: 0 },
+        },
+        new Date("2026-09-24T10:00:00.000Z"),
+      ),
+    ).toMatchObject<Partial<ModelRegistryError>>({
+      code: "no_eligible_model",
+    });
+  });
+
   it("fails closed when freshness or governance removes every candidate", () => {
     const input = registry();
     input.entries.forEach((entry) => {
