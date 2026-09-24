@@ -649,8 +649,7 @@ async function seedRecoveryFixture(): Promise<void> {
         },
       });
 
-      const reservationId =
-        "00000000-0000-4000-8000-00000000" + suffix + "c02";
+      const reservationId = "00000000-0000-4000-8000-00000000" + suffix + "c02";
       await prisma.spendReservation.create({
         data: {
           id: reservationId,
