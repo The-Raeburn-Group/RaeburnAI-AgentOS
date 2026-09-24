@@ -59,6 +59,35 @@ describeWithDatabase("expert catalog installation", () => {
     ).toBe(1);
   });
 
+  it("keeps concurrent installation idempotent with one durable agent version", async () => {
+    const [left, right] = await Promise.all([
+      installExpertCatalogDraft({
+        tenantId,
+        actorId: "catalog-admin-left",
+        slug: "raeburn-software-engineering",
+      }),
+      installExpertCatalogDraft({
+        tenantId,
+        actorId: "catalog-admin-right",
+        slug: "raeburn-software-engineering",
+      }),
+    ]);
+
+    expect(new Set([left.agent.id, right.agent.id]).size).toBe(1);
+    expect(new Set([left.mode, right.mode])).toEqual(
+      new Set(["created_draft", "existing_idempotent"]),
+    );
+    expect(
+      await db.agent.count({
+        where: {
+          tenantId,
+          slug: "raeburn-software-engineering",
+          version: "0.1.0",
+        },
+      }),
+    ).toBe(1);
+  });
+
   it("fails closed rather than overwriting a locally changed DRAFT version", async () => {
     const installed = await installExpertCatalogDraft({
       tenantId,
