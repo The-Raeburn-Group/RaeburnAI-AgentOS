@@ -17,6 +17,19 @@ if (Number.isNaN(now.getTime())) {
   throw new Error("MODEL_REGISTRY_NOW must be an ISO date-time");
 }
 
+const configuredProvider = process.env.DEFAULT_MODEL_PROVIDER ?? "ollama";
+const configuredModel = process.env.DEFAULT_MODEL ?? "llama3.1";
+if (
+  !registry.entries.some(
+    (entry) =>
+      entry.provider === configuredProvider && entry.model === configuredModel,
+  )
+) {
+  throw new Error(
+    `configured default model is not registered: ${configuredProvider}/${configuredModel}`,
+  );
+}
+
 const report = evaluateModelRegistryFreshness(registry, now);
 const format = process.argv.includes("--markdown") ? "markdown" : "json";
 
