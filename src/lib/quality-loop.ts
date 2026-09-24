@@ -226,6 +226,7 @@ export function projectFailureAuditEvent(event: FailureEvent) {
 export async function ingestFailureAuditEvents(
   options: {
     limit?: number;
+    tenantId?: string;
   } = {},
 ): Promise<{
   scanned: number;
@@ -242,6 +243,7 @@ export async function ingestFailureAuditEvents(
     where: {
       action: { in: [...QUALITY_FAILURE_ACTIONS] },
       evaluationCandidateOccurrence: { is: null },
+      ...(options.tenantId ? { tenantId: options.tenantId } : {}),
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: limit,
