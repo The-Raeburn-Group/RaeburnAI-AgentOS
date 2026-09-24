@@ -5,6 +5,7 @@ CREATE TYPE "UsageCostBasis" AS ENUM (
   'REGISTRY_ESTIMATE_ONLY',
   'UNKNOWN'
 );
+CREATE TYPE "UsageOutcome" AS ENUM ('SUCCEEDED', 'FAILED');
 
 CREATE TABLE "SpendBudget" (
   "id" TEXT NOT NULL,
@@ -118,6 +119,7 @@ CREATE TABLE "UsageLedgerEntry" (
   "estimatedCostMicros" BIGINT,
   "actualCostMicros" BIGINT,
   "costBasis" "UsageCostBasis" NOT NULL,
+  "outcome" "UsageOutcome" NOT NULL,
   "billableUnit" TEXT NOT NULL DEFAULT 'model_call',
   "billableQuantity" INTEGER NOT NULL DEFAULT 1,
   "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
