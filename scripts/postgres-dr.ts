@@ -631,6 +631,7 @@ async function seedRecoveryFixture(): Promise<void> {
           createdAt,
           updatedAt: createdAt,
         },
+      });
 
       await prisma.budgetPolicy.create({
         data: {
@@ -693,7 +694,6 @@ async function seedRecoveryFixture(): Promise<void> {
           occurredAt: createdAt,
           createdAt,
         },
-      });
       });
     }
   } finally {
