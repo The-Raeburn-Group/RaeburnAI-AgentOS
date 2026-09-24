@@ -119,11 +119,48 @@ export const UsageCommitInputSchema = z
     }
   });
 
-export const UnreservedUsageInputSchema = UsageCommitInputSchema.omit({
-  reservationId: true,
-}).extend({
-  requestId: z.string().trim().min(1).max(256),
-});
+export const UnreservedUsageInputSchema = z
+  .object({
+    tenantId: z.string().trim().min(1).max(256),
+    requestId: z.string().trim().min(1).max(256),
+    idempotencyKey: IdempotencyKeySchema,
+    actorId: z.string().trim().min(1).max(256),
+    runId: z.string().trim().min(1).max(256).optional(),
+    category: z.enum(["model", "tool", "retrieval", "workflow", "other"]),
+    provider: z.string().trim().min(1).max(128).optional(),
+    model: z.string().trim().min(1).max(256).optional(),
+    modelRegistryId: z.string().trim().min(1).max(256).optional(),
+    expertSlug: z.string().trim().min(1).max(256).optional(),
+    toolName: z.string().trim().min(1).max(256).optional(),
+    inputTokens: z.number().int().min(0).max(2_000_000_000).default(0),
+    outputTokens: z.number().int().min(0).max(2_000_000_000).default(0),
+    latencyMs: z.number().int().min(0).max(2_000_000_000).optional(),
+    actualCostMicrousd: MicrousdSchema,
+    billableMetric: z.string().trim().min(1).max(128).default("request"),
+    billableUnits: z.number().int().min(1).max(2_000_000_000).default(1),
+    metadata: UsageMetadataSchema.default({}),
+    occurredAt: z.string().datetime({ offset: true }),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.category === "model" &&
+      !value.modelRegistryId &&
+      !(value.provider && value.model)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["model"],
+        message: "model usage requires modelRegistryId or provider + model",
+      });
+    }
+    if (value.category === "tool" && !value.toolName) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["toolName"],
+        message: "tool usage requires toolName",
+      });
+    }
+  });
 
 export class UsageLedgerError extends Error {
   constructor(
