@@ -234,8 +234,7 @@ export function evaluatePerformanceBenchmark(
     completeMeasurements.reduce((sum, item) => sum + item.costUsd, 0),
   );
   const tokenMeasurements = completeMeasurements.filter(
-    (item) =>
-      item.inputTokens !== undefined && item.outputTokens !== undefined,
+    (item) => item.inputTokens !== undefined && item.outputTokens !== undefined,
   );
   const totalInputTokens = tokenMeasurements.reduce(
     (sum, item) => sum + (item.inputTokens ?? 0),
