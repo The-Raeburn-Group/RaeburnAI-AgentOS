@@ -360,8 +360,7 @@ async function seedRecoveryFixture(): Promise<void> {
     for (const [index, tenantId] of FIXTURE_TENANTS.entries()) {
       const suffix = index === 0 ? "a" : "b";
       const agentId = `00000000-0000-4000-8000-00000000${suffix}101`;
-      const challengerAgentId =
-        `00000000-0000-4000-8000-00000000${suffix}102`;
+      const challengerAgentId = `00000000-0000-4000-8000-00000000${suffix}102`;
       const workflowId = `00000000-0000-4000-8000-00000000${suffix}201`;
       const runId = `00000000-0000-4000-8000-00000000${suffix}301`;
 
@@ -402,7 +401,7 @@ async function seedRecoveryFixture(): Promise<void> {
           manifest: {
             fixture: "postgres-dr",
             tenant: suffix,
-            optimizationChallenger: true
+            optimizationChallenger: true,
           },
           createdAt,
           updatedAt: createdAt,
@@ -597,24 +596,22 @@ async function seedRecoveryFixture(): Promise<void> {
           baselineAgentId: agentId,
           challengerAgentId,
           baselineManifestDigest: suffix.repeat(64),
-          challengerManifestDigest:
-            (suffix === "a" ? "b" : "a").repeat(64),
-          artifactDigest:
-            (suffix === "a" ? "c" : "d").repeat(64),
+          challengerManifestDigest: (suffix === "a" ? "b" : "a").repeat(64),
+          artifactDigest: (suffix === "a" ? "c" : "d").repeat(64),
           policy: {
             maxQualityRegression: 0,
             maxToolRegression: 0,
             maxP95LatencyIncreaseRatio: 0.1,
-            maxCostIncreaseRatio: 0.1
+            maxCostIncreaseRatio: 0.1,
           },
           evidence: {
             fixture: true,
-            contractVersion: "raeburnai.optimization-experiment.v1"
+            contractVersion: "raeburnai.optimization-experiment.v1",
           },
           result: {
             contractVersion: "raeburnai.optimization-experiment.v1",
             eligible: true,
-            reasons: []
+            reasons: [],
           },
           status: OptimizationExperimentStatus.APPROVED,
           createdBy: `evaluator-${suffix}`,

@@ -1,8 +1,6 @@
 import { OptimizationExperimentStatus } from "@prisma/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  OptimizationControlError,
-} from "@/lib/optimization-control";
+import { OptimizationControlError } from "@/lib/optimization-control";
 import { GET, POST } from "./route";
 
 const mocks = vi.hoisted(() => ({

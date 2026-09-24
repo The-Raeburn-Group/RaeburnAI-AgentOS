@@ -1,7 +1,4 @@
-import {
-  AgentStatus,
-  OptimizationExperimentStatus,
-} from "@prisma/client";
+import { AgentStatus, OptimizationExperimentStatus } from "@prisma/client";
 import { afterAll, describe, expect, it } from "vitest";
 import referenceCandidate from "../../benchmarks/candidates/reference.v0.json";
 import challengerFixture from "../../benchmarks/challengers/reference.v0.json";
@@ -21,7 +18,9 @@ import {
 import { evaluateRaeburnBench } from "@/lib/raeburnbench";
 import { AgentManifestSchema } from "@/lib/types";
 
-const describeWithDatabase = process.env.DATABASE_URL ? describe : describe.skip;
+const describeWithDatabase = process.env.DATABASE_URL
+  ? describe
+  : describe.skip;
 const tenantPrefix = "optimization-control-";
 
 function manifest(version: string, systemPrompt: string) {
@@ -398,12 +397,12 @@ describeWithDatabase("governed configuration optimization", () => {
       }),
     ]);
 
-    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(
-      1,
-    );
-    expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(
-      1,
-    );
+    expect(
+      outcomes.filter((outcome) => outcome.status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(
+      outcomes.filter((outcome) => outcome.status === "rejected"),
+    ).toHaveLength(1);
     expect(
       await db.agent.count({
         where: {

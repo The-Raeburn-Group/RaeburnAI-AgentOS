@@ -12,10 +12,7 @@ import {
   verifyPerformanceBenchmarkResultIntegrity,
   verifyToolBenchmarkResultIntegrity,
 } from "@/lib/quality-benchmarks";
-import {
-  sha256,
-  verifyRaeburnBenchResultIntegrity,
-} from "@/lib/raeburnbench";
+import { sha256, verifyRaeburnBenchResultIntegrity } from "@/lib/raeburnbench";
 import {
   RoutingPolicyError,
   verifyStoredAgentManifest,
@@ -154,7 +151,9 @@ function verifyBundle(
   expected: { id: string; version: string },
 ) {
   const raeburnBench = verifyRaeburnBenchResultIntegrity(bundle.raeburnBench);
-  const toolBenchmark = verifyToolBenchmarkResultIntegrity(bundle.toolBenchmark);
+  const toolBenchmark = verifyToolBenchmarkResultIntegrity(
+    bundle.toolBenchmark,
+  );
   const performanceBenchmark = verifyPerformanceBenchmarkResultIntegrity(
     bundle.performanceBenchmark,
   );
@@ -181,7 +180,10 @@ export function evaluateOptimizationEvidence(options: {
 }): OptimizationResult {
   const evidence = OptimizationEvidenceSchema.parse(options.evidence);
   const policy = OptimizationPolicySchema.parse(options.policy ?? {});
-  const baselineExpected = expectedCandidate(options.slug, options.baselineVersion);
+  const baselineExpected = expectedCandidate(
+    options.slug,
+    options.baselineVersion,
+  );
   const challengerExpected = expectedCandidate(
     options.slug,
     options.challengerVersion,

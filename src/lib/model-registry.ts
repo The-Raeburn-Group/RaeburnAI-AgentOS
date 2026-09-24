@@ -42,9 +42,7 @@ export const ModelRegistryEntrySchema = z.object({
       qualityScore: z.number().min(0).max(1).nullable().default(null),
       p95LatencyMs: z.number().finite().min(0).nullable().default(null),
       costPer1kTokensUsd: z.number().finite().min(0).nullable().default(null),
-      evidenceDigests: z
-        .array(z.string().regex(/^[a-f0-9]{64}$/))
-        .default([]),
+      evidenceDigests: z.array(z.string().regex(/^[a-f0-9]{64}$/)).default([]),
     })
     .default({}),
   freshness: z.object({
@@ -52,7 +50,11 @@ export const ModelRegistryEntrySchema = z.object({
     maxAgeDays: z.number().int().min(1).max(365),
     providerStatus: ProviderStatusSchema,
     sourceRef: z.string().trim().min(1).max(2_000),
-    deprecationAt: z.string().datetime({ offset: true }).nullable().default(null),
+    deprecationAt: z
+      .string()
+      .datetime({ offset: true })
+      .nullable()
+      .default(null),
   }),
   notes: z.string().trim().max(4_000).optional(),
 });
@@ -225,9 +227,7 @@ export const ModelSelectionRequestSchema = z.object({
 
 export class ModelRegistryError extends Error {
   constructor(
-    public readonly code:
-      | "no_eligible_model"
-      | "invalid_selection_weights",
+    public readonly code: "no_eligible_model" | "invalid_selection_weights",
   ) {
     super(code);
     this.name = "ModelRegistryError";
@@ -281,7 +281,8 @@ export function selectRegistryModel(
     if (!allIncluded(request.requiredCapabilities, entry.capabilities)) {
       return false;
     }
-    if (!allIncluded(request.requiredModalities, entry.modalities)) return false;
+    if (!allIncluded(request.requiredModalities, entry.modalities))
+      return false;
     if (request.requireTools && entry.toolSupport !== "yes") return false;
     if (request.privacy === "local_only" && entry.privacy !== "local") {
       return false;
