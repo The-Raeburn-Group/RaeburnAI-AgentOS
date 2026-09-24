@@ -205,11 +205,7 @@ export function validateStructuredOutputSchema(
   if (type === "number" || type === "integer") {
     const minimum = assertFiniteBound(schema.minimum, "minimum");
     const maximum = assertFiniteBound(schema.maximum, "maximum");
-    if (
-      minimum !== undefined &&
-      maximum !== undefined &&
-      minimum > maximum
-    ) {
+    if (minimum !== undefined && maximum !== undefined && minimum > maximum) {
       throw new ProviderExecutionError("invalid_output_schema");
     }
     return {
@@ -279,8 +275,7 @@ export function validateStructuredValue(
       if (
         (current.minItems !== undefined &&
           candidate.length < current.minItems) ||
-        (current.maxItems !== undefined &&
-          candidate.length > current.maxItems)
+        (current.maxItems !== undefined && candidate.length > current.maxItems)
       ) {
         throw new ProviderExecutionError("invalid_structured_output");
       }

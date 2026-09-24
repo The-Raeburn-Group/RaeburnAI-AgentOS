@@ -41,17 +41,17 @@ The request timeout remains active for the full stream. OpenAI-compatible stream
 
 Provider HTTP bodies are deliberately not surfaced through `ProviderExecutionError`. Stable codes are intended for retry/fallback policy:
 
-| Condition | Error |
-| --- | --- |
-| Unknown provider | `unsupported_provider` |
-| Missing cloud credential | `provider_not_configured` |
-| HTTP 429 | `provider_rate_limited` |
-| HTTP 408 / 5xx | `provider_unavailable` |
-| Other non-2xx | `provider_rejected` |
-| Local timeout | `provider_timeout` |
-| Caller abort | `provider_cancelled` |
+| Condition                           | Error                         |
+| ----------------------------------- | ----------------------------- |
+| Unknown provider                    | `unsupported_provider`        |
+| Missing cloud credential            | `provider_not_configured`     |
+| HTTP 429                            | `provider_rate_limited`       |
+| HTTP 408 / 5xx                      | `provider_unavailable`        |
+| Other non-2xx                       | `provider_rejected`           |
+| Local timeout                       | `provider_timeout`            |
+| Caller abort                        | `provider_cancelled`          |
 | Invalid JSON/shape/truncated stream | `provider_malformed_response` |
-| Response byte cap exceeded | `provider_response_too_large` |
+| Response byte cap exceeded          | `provider_response_too_large` |
 
 ## Verification
 

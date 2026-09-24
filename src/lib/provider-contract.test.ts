@@ -55,10 +55,7 @@ describe("provider execution contract", () => {
     ).toEqual({ answer: "ok", confidence: 0.5 });
 
     expect(() =>
-      parseStructuredProviderText(
-        '{"answer":"ok","confidence":',
-        objectSchema,
-      ),
+      parseStructuredProviderText('{"answer":"ok","confidence":', objectSchema),
     ).toThrowError("invalid_structured_output");
   });
 
@@ -70,7 +67,9 @@ describe("provider execution contract", () => {
         items: nested,
       };
     }
-    expect(() => validateStructuredOutputSchema(nested)).toThrowError("invalid_output_schema");
+    expect(() => validateStructuredOutputSchema(nested)).toThrowError(
+      "invalid_output_schema",
+    );
 
     expect(() =>
       validateStructuredOutputSchema({
@@ -113,10 +112,7 @@ describe("provider execution contract", () => {
     });
 
     expect(() =>
-      normalizeToolCall(
-        { name: "delete_everything", arguments: "{}" },
-        tools,
-      ),
+      normalizeToolCall({ name: "delete_everything", arguments: "{}" }, tools),
     ).toThrowError("unexpected_tool_call");
 
     expect(() =>
@@ -146,9 +142,9 @@ describe("provider execution contract", () => {
 
   it("normalizes Retry-After seconds and HTTP dates", () => {
     expect(parseRetryAfterMs("1.5", 0)).toBe(1500);
-    expect(
-      parseRetryAfterMs("Thu, 01 Jan 1970 00:00:05 GMT", 1_000),
-    ).toBe(4_000);
+    expect(parseRetryAfterMs("Thu, 01 Jan 1970 00:00:05 GMT", 1_000)).toBe(
+      4_000,
+    );
     expect(parseRetryAfterMs("not-a-date", 0)).toBeUndefined();
   });
 });

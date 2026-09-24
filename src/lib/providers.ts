@@ -68,7 +68,9 @@ function createAbortScope(
 
   const timer = setTimeout(() => {
     timeoutTriggered = true;
-    controller.abort(new DOMException("Provider request timed out", "TimeoutError"));
+    controller.abort(
+      new DOMException("Provider request timed out", "TimeoutError"),
+    );
   }, timeoutMs);
 
   return {
@@ -232,9 +234,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function safeTokenCount(value: unknown): number | undefined {
-  return typeof value === "number" &&
-    Number.isSafeInteger(value) &&
-    value >= 0
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
     ? value
     : undefined;
 }
@@ -260,7 +260,11 @@ function normalizeOpenAiCompatibleResponse(options: {
   }
 
   const content = choice.message.content;
-  if (content !== null && content !== undefined && typeof content !== "string") {
+  if (
+    content !== null &&
+    content !== undefined &&
+    typeof content !== "string"
+  ) {
     throw new ProviderExecutionError("provider_malformed_response", {
       provider: options.provider,
     });
@@ -653,9 +657,7 @@ export async function* streamWithProvider(
         if (newline === -1) break;
         const rawLine = buffer.slice(0, newline);
         buffer = buffer.slice(newline + 1);
-        const line = rawLine.endsWith("\r")
-          ? rawLine.slice(0, -1)
-          : rawLine;
+        const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
         if (!line.trim()) continue;
 
         if (execution.provider === "ollama") {
@@ -721,10 +723,7 @@ export async function* streamWithProvider(
           } else if (data) {
             const payload = parseJson(data, execution.provider);
             sawFrame = true;
-            const delta = extractOpenAiStreamDelta(
-              payload,
-              execution.provider,
-            );
+            const delta = extractOpenAiStreamDelta(payload, execution.provider);
             if (delta) yield { type: "text_delta", delta };
           }
         }

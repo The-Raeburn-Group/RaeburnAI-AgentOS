@@ -67,9 +67,7 @@ const tools: ProviderToolDefinition[] = [
 describe("provider execution boundary", () => {
   it("normalizes OpenAI text and usage without exposing provider internals", async () => {
     const fetchImpl = mockFetch(async (input, init) => {
-      expect(String(input)).toBe(
-        "https://api.openai.com/v1/chat/completions",
-      );
+      expect(String(input)).toBe("https://api.openai.com/v1/chat/completions");
       expect(init?.headers).toMatchObject({
         authorization: "Bearer test-openai-key",
       });
@@ -273,11 +271,12 @@ describe("provider execution boundary", () => {
   });
 
   it("maps rate limits, upstream outages and unknown providers to stable errors", async () => {
-    const limited = mockFetch(async () =>
-      new Response(null, {
-        status: 429,
-        headers: { "retry-after": "2" },
-      }),
+    const limited = mockFetch(
+      async () =>
+        new Response(null, {
+          status: 429,
+          headers: { "retry-after": "2" },
+        }),
     );
     await expect(
       generateWithProvider({
@@ -291,8 +290,8 @@ describe("provider execution boundary", () => {
       details: expect.objectContaining({ retryAfterMs: 2_000 }),
     });
 
-    const unavailable = mockFetch(async () =>
-      new Response(null, { status: 503 }),
+    const unavailable = mockFetch(
+      async () => new Response(null, { status: 503 }),
     );
     await expect(
       generateWithProvider({
@@ -318,11 +317,12 @@ describe("provider execution boundary", () => {
   });
 
   it("fails closed on malformed and oversized responses", async () => {
-    const malformed = mockFetch(async () =>
-      new Response("{not-json", {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
+    const malformed = mockFetch(
+      async () =>
+        new Response("{not-json", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
     );
     await expect(
       generateWithProvider({
@@ -335,11 +335,12 @@ describe("provider execution boundary", () => {
       code: "provider_malformed_response",
     });
 
-    const oversized = mockFetch(async () =>
-      new Response("0123456789", {
-        status: 200,
-        headers: { "content-length": "10" },
-      }),
+    const oversized = mockFetch(
+      async () =>
+        new Response("0123456789", {
+          status: 200,
+          headers: { "content-length": "10" },
+        }),
     );
     await expect(
       generateWithProvider({
@@ -363,11 +364,9 @@ describe("provider execution boundary", () => {
             reject(signal.reason);
             return;
           }
-          signal?.addEventListener(
-            "abort",
-            () => reject(signal.reason),
-            { once: true },
-          );
+          signal?.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
         }),
     );
 
@@ -399,21 +398,22 @@ describe("provider execution boundary", () => {
   });
 
   it("streams OpenAI-compatible SSE text and requires an explicit terminal frame", async () => {
-    const fetchImpl = mockFetch(async () =>
-      new Response(
-        [
-          'data: {"choices":[{"delta":{"content":"hel"}}]}',
-          "",
-          'data: {"choices":[{"delta":{"content":"lo"}}]}',
-          "",
-          "data: [DONE]",
-          "",
-        ].join("\n"),
-        {
-          status: 200,
-          headers: { "content-type": "text/event-stream" },
-        },
-      ),
+    const fetchImpl = mockFetch(
+      async () =>
+        new Response(
+          [
+            'data: {"choices":[{"delta":{"content":"hel"}}]}',
+            "",
+            'data: {"choices":[{"delta":{"content":"lo"}}]}',
+            "",
+            "data: [DONE]",
+            "",
+          ].join("\n"),
+          {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          },
+        ),
     );
 
     const events = [];
@@ -431,10 +431,11 @@ describe("provider execution boundary", () => {
       { type: "done", provider: "openai", model: "gpt-test" },
     ]);
 
-    const truncated = mockFetch(async () =>
-      new Response('data: {"choices":[{"delta":{"content":"partial"}}]}\n', {
-        status: 200,
-      }),
+    const truncated = mockFetch(
+      async () =>
+        new Response('data: {"choices":[{"delta":{"content":"partial"}}]}\n', {
+          status: 200,
+        }),
     );
     await expect(async () => {
       for await (const _event of streamWithProvider({
@@ -451,16 +452,17 @@ describe("provider execution boundary", () => {
   });
 
   it("streams Ollama NDJSON and rejects tool/structured streaming combinations", async () => {
-    const fetchImpl = mockFetch(async () =>
-      new Response(
-        [
-          '{"message":{"content":"one"},"done":false}',
-          '{"message":{"content":" two"},"done":false}',
-          '{"message":{"content":""},"done":true}',
-          "",
-        ].join("\n"),
-        { status: 200 },
-      ),
+    const fetchImpl = mockFetch(
+      async () =>
+        new Response(
+          [
+            '{"message":{"content":"one"},"done":false}',
+            '{"message":{"content":" two"},"done":false}',
+            '{"message":{"content":""},"done":true}',
+            "",
+          ].join("\n"),
+          { status: 200 },
+        ),
     );
 
     const text: string[] = [];
@@ -490,8 +492,8 @@ describe("provider execution boundary", () => {
   });
 
   it("does not include provider response bodies in public errors", async () => {
-    const fetchImpl = mockFetch(async () =>
-      new Response("secret-provider-debug-body", { status: 400 }),
+    const fetchImpl = mockFetch(
+      async () => new Response("secret-provider-debug-body", { status: 400 }),
     );
     let caught: unknown;
     try {
