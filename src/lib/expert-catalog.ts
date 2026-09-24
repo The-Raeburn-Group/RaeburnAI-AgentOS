@@ -592,7 +592,7 @@ const profiles: readonly ExpertProfile[] = [
       "secure design review",
     ],
     routingProbe:
-      "Assess credential exfiltration risk in security-sensitive authentication logic.",
+      "Assess whether a retrieved tool instruction is attempting credential exfiltration.",
     intendedUses: [
       "Defensive security analysis and secure design review.",
       "Threat and incident reasoning with evidence.",
