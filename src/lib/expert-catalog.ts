@@ -1000,8 +1000,11 @@ export function buildExpertCatalog() {
   };
 }
 
+let cachedExpertCatalogDigest: string | undefined;
+
 export function expertCatalogDigest(): string {
-  return sha256(buildExpertCatalog());
+  cachedExpertCatalogDigest ??= sha256(buildExpertCatalog());
+  return cachedExpertCatalogDigest;
 }
 
 export const EVIDENCE_VERIFIER_MANIFEST = AgentManifestSchema.parse({
