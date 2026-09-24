@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   generateWithProvider,
   streamWithProvider,
-  type ProviderExecutionOptions,
 } from "@/lib/providers";
 import {
   ProviderExecutionError,
@@ -438,13 +437,13 @@ describe("provider execution boundary", () => {
         }),
     );
     await expect(async () => {
-      for await (const _event of streamWithProvider({
+      for await (const event of streamWithProvider({
         provider: "openai",
         model: "gpt-test",
         messages,
         fetchImpl: truncated,
       })) {
-        // consume
+        void event;
       }
     }).rejects.toMatchObject<Partial<ProviderExecutionError>>({
       code: "provider_malformed_response",
@@ -477,14 +476,14 @@ describe("provider execution boundary", () => {
     expect(text.join("")).toBe("one two");
 
     await expect(async () => {
-      for await (const _event of streamWithProvider({
+      for await (const event of streamWithProvider({
         provider: "ollama",
         model: "llama-test",
         messages,
         tools,
         fetchImpl,
       })) {
-        // consume
+        void event;
       }
     }).rejects.toMatchObject<Partial<ProviderExecutionError>>({
       code: "unsupported_streaming_combination",
