@@ -60,6 +60,9 @@ function authorize(request: Request, allowed: Set<string>) {
 
 function optimizationError(error: unknown) {
   if (error instanceof OptimizationControlError) {
+    if (error.code === "self_approval_forbidden") {
+      return NextResponse.json({ error: error.code }, { status: 403 });
+    }
     if (
       error.code === "agent_not_found" ||
       error.code === "experiment_not_found"
