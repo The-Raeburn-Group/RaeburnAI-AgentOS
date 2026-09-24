@@ -813,7 +813,7 @@ const profiles: readonly ExpertProfile[] = [
       "Generate original work, respect supplied brand constraints and distinguish creative invention from factual claims requiring evidence.",
     tags: ["creative", "writing", "branding"],
     capabilities: ["creative", "writing", "brand_ideation"],
-    riskTier: "low",
+    riskTier: "medium",
     evidenceRequired: false,
     contradictionSearch: false,
     focuses: [
