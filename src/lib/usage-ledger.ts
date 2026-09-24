@@ -754,90 +754,49 @@ export function serializeBudgetSnapshot(
   };
 }
 
-type SummaryEvent = {
-  category: string;
-  provider: string | null;
-  model: string | null;
-  expertSlug: string | null;
-  toolName: string | null;
-  inputTokens: number;
-  outputTokens: number;
-  latencyMs: number | null;
-  costMicrousd: bigint;
-  billableMetric: string;
-  billableUnits: number;
+type AggregateFields = {
+  _count: { _all: number };
+  _sum: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+    costMicrousd: bigint | null;
+    billableUnits: number | null;
+  };
+  _avg: { latencyMs: number | null };
 };
 
-function aggregateRows(
-  rows: SummaryEvent[],
-  key: (row: SummaryEvent) => string,
-) {
-  const groups = new Map<
-    string,
-    {
-      key: string;
-      events: number;
-      inputTokens: number;
-      outputTokens: number;
-      billableUnits: number;
-      costMicrousd: bigint;
-      totalLatencyMs: number;
-      latencySamples: number;
-    }
-  >();
+function formatAggregate(key: string, row: AggregateFields) {
+  const inputTokens = row._sum.inputTokens ?? 0;
+  const outputTokens = row._sum.outputTokens ?? 0;
+  const totalTokens = inputTokens + outputTokens;
+  const costMicrousd = row._sum.costMicrousd ?? 0n;
+  return {
+    key,
+    events: row._count._all,
+    inputTokens,
+    outputTokens,
+    billableUnits: row._sum.billableUnits ?? 0,
+    cost: amountObject(costMicrousd),
+    averageLatencyMs:
+      row._avg.latencyMs === null
+        ? null
+        : Math.round(row._avg.latencyMs * 1000) / 1000,
+    costPer1kTokensUsd:
+      totalTokens === 0
+        ? null
+        : (Number(costMicrousd) / 1_000_000 / totalTokens) * 1000,
+  };
+}
 
-  for (const row of rows) {
-    const groupKey = key(row);
-    const current = groups.get(groupKey) ?? {
-      key: groupKey,
-      events: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      billableUnits: 0,
-      costMicrousd: 0n,
-      totalLatencyMs: 0,
-      latencySamples: 0,
-    };
-    current.events += 1;
-    current.inputTokens += row.inputTokens;
-    current.outputTokens += row.outputTokens;
-    current.billableUnits += row.billableUnits;
-    current.costMicrousd += row.costMicrousd;
-    if (row.latencyMs !== null) {
-      current.totalLatencyMs += row.latencyMs;
-      current.latencySamples += 1;
-    }
-    groups.set(groupKey, current);
-  }
-
-  return [...groups.values()]
-    .sort((left, right) => {
-      if (left.costMicrousd !== right.costMicrousd) {
-        return left.costMicrousd > right.costMicrousd ? -1 : 1;
-      }
-      return left.key.localeCompare(right.key);
-    })
-    .map((group) => {
-      const totalTokens = group.inputTokens + group.outputTokens;
-      return {
-        key: group.key,
-        events: group.events,
-        inputTokens: group.inputTokens,
-        outputTokens: group.outputTokens,
-        billableUnits: group.billableUnits,
-        cost: amountObject(group.costMicrousd),
-        averageLatencyMs:
-          group.latencySamples === 0
-            ? null
-            : Math.round(
-                (group.totalLatencyMs / group.latencySamples) * 1000,
-              ) / 1000,
-        costPer1kTokensUsd:
-          totalTokens === 0
-            ? null
-            : (Number(group.costMicrousd) / 1_000_000 / totalTokens) * 1000,
-      };
-    });
+function sortCostRows<T extends { key: string; cost: { microusd: string } | null }>(
+  rows: T[],
+): T[] {
+  return rows.sort((left, right) => {
+    const leftCost = BigInt(left.cost?.microusd ?? "0");
+    const rightCost = BigInt(right.cost?.microusd ?? "0");
+    if (leftCost !== rightCost) return leftCost > rightCost ? -1 : 1;
+    return left.key.localeCompare(right.key);
+  });
 }
 
 export async function getUsageSummary(options: {
@@ -848,40 +807,62 @@ export async function getUsageSummary(options: {
   if (options.from.getTime() >= options.to.getTime()) {
     throw new Error("summary end must be after start");
   }
-  const events: SummaryEvent[] = await db.usageEvent.findMany({
-    where: {
-      tenantId: options.tenantId,
-      occurredAt: { gte: options.from, lt: options.to },
-    },
-    orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
-    select: {
-      category: true,
-      provider: true,
-      model: true,
-      expertSlug: true,
-      toolName: true,
+  const where = {
+    tenantId: options.tenantId,
+    occurredAt: { gte: options.from, lt: options.to },
+  };
+
+  const aggregateSelection = {
+    _count: { _all: true },
+    _sum: {
       inputTokens: true,
       outputTokens: true,
-      latencyMs: true,
       costMicrousd: true,
-      billableMetric: true,
       billableUnits: true,
     },
-  });
+    _avg: { latencyMs: true },
+  } as const;
 
-  const totalCost = events.reduce(
-    (sum, event) => sum + event.costMicrousd,
-    0n,
-  );
-  const inputTokens = events.reduce((sum, event) => sum + event.inputTokens, 0);
-  const outputTokens = events.reduce(
-    (sum, event) => sum + event.outputTokens,
-    0,
-  );
-  const billableUnits = events.reduce(
-    (sum, event) => sum + event.billableUnits,
-    0,
-  );
+  const [
+    totals,
+    categoryRows,
+    providerModelRows,
+    expertRows,
+    toolRows,
+    metricRows,
+  ] = await Promise.all([
+    db.usageEvent.aggregate({ where, ...aggregateSelection }),
+    db.usageEvent.groupBy({
+      by: ["category"],
+      where,
+      ...aggregateSelection,
+    }),
+    db.usageEvent.groupBy({
+      by: ["provider", "model"],
+      where,
+      ...aggregateSelection,
+    }),
+    db.usageEvent.groupBy({
+      by: ["expertSlug"],
+      where,
+      ...aggregateSelection,
+    }),
+    db.usageEvent.groupBy({
+      by: ["toolName"],
+      where,
+      ...aggregateSelection,
+    }),
+    db.usageEvent.groupBy({
+      by: ["billableMetric"],
+      where,
+      ...aggregateSelection,
+    }),
+  ]);
+
+  const totalInputTokens = totals._sum.inputTokens ?? 0;
+  const totalOutputTokens = totals._sum.outputTokens ?? 0;
+  const totalTokens = totalInputTokens + totalOutputTokens;
+  const totalCost = totals._sum.costMicrousd ?? 0n;
 
   return {
     contractVersion: USAGE_LEDGER_CONTRACT_VERSION,
@@ -890,32 +871,43 @@ export async function getUsageSummary(options: {
       to: options.to.toISOString(),
     },
     totals: {
-      events: events.length,
-      inputTokens,
-      outputTokens,
-      billableUnits,
+      events: totals._count._all,
+      inputTokens: totalInputTokens,
+      outputTokens: totalOutputTokens,
+      billableUnits: totals._sum.billableUnits ?? 0,
       cost: amountObject(totalCost),
-      costPer1kTokensUsd:
-        inputTokens + outputTokens === 0
+      averageLatencyMs:
+        totals._avg.latencyMs === null
           ? null
-          : (Number(totalCost) /
-              1_000_000 /
-              (inputTokens + outputTokens)) *
-            1000,
+          : Math.round(totals._avg.latencyMs * 1000) / 1000,
+      costPer1kTokensUsd:
+        totalTokens === 0
+          ? null
+          : (Number(totalCost) / 1_000_000 / totalTokens) * 1000,
     },
-    byCategory: aggregateRows(events, (event) => event.category),
-    byProviderModel: aggregateRows(
-      events,
-      (event) =>
-        (event.provider ?? "unknown-provider") +
-        "/" +
-        (event.model ?? "unknown-model"),
+    byCategory: sortCostRows(
+      categoryRows.map((row) => formatAggregate(row.category, row)),
     ),
-    byExpert: aggregateRows(
-      events,
-      (event) => event.expertSlug ?? "unattributed",
+    byProviderModel: sortCostRows(
+      providerModelRows.map((row) =>
+        formatAggregate(
+          (row.provider ?? "unknown-provider") +
+            "/" +
+            (row.model ?? "unknown-model"),
+          row,
+        ),
+      ),
     ),
-    byTool: aggregateRows(events, (event) => event.toolName ?? "none"),
-    byBillableMetric: aggregateRows(events, (event) => event.billableMetric),
+    byExpert: sortCostRows(
+      expertRows.map((row) =>
+        formatAggregate(row.expertSlug ?? "unattributed", row),
+      ),
+    ),
+    byTool: sortCostRows(
+      toolRows.map((row) => formatAggregate(row.toolName ?? "none", row)),
+    ),
+    byBillableMetric: sortCostRows(
+      metricRows.map((row) => formatAggregate(row.billableMetric, row)),
+    ),
   };
 }
