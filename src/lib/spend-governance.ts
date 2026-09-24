@@ -384,7 +384,7 @@ export async function reserveSpendAgainstBudget(options: {
   );
   const idempotencyKey = `model-reservation:${options.taskId ?? options.requestId}:v1`;
 
-  return db.$transaction(async (tx) => {
+  const outcome = await db.$transaction(async (tx) => {
     const lockedBudget = await lockBudget(
       tx,
       options.budgetId,
@@ -415,7 +415,7 @@ export async function reserveSpendAgainstBudget(options: {
       ) {
         throw new SpendGovernanceError("reservation_conflict");
       }
-      return existing;
+      return { kind: "reserved" as const, reservation: existing };
     }
 
     const committed = await committedBudgetMicros(tx, lockedBudget.id);
@@ -438,7 +438,7 @@ export async function reserveSpendAgainstBudget(options: {
           },
         },
       });
-      throw new SpendGovernanceError("hard_budget_exceeded");
+      return { kind: "blocked" as const };
     }
 
     const created = await tx.spendReservation.create({
@@ -492,8 +492,13 @@ export async function reserveSpendAgainstBudget(options: {
         },
       });
     }
-    return created;
+    return { kind: "reserved" as const, reservation: created };
   });
+
+  if (outcome.kind === "blocked") {
+    throw new SpendGovernanceError("hard_budget_exceeded");
+  }
+  return outcome.reservation;
 }
 
 export async function beginModelSpend(options: {
@@ -571,17 +576,37 @@ export async function beginModelSpend(options: {
 function sameLedgerIdentity(
   entry: UsageLedgerEntry,
   options: {
+    reservationId?: string;
+    runId?: string;
+    taskId?: string;
     provider: string;
     model: string;
     requestId: string;
     estimatedTokens: number;
+    totalTokens: number | null;
+    latencyMs: number;
+    unitCostMicrosPer1k: bigint | null;
+    estimatedCostMicros: bigint | null;
+    actualCostMicros: bigint | null;
+    costBasis: UsageCostBasis;
+    outcome: UsageOutcome;
   },
 ): boolean {
   return (
+    entry.reservationId === (options.reservationId ?? null) &&
+    entry.runId === (options.runId ?? null) &&
+    entry.taskId === (options.taskId ?? null) &&
     entry.provider === options.provider &&
     entry.model === options.model &&
     entry.requestId === options.requestId &&
-    entry.estimatedTokens === options.estimatedTokens
+    entry.estimatedTokens === options.estimatedTokens &&
+    entry.totalTokens === options.totalTokens &&
+    entry.latencyMs === options.latencyMs &&
+    entry.unitCostMicrosPer1k === options.unitCostMicrosPer1k &&
+    entry.estimatedCostMicros === options.estimatedCostMicros &&
+    entry.actualCostMicros === options.actualCostMicros &&
+    entry.costBasis === options.costBasis &&
+    entry.outcome === options.outcome
   );
 }
 
