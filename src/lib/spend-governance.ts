@@ -360,6 +360,142 @@ function sameReservation(
   );
 }
 
+export async function reserveSpendAgainstBudget(options: {
+  tenantId: string;
+  budgetId: string;
+  runId?: string;
+  taskId?: string;
+  requestId: string;
+  actorId: string;
+  provider: string;
+  model: string;
+  estimatedTokens: number;
+  unitCostMicrosPer1k: bigint;
+  now?: Date;
+}): Promise<SpendReservation> {
+  const now = options.now ?? new Date();
+  const estimatedTokens = assertSafeInteger(
+    options.estimatedTokens,
+    "estimated_token_count",
+  );
+  const estimatedCostMicros = costMicrosForTokens(
+    estimatedTokens,
+    options.unitCostMicrosPer1k,
+  );
+  const idempotencyKey = `model-reservation:${options.taskId ?? options.requestId}:v1`;
+
+  return db.$transaction(async (tx) => {
+    const lockedBudget = await lockBudget(
+      tx,
+      options.budgetId,
+      options.tenantId,
+    );
+    if (!budgetActiveAt(lockedBudget, now)) {
+      throw new SpendGovernanceError("budget_not_active");
+    }
+
+    const existing = await tx.spendReservation.findUnique({
+      where: {
+        tenantId_idempotencyKey: {
+          tenantId: options.tenantId,
+          idempotencyKey,
+        },
+      },
+    });
+    if (existing) {
+      if (
+        !sameReservation(existing, {
+          budgetId: lockedBudget.id,
+          provider: options.provider,
+          model: options.model,
+          estimatedTokens,
+          unitCostMicrosPer1k: options.unitCostMicrosPer1k,
+          reservedMicros: estimatedCostMicros,
+        })
+      ) {
+        throw new SpendGovernanceError("reservation_conflict");
+      }
+      return existing;
+    }
+
+    const committed = await committedBudgetMicros(tx, lockedBudget.id);
+    const projected = committed + estimatedCostMicros;
+    if (projected > lockedBudget.hardLimitMicros) {
+      await tx.auditEvent.create({
+        data: {
+          tenantId: options.tenantId,
+          runId: options.runId,
+          actor: options.actorId,
+          action: "spend.hard_limit_blocked",
+          metadata: {
+            contractVersion: SPEND_GOVERNANCE_CONTRACT_VERSION,
+            budgetId: lockedBudget.id,
+            requestId: options.requestId,
+            taskId: options.taskId ?? null,
+            committedMicros: committed.toString(),
+            requestedMicros: estimatedCostMicros.toString(),
+            hardLimitMicros: lockedBudget.hardLimitMicros.toString(),
+          },
+        },
+      });
+      throw new SpendGovernanceError("hard_budget_exceeded");
+    }
+
+    const created = await tx.spendReservation.create({
+      data: {
+        tenantId: options.tenantId,
+        budgetId: lockedBudget.id,
+        runId: options.runId,
+        taskId: options.taskId,
+        idempotencyKey,
+        provider: options.provider,
+        model: options.model,
+        estimatedTokens,
+        unitCostMicrosPer1k: options.unitCostMicrosPer1k,
+        reservedMicros: estimatedCostMicros,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        tenantId: options.tenantId,
+        runId: options.runId,
+        actor: options.actorId,
+        action: "spend.reserved",
+        metadata: {
+          contractVersion: SPEND_GOVERNANCE_CONTRACT_VERSION,
+          budgetId: lockedBudget.id,
+          reservationId: created.id,
+          requestId: options.requestId,
+          taskId: options.taskId ?? null,
+          reservedMicros: estimatedCostMicros.toString(),
+          projectedMicros: projected.toString(),
+        },
+      },
+    });
+    if (
+      lockedBudget.softLimitMicros !== null &&
+      projected > lockedBudget.softLimitMicros
+    ) {
+      await tx.auditEvent.create({
+        data: {
+          tenantId: options.tenantId,
+          runId: options.runId,
+          actor: options.actorId,
+          action: "spend.soft_limit_exceeded",
+          metadata: {
+            contractVersion: SPEND_GOVERNANCE_CONTRACT_VERSION,
+            budgetId: lockedBudget.id,
+            reservationId: created.id,
+            projectedMicros: projected.toString(),
+            softLimitMicros: lockedBudget.softLimitMicros.toString(),
+          },
+        },
+      });
+    }
+    return created;
+  });
+}
+
 export async function beginModelSpend(options: {
   tenantId: string;
   runId?: string;
@@ -403,112 +539,18 @@ export async function beginModelSpend(options: {
     throw new SpendGovernanceError("cost_evidence_missing");
   }
 
-  const idempotencyKey = `model-reservation:${options.taskId ?? options.requestId}:v1`;
-  const reservation = await db.$transaction(async (tx) => {
-    const lockedBudget = await lockBudget(tx, budget.id, options.tenantId);
-    if (!budgetActiveAt(lockedBudget, now)) {
-      throw new SpendGovernanceError("budget_not_active");
-    }
-
-    const existing = await tx.spendReservation.findUnique({
-      where: {
-        tenantId_idempotencyKey: {
-          tenantId: options.tenantId,
-          idempotencyKey,
-        },
-      },
-    });
-    if (existing) {
-      if (
-        !sameReservation(existing, {
-          budgetId: lockedBudget.id,
-          provider: options.provider,
-          model: options.model,
-          estimatedTokens,
-          unitCostMicrosPer1k,
-          reservedMicros: estimatedCostMicros,
-        })
-      ) {
-        throw new SpendGovernanceError("reservation_conflict");
-      }
-      return existing;
-    }
-
-    const committed = await committedBudgetMicros(tx, lockedBudget.id);
-    const projected = committed + estimatedCostMicros;
-    if (projected > lockedBudget.hardLimitMicros) {
-      await tx.auditEvent.create({
-        data: {
-          tenantId: options.tenantId,
-          runId: options.runId,
-          actor: options.actorId,
-          action: "spend.hard_limit_blocked",
-          metadata: {
-            contractVersion: SPEND_GOVERNANCE_CONTRACT_VERSION,
-            budgetId: lockedBudget.id,
-            requestId: options.requestId,
-            taskId: options.taskId ?? null,
-            committedMicros: committed.toString(),
-            requestedMicros: estimatedCostMicros.toString(),
-            hardLimitMicros: lockedBudget.hardLimitMicros.toString(),
-          },
-        },
-      });
-      throw new SpendGovernanceError("hard_budget_exceeded");
-    }
-
-    const created = await tx.spendReservation.create({
-      data: {
-        tenantId: options.tenantId,
-        budgetId: lockedBudget.id,
-        runId: options.runId,
-        taskId: options.taskId,
-        idempotencyKey,
-        provider: options.provider,
-        model: options.model,
-        estimatedTokens,
-        unitCostMicrosPer1k,
-        reservedMicros: estimatedCostMicros,
-      },
-    });
-    await tx.auditEvent.create({
-      data: {
-        tenantId: options.tenantId,
-        runId: options.runId,
-        actor: options.actorId,
-        action: "spend.reserved",
-        metadata: {
-          contractVersion: SPEND_GOVERNANCE_CONTRACT_VERSION,
-          budgetId: lockedBudget.id,
-          reservationId: created.id,
-          requestId: options.requestId,
-          taskId: options.taskId ?? null,
-          reservedMicros: estimatedCostMicros.toString(),
-          projectedMicros: projected.toString(),
-        },
-      },
-    });
-    if (
-      lockedBudget.softLimitMicros !== null &&
-      projected > lockedBudget.softLimitMicros
-    ) {
-      await tx.auditEvent.create({
-        data: {
-          tenantId: options.tenantId,
-          runId: options.runId,
-          actor: options.actorId,
-          action: "spend.soft_limit_exceeded",
-          metadata: {
-            contractVersion: SPEND_GOVERNANCE_CONTRACT_VERSION,
-            budgetId: lockedBudget.id,
-            reservationId: created.id,
-            projectedMicros: projected.toString(),
-            softLimitMicros: lockedBudget.softLimitMicros.toString(),
-          },
-        },
-      });
-    }
-    return created;
+  const reservation = await reserveSpendAgainstBudget({
+    tenantId: options.tenantId,
+    budgetId: budget.id,
+    runId: options.runId,
+    taskId: options.taskId,
+    requestId: options.requestId,
+    actorId: options.actorId,
+    provider: options.provider,
+    model: options.model,
+    estimatedTokens,
+    unitCostMicrosPer1k,
+    now,
   });
 
   return {
