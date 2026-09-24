@@ -4,7 +4,6 @@ import {
   normalizeToolCall,
   parseRetryAfterMs,
   parseStructuredProviderText,
-  ProviderExecutionError,
   validateStructuredOutputSchema,
   validateStructuredValue,
   validateToolDefinitions,
