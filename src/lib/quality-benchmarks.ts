@@ -393,30 +393,24 @@ export function evaluatePerformanceBenchmark(
     totalOutputTokens,
     caseResults,
     gate,
-  } as const;
-  return { ...unsigned, artifactDigest: sha256(unsigned) };
+  };
+  return PerformanceBenchmarkResultSchema.parse({
+    ...unsigned,
+    artifactDigest: sha256(unsigned),
+  });
 }
 
-const GateResultSchema = z.object({
-  candidate: CandidateIdentitySchema,
-  gate: z.enum(["pass", "fail"]),
-  artifactDigest: z.string().regex(/^[a-f0-9]{64}$/),
-});
-
 export function evaluateChallengerGate(options: {
-  raeburnBench: {
-    candidate: { id: string; version: string };
-    gate: { status: "pass" | "fail" };
-    artifactDigest: string;
-  };
+  raeburnBench: unknown;
   toolBenchmark: unknown;
   performanceBenchmark: unknown;
 }) {
-  const tool = GateResultSchema.parse(options.toolBenchmark);
-  const performance = GateResultSchema.parse(options.performanceBenchmark);
-  const identity = CandidateIdentitySchema.parse(
-    options.raeburnBench.candidate,
+  const raeburnBench = verifyRaeburnBenchResultIntegrity(options.raeburnBench);
+  const tool = verifyToolBenchmarkResultIntegrity(options.toolBenchmark);
+  const performance = verifyPerformanceBenchmarkResultIntegrity(
+    options.performanceBenchmark,
   );
+  const identity = CandidateIdentitySchema.parse(raeburnBench.candidate);
   const sameCandidate =
     tool.candidate.id === identity.id &&
     tool.candidate.version === identity.version &&
@@ -425,8 +419,7 @@ export function evaluateChallengerGate(options: {
   const reasons: string[] = [];
   if (!sameCandidate)
     reasons.push("benchmark artifacts refer to different candidates");
-  if (options.raeburnBench.gate.status !== "pass")
-    reasons.push("RaeburnBench failed");
+  if (raeburnBench.gate.status !== "pass") reasons.push("RaeburnBench failed");
   if (tool.gate !== "pass") reasons.push("tool-use benchmark failed");
   if (performance.gate !== "pass") reasons.push("performance benchmark failed");
 
@@ -436,7 +429,7 @@ export function evaluateChallengerGate(options: {
     decision: reasons.length === 0 ? ("promote" as const) : ("reject" as const),
     reasons,
     evidence: {
-      raeburnBench: options.raeburnBench.artifactDigest,
+      raeburnBench: raeburnBench.artifactDigest,
       toolBenchmark: tool.artifactDigest,
       performanceBenchmark: performance.artifactDigest,
     },
