@@ -74,6 +74,20 @@ describe("quality candidate API", () => {
     );
   });
 
+  it("rejects invalid candidate status filters as a client error", async () => {
+    vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "quality-test-token");
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/api/quality/candidates?status=NOT_A_STATUS",
+        { headers: headers() },
+      ),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.findMany).not.toHaveBeenCalled();
+  });
+
   it("allows accepted candidates to be rediscovered explicitly", async () => {
     vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "quality-test-token");
     mocks.findMany.mockResolvedValue([
