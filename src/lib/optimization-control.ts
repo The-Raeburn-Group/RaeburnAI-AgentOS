@@ -93,7 +93,8 @@ export class OptimizationControlError extends Error {
       | "invalid_transition"
       | "stale_state"
       | "baseline_not_current"
-      | "manifest_integrity_invalid",
+      | "manifest_integrity_invalid"
+      | "self_approval_forbidden",
   ) {
     super(code);
     this.name = "OptimizationControlError";
@@ -452,6 +453,12 @@ export async function reviewOptimizationExperiment(options: {
     throw new OptimizationControlError("experiment_not_found");
   }
   const result = OptimizationResultSchema.parse(experiment.result);
+  if (
+    options.decision === "approve" &&
+    experiment.createdBy === options.reviewer
+  ) {
+    throw new OptimizationControlError("self_approval_forbidden");
+  }
   if (options.decision === "approve" && !result.eligible) {
     throw new OptimizationControlError("experiment_not_eligible");
   }
