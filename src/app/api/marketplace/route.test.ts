@@ -160,6 +160,43 @@ describe("marketplace verified-version immutability", () => {
     });
   });
 
+  it("keeps DEPRECATED versions immutable while allowing identical replay", async () => {
+    const approved = manifest();
+    const changed = manifest({
+      systemPrompt: "An unsafe attempt to rewrite historical configuration.",
+    });
+    const deprecated = storedAgent(approved, AgentStatus.DEPRECATED);
+    mocks.agentFindUnique.mockResolvedValueOnce(deprecated);
+
+    const rejected = await postManifest(changed);
+    expect(rejected.status).toBe(409);
+    await expect(rejected.json()).resolves.toEqual({
+      error: "deprecated_agent_version_immutable",
+    });
+
+    vi.clearAllMocks();
+    mocks.requireHumanPermission.mockResolvedValue({
+      actorId: "registry-admin",
+      tenantId: "tenant-a",
+      roles: ["admin"],
+    });
+    mocks.requireHumanTenant.mockResolvedValue({
+      id: "tenant-a",
+      slug: "tenant-a",
+      name: "Tenant A",
+    });
+    mocks.auditCreate.mockResolvedValue({ id: "audit-2" });
+    mocks.agentFindUnique.mockResolvedValue(deprecated);
+
+    const replay = await postManifest(approved);
+    expect(replay.status).toBe(201);
+    await expect(replay.json()).resolves.toMatchObject({
+      writeMode: "deprecated_idempotent",
+      agent: { status: AgentStatus.DEPRECATED },
+    });
+    expect(mocks.agentUpdateMany).not.toHaveBeenCalled();
+  });
+
   it("allows an identical VERIFIED resubmission without mutating the registry", async () => {
     const approved = manifest();
     const existing = storedAgent(approved, AgentStatus.VERIFIED);
@@ -201,7 +238,7 @@ describe("marketplace verified-version immutability", () => {
       where: {
         id: before.id,
         updatedAt: before.updatedAt,
-        status: { not: AgentStatus.VERIFIED },
+        status: AgentStatus.DRAFT,
       },
       data: expect.objectContaining({
         description: changed.description,
