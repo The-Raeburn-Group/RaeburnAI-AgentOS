@@ -18,6 +18,14 @@ export const RoutingIntentSchema = z.enum([
   "procurement",
   "data_science",
   "strategy",
+  "compliance",
+  "sales",
+  "recruitment",
+  "operations",
+  "education",
+  "science",
+  "creative",
+  "vision_document",
 ]);
 export type RoutingIntent = z.infer<typeof RoutingIntentSchema>;
 
@@ -237,6 +245,54 @@ const INTENT_RULES: readonly IntentRule[] = [
     phrases: ["business strategy", "competitive analysis", "market entry"],
     tokens: ["strategy", "strategic", "competitive", "market", "positioning"],
   },
+  {
+    intent: "compliance",
+    phrases: ["regulatory compliance", "ai governance", "compliance review"],
+    tokens: ["compliance", "gdpr", "governance", "iso", "control", "controls"],
+  },
+  {
+    intent: "sales",
+    phrases: ["sales prospect", "commercial negotiation", "sales pipeline"],
+    tokens: ["sales", "prospect", "qualification", "pipeline", "negotiation"],
+  },
+  {
+    intent: "recruitment",
+    phrases: ["recruitment sourcing", "ats workflow", "candidate assessment"],
+    tokens: ["recruitment", "sourcing", "ats", "candidate", "hiring"],
+  },
+  {
+    intent: "operations",
+    phrases: [
+      "operations workflow",
+      "process improvement",
+      "capacity planning",
+    ],
+    tokens: ["operations", "workflow", "process", "capacity", "runbook"],
+  },
+  {
+    intent: "education",
+    phrases: ["lesson plan", "assessment rubric", "adaptive learning"],
+    tokens: ["education", "teaching", "curriculum", "assessment", "learning"],
+  },
+  {
+    intent: "science",
+    phrases: [
+      "scientific literature",
+      "experiment design",
+      "test a hypothesis",
+    ],
+    tokens: ["science", "scientific", "experiment", "hypothesis", "laboratory"],
+  },
+  {
+    intent: "creative",
+    phrases: ["brand voice", "creative campaign", "creative writing"],
+    tokens: ["creative", "branding", "copywriting", "campaign", "ideation"],
+  },
+  {
+    intent: "vision_document",
+    phrases: ["analyze a screenshot", "analyse a screenshot", "document image"],
+    tokens: ["vision", "screenshot", "diagram", "image", "ocr"],
+  },
 ];
 
 const CRITICAL_PHRASES = [
@@ -349,6 +405,7 @@ function classifyRisk(
         "health_research",
         "finance",
         "tax",
+        "compliance",
       ].includes(intent),
     )
   ) {
