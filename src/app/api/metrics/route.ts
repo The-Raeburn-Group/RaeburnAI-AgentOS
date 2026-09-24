@@ -46,47 +46,47 @@ export async function GET() {
       activeReservations,
       budgetPolicy,
     ] = await Promise.all([
-        db.workflowRun.groupBy({
-          by: ["status"],
-          where: { tenantId: tenant.id },
-          _count: true,
-        }),
-        db.approval.groupBy({
-          by: ["status"],
-          where: { tenantId: tenant.id },
-          _count: true,
-        }),
-        db.memory.groupBy({
-          by: ["kind", "sensitivity"],
-          where: { tenantId: tenant.id },
-          _count: true,
-        }),
-        db.memory.count({
-          where: {
-            tenantId: tenant.id,
-            expiresAt: { lte: now },
-          },
-        }),
-        db.usageEvent.aggregate({
-          where: {
-            tenantId: tenant.id,
-            occurredAt: { gte: monthStart, lt: monthEnd },
-          },
-          _count: { _all: true },
-          _sum: { costMicrousd: true },
-        }),
-        db.spendReservation.aggregate({
-          where: {
-            tenantId: tenant.id,
-            status: "RESERVED",
-            expiresAt: { gt: now },
-          },
-          _sum: { estimatedCostMicrousd: true },
-        }),
-        db.budgetPolicy.findUnique({
-          where: { tenantId: tenant.id },
-        }),
-      ]);
+      db.workflowRun.groupBy({
+        by: ["status"],
+        where: { tenantId: tenant.id },
+        _count: true,
+      }),
+      db.approval.groupBy({
+        by: ["status"],
+        where: { tenantId: tenant.id },
+        _count: true,
+      }),
+      db.memory.groupBy({
+        by: ["kind", "sensitivity"],
+        where: { tenantId: tenant.id },
+        _count: true,
+      }),
+      db.memory.count({
+        where: {
+          tenantId: tenant.id,
+          expiresAt: { lte: now },
+        },
+      }),
+      db.usageEvent.aggregate({
+        where: {
+          tenantId: tenant.id,
+          occurredAt: { gte: monthStart, lt: monthEnd },
+        },
+        _count: { _all: true },
+        _sum: { costMicrousd: true },
+      }),
+      db.spendReservation.aggregate({
+        where: {
+          tenantId: tenant.id,
+          status: "RESERVED",
+          expiresAt: { gt: now },
+        },
+        _sum: { estimatedCostMicrousd: true },
+      }),
+      db.budgetPolicy.findUnique({
+        where: { tenantId: tenant.id },
+      }),
+    ]);
 
     const registry = new Registry();
     collectDefaultMetrics({ register: registry });
