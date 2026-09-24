@@ -440,6 +440,7 @@ describe("durable usage metering and budgets", () => {
         idempotencyKey: "usage-tenant-a",
         cost: 200_000,
       }),
+      new Date("2026-09-24T12:00:01.000Z"),
     );
 
     const snapshotA = await getBudgetSnapshot(
