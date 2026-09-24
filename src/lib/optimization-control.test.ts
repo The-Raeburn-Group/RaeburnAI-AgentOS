@@ -12,6 +12,15 @@ import {
 } from "@/lib/quality-benchmarks";
 import { evaluateRaeburnBench } from "@/lib/raeburnbench";
 
+function captureError(run: () => unknown): unknown {
+  try {
+    run();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("expected function to throw");
+}
+
 function bundle(candidateId: string, version: string) {
   const raeburnBench = evaluateRaeburnBench(corpusFixture, {
     ...referenceCandidate,
@@ -53,7 +62,7 @@ describe("optimization evidence", () => {
   });
 
   it("binds every benchmark artifact to the exact expert slug and version", () => {
-    expect(() =>
+    expect(captureError(() =>
       evaluateOptimizationEvidence({
         slug: "research-expert",
         baselineVersion: "1.0.0",
@@ -65,7 +74,7 @@ describe("optimization evidence", () => {
           challenger: bundle("agent:different-expert", "1.1.0"),
         },
       }),
-    ).toMatchObject<Partial<OptimizationControlError>>({
+    )).toMatchObject<Partial<OptimizationControlError>>({
       code: "evidence_candidate_mismatch",
     });
   });
@@ -85,7 +94,7 @@ describe("optimization evidence", () => {
       },
     );
 
-    expect(() =>
+    expect(captureError(() =>
       evaluateOptimizationEvidence({
         slug: "research-expert",
         baselineVersion: "1.0.0",
@@ -94,7 +103,7 @@ describe("optimization evidence", () => {
         challengerManifestDigest: "b".repeat(64),
         evidence: { baseline, challenger },
       }),
-    ).toMatchObject<Partial<OptimizationControlError>>({
+    )).toMatchObject<Partial<OptimizationControlError>>({
       code: "benchmark_definition_mismatch",
     });
   });
@@ -140,7 +149,7 @@ describe("optimization evidence", () => {
     const challenger = bundle("agent:research-expert", "1.1.0");
     challenger.toolBenchmark.gate = "fail";
 
-    expect(() =>
+    expect(captureError(() =>
       evaluateOptimizationEvidence({
         slug: "research-expert",
         baselineVersion: "1.0.0",
