@@ -1,0 +1,24 @@
+name: FinOps Format Preview
+
+on:
+  push:
+    branches:
+      - feat/usage-metering-budgets
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Print exact Prettier diff
+        run: |
+          npx prettier src/app/api/metrics/route.ts src/app/api/usage/budget/route.ts src/app/api/usage/commit/route.ts src/app/api/usage/release/route.ts src/app/api/usage/reserve/route.ts src/app/api/usage/reserve/route.test.ts src/app/api/usage/summary/route.ts src/lib/usage-ledger.ts src/lib/usage-ledger.integration.test.ts scripts/postgres-dr.ts docs/USAGE_METERING.md --write
+          git diff -- src/app/api/metrics/route.ts src/app/api/usage/budget/route.ts src/app/api/usage/commit/route.ts src/app/api/usage/release/route.ts src/app/api/usage/reserve/route.ts src/app/api/usage/reserve/route.test.ts src/app/api/usage/summary/route.ts src/lib/usage-ledger.ts src/lib/usage-ledger.integration.test.ts scripts/postgres-dr.ts docs/USAGE_METERING.md
