@@ -137,10 +137,10 @@ function bundle(candidateId: string, version: string) {
   };
 }
 
-function evidence() {
+function evidence(challengerVersion = "1.1.0") {
   return {
     baseline: bundle("agent:research-expert", "1.0.0"),
-    challenger: bundle("agent:research-expert", "1.1.0"),
+    challenger: bundle("agent:research-expert", challengerVersion),
   };
 }
 
@@ -305,6 +305,98 @@ describeWithDatabase("governed configuration optimization", () => {
     ).rejects.toMatchObject<Partial<OptimizationControlError>>({
       code: "stale_state",
     });
+  });
+
+  it("serializes concurrent promotions so only one challenger can become current", async () => {
+    const tenantId = tenantPrefix + "concurrent";
+    const { baseline, challenger } = await seedPair(tenantId);
+    const secondManifest = manifest(
+      "1.2.0",
+      "A second independently evaluated challenger configuration.",
+    );
+    const secondChallenger = await db.agent.create({
+      data: {
+        id: tenantId + "-challenger-2",
+        tenantId,
+        name: secondManifest.name,
+        slug: secondManifest.slug,
+        version: secondManifest.version,
+        description: secondManifest.description,
+        systemPrompt: secondManifest.systemPrompt,
+        modelProvider: secondManifest.modelProvider,
+        modelName: secondManifest.modelName,
+        status: AgentStatus.DRAFT,
+        marketplaceTags: secondManifest.marketplaceTags,
+        requiredTools: secondManifest.requiredTools,
+        approvalRequired: secondManifest.approvalRequired,
+        memoryScope: secondManifest.memoryScope,
+        manifest: storedManifest(secondManifest),
+      },
+    });
+
+    const firstExperiment = await createOptimizationExperiment({
+      tenantId,
+      baselineAgentId: baseline.id,
+      challengerAgentId: challenger.id,
+      createdBy: "evaluator-a",
+      evidence: evidence("1.1.0"),
+    });
+    const secondExperiment = await createOptimizationExperiment({
+      tenantId,
+      baselineAgentId: baseline.id,
+      challengerAgentId: secondChallenger.id,
+      createdBy: "evaluator-b",
+      evidence: evidence("1.2.0"),
+    });
+    await reviewOptimizationExperiment({
+      tenantId,
+      experimentId: firstExperiment.id,
+      reviewer: "reviewer-a",
+      decision: "approve",
+    });
+    await reviewOptimizationExperiment({
+      tenantId,
+      experimentId: secondExperiment.id,
+      reviewer: "reviewer-b",
+      decision: "approve",
+    });
+
+    const outcomes = await Promise.allSettled([
+      promoteOptimizationExperiment({
+        tenantId,
+        experimentId: firstExperiment.id,
+        reviewer: "reviewer-a",
+      }),
+      promoteOptimizationExperiment({
+        tenantId,
+        experimentId: secondExperiment.id,
+        reviewer: "reviewer-b",
+      }),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(
+      1,
+    );
+    expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(
+      1,
+    );
+    expect(
+      await db.agent.count({
+        where: {
+          tenantId,
+          slug: "research-expert",
+          status: AgentStatus.VERIFIED,
+        },
+      }),
+    ).toBe(1);
+    expect(
+      await db.optimizationExperiment.count({
+        where: {
+          tenantId,
+          status: OptimizationExperimentStatus.PROMOTED,
+        },
+      }),
+    ).toBe(1);
   });
 
   it("requires the evaluated baseline to remain the only current verified version", async () => {
