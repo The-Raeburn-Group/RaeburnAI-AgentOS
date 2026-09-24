@@ -116,9 +116,7 @@ function readyPlan() {
   });
 }
 
-function evidenceForPlan(
-  plan = readyPlan(),
-): AdapterTrainingEvidence {
+function evidenceForPlan(plan = readyPlan()): AdapterTrainingEvidence {
   return {
     contractVersion: "raeburnai.adapter-training-evidence.v1",
     planDigest: plan.planDigest,
@@ -180,9 +178,9 @@ describe("adapter training pipeline", () => {
     const evaluationTasks = new Set(
       first.evaluationRecords.map((record) => record.task),
     );
-    expect(
-      [...trainTasks].some((task) => evaluationTasks.has(task)),
-    ).toBe(false);
+    expect([...trainTasks].some((task) => evaluationTasks.has(task))).toBe(
+      false,
+    );
   });
 
   it("refuses duplicate records, undeclared domains and non-training-admissible data", () => {
