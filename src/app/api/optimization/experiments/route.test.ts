@@ -169,6 +169,30 @@ describe("optimization experiment API", () => {
     expect(mocks.promoteExperiment).not.toHaveBeenCalled();
   });
 
+  it("maps evaluator self-approval to a forbidden response", async () => {
+    vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "optimization-test-token");
+    mocks.reviewExperiment.mockRejectedValue(
+      new OptimizationControlError("self_approval_forbidden"),
+    );
+
+    const response = await POST(
+      new Request("http://localhost:3000/api/optimization/experiments", {
+        method: "POST",
+        headers: headers("human-approver"),
+        body: JSON.stringify({
+          action: "review",
+          experimentId: "11111111-1111-4111-8111-111111111111",
+          decision: "approve",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "self_approval_forbidden",
+    });
+  });
+
   it("maps ineligible evidence to a stable 422 response", async () => {
     vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "optimization-test-token");
     mocks.reviewExperiment.mockRejectedValue(
