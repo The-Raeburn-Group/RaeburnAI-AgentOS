@@ -58,6 +58,19 @@ enum OptimizationExperimentStatus {
   PROMOTED
 }
 
+enum SpendReservationStatus {
+  RESERVED
+  SETTLED
+  RELEASED
+}
+
+enum UsageCostBasis {
+  REGISTRY_ACTUAL_TOKENS
+  REGISTRY_RESERVED_ESTIMATE
+  REGISTRY_ESTIMATE_ONLY
+  UNKNOWN
+}
+
 model Tenant {
   id          String       @id @default(uuid())
   name        String
@@ -75,6 +88,9 @@ model Tenant {
   jobs                 WorkflowJob[]
   evaluationCandidates    EvaluationCandidate[]
   optimizationExperiments OptimizationExperiment[]
+  spendBudgets            SpendBudget[]
+  spendReservations       SpendReservation[]
+  usageLedgerEntries      UsageLedgerEntry[]
 }
 
 model Agent {
@@ -336,4 +352,83 @@ model OptimizationExperiment {
   @@index([tenantId, status, createdAt])
   @@index([baselineAgentId])
   @@index([challengerAgentId])
+}
+
+model SpendBudget {
+  id              String   @id @default(uuid())
+  tenantId        String
+  name            String
+  currency        String   @default("USD")
+  periodStart     DateTime
+  periodEnd       DateTime
+  softLimitMicros BigInt?
+  hardLimitMicros BigInt
+  enabled         Boolean  @default(true)
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservations    SpendReservation[]
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, name, periodStart, periodEnd])
+  @@index([tenantId, enabled, periodStart, periodEnd])
+}
+
+model SpendReservation {
+  id                     String                 @id @default(uuid())
+  tenantId               String
+  budgetId               String
+  runId                   String?
+  taskId                  String?
+  idempotencyKey          String
+  provider                String
+  model                   String
+  estimatedTokens         Int
+  unitCostMicrosPer1k     BigInt
+  reservedMicros          BigInt
+  settledMicros           BigInt?
+  actualTokens            Int?
+  status                  SpendReservationStatus @default(RESERVED)
+  createdAt               DateTime               @default(now())
+  settledAt               DateTime?
+  tenant                  Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  budget                  SpendBudget            @relation(fields: [budgetId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, idempotencyKey])
+  @@index([budgetId, status])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, runId])
+  @@index([tenantId, taskId])
+}
+
+model UsageLedgerEntry {
+  id                       String         @id @default(uuid())
+  tenantId                 String
+  reservationId            String?        @unique
+  idempotencyKey           String
+  runId                     String?
+  taskId                    String?
+  requestId                 String
+  provider                  String
+  model                     String
+  estimatedTokens           Int
+  totalTokens               Int?
+  latencyMs                 Int
+  unitCostMicrosPer1k       BigInt?
+  estimatedCostMicros       BigInt?
+  actualCostMicros          BigInt?
+  costBasis                 UsageCostBasis
+  billableUnit              String         @default("model_call")
+  billableQuantity          Int            @default(1)
+  occurredAt                DateTime       @default(now())
+  createdAt                 DateTime       @default(now())
+  tenant                    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, provider, model, occurredAt])
+  @@index([tenantId, runId])
+  @@index([tenantId, taskId])
 }
