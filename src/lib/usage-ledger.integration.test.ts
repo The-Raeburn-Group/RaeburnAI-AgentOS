@@ -179,7 +179,7 @@ describe("durable usage metering and budgets", () => {
       outputTokens: 50,
       billableUnits: 1,
     });
-    expect(summary.totals.cost.microusd).toBe("350000");
+    expect(summary.totals.cost?.microusd).toBe("350000");
     expect(summary.byProviderModel[0]).toMatchObject({
       key: "ollama/llama3.1",
       events: 1,
