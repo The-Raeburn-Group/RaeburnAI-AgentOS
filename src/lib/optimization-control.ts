@@ -16,7 +16,10 @@ import {
   sha256,
   verifyRaeburnBenchResultIntegrity,
 } from "@/lib/raeburnbench";
-import { verifyStoredAgentManifest } from "@/lib/routing-policy";
+import {
+  RoutingPolicyError,
+  verifyStoredAgentManifest,
+} from "@/lib/routing-policy";
 
 export const OPTIMIZATION_EXPERIMENT_VERSION =
   "raeburnai.optimization-experiment.v1" as const;
@@ -92,7 +95,8 @@ export class OptimizationControlError extends Error {
       | "experiment_not_eligible"
       | "invalid_transition"
       | "stale_state"
-      | "baseline_not_current",
+      | "baseline_not_current"
+      | "manifest_integrity_invalid",
   ) {
     super(code);
     this.name = "OptimizationControlError";
@@ -124,18 +128,25 @@ function ratioExceeded(
 }
 
 function verifiedAgent(agent: Agent) {
-  const manifest = verifyStoredAgentManifest(agent.manifest, {
-    slug: agent.slug,
-    version: agent.version,
-    systemPrompt: agent.systemPrompt,
-    modelProvider: agent.modelProvider,
-    modelName: agent.modelName,
-    approvalRequired: agent.approvalRequired,
-  });
-  return {
-    manifest,
-    digest: agentManifestDigest(manifest),
-  };
+  try {
+    const manifest = verifyStoredAgentManifest(agent.manifest, {
+      slug: agent.slug,
+      version: agent.version,
+      systemPrompt: agent.systemPrompt,
+      modelProvider: agent.modelProvider,
+      modelName: agent.modelName,
+      approvalRequired: agent.approvalRequired,
+    });
+    return {
+      manifest,
+      digest: agentManifestDigest(manifest),
+    };
+  } catch (error) {
+    if (error instanceof RoutingPolicyError) {
+      throw new OptimizationControlError("manifest_integrity_invalid");
+    }
+    throw error;
+  }
 }
 
 function verifyBundle(
@@ -494,47 +505,70 @@ export async function promoteOptimizationExperiment(options: {
   experimentId: string;
   reviewer: string;
 }): Promise<OptimizationExperiment> {
-  const experiment = await db.optimizationExperiment.findFirst({
+  const initial = await db.optimizationExperiment.findFirst({
     where: { id: options.experimentId, tenantId: options.tenantId },
     include: { baselineAgent: true, challengerAgent: true },
   });
-  if (!experiment) {
+  if (!initial) {
     throw new OptimizationControlError("experiment_not_found");
   }
-  if (experiment.status !== OptimizationExperimentStatus.APPROVED) {
+  if (initial.status !== OptimizationExperimentStatus.APPROVED) {
     throw new OptimizationControlError("invalid_transition");
   }
 
-  const { baselineAgent: baseline, challengerAgent: challenger } = experiment;
-  if (baseline.status !== AgentStatus.VERIFIED) {
-    throw new OptimizationControlError("baseline_not_verified");
-  }
-  if (challenger.status !== AgentStatus.DRAFT) {
-    throw new OptimizationControlError("challenger_not_draft");
-  }
-  if (
-    verifiedAgent(baseline).digest !== experiment.baselineManifestDigest ||
-    verifiedAgent(challenger).digest !== experiment.challengerManifestDigest
-  ) {
-    throw new OptimizationControlError("stale_state");
-  }
-
-  const currentVerified = await db.agent.findMany({
-    where: {
-      tenantId: options.tenantId,
-      slug: challenger.slug,
-      status: AgentStatus.VERIFIED,
-    },
-    select: { id: true },
-  });
-  if (
-    currentVerified.length !== 1 ||
-    currentVerified[0]?.id !== baseline.id
-  ) {
-    throw new OptimizationControlError("baseline_not_current");
-  }
-
   return db.$transaction(async (tx) => {
+    await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "Agent"
+      WHERE "tenantId" = ${options.tenantId}
+        AND "slug" = ${initial.challengerAgent.slug}
+      ORDER BY "id"
+      FOR UPDATE
+    `;
+
+    const experiment = await tx.optimizationExperiment.findUnique({
+      where: { id: initial.id },
+      include: { baselineAgent: true, challengerAgent: true },
+    });
+    if (!experiment || experiment.tenantId !== options.tenantId) {
+      throw new OptimizationControlError("experiment_not_found");
+    }
+    if (experiment.status !== OptimizationExperimentStatus.APPROVED) {
+      throw new OptimizationControlError("invalid_transition");
+    }
+
+    const { baselineAgent: baseline, challengerAgent: challenger } = experiment;
+    if (baseline.status !== AgentStatus.VERIFIED) {
+      throw new OptimizationControlError("baseline_not_verified");
+    }
+    if (challenger.status !== AgentStatus.DRAFT) {
+      throw new OptimizationControlError("challenger_not_draft");
+    }
+    if (baseline.slug !== challenger.slug) {
+      throw new OptimizationControlError("expert_slug_mismatch");
+    }
+    if (
+      verifiedAgent(baseline).digest !== experiment.baselineManifestDigest ||
+      verifiedAgent(challenger).digest !== experiment.challengerManifestDigest
+    ) {
+      throw new OptimizationControlError("stale_state");
+    }
+
+    const currentVerified = await tx.agent.findMany({
+      where: {
+        tenantId: options.tenantId,
+        slug: challenger.slug,
+        status: AgentStatus.VERIFIED,
+      },
+      select: { id: true },
+    });
+    if (
+      currentVerified.length !== 1 ||
+      currentVerified[0]?.id !== baseline.id
+    ) {
+      throw new OptimizationControlError("baseline_not_current");
+    }
+
     const challengerTransition = await tx.agent.updateMany({
       where: {
         id: challenger.id,
