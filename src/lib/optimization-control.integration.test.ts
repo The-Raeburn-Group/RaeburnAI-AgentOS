@@ -243,6 +243,34 @@ describeWithDatabase("governed configuration optimization", () => {
     ).toBe(1);
   });
 
+  it("forbids an evaluator from approving their own eligible experiment", async () => {
+    const tenantId = tenantPrefix + "self-approval";
+    const { baseline, challenger } = await seedPair(tenantId);
+    const experiment = await createOptimizationExperiment({
+      tenantId,
+      baselineAgentId: baseline.id,
+      challengerAgentId: challenger.id,
+      createdBy: "same-actor",
+      evidence: evidence(),
+    });
+
+    await expect(
+      reviewOptimizationExperiment({
+        tenantId,
+        experimentId: experiment.id,
+        reviewer: "same-actor",
+        decision: "approve",
+      }),
+    ).rejects.toMatchObject<Partial<OptimizationControlError>>({
+      code: "self_approval_forbidden",
+    });
+
+    const unchanged = await db.optimizationExperiment.findUniqueOrThrow({
+      where: { id: experiment.id },
+    });
+    expect(unchanged.status).toBe(OptimizationExperimentStatus.EVALUATED);
+  });
+
   it("does not permit approval when the challenger fails evaluation policy", async () => {
     const tenantId = tenantPrefix + "rejected";
     const { baseline, challenger } = await seedPair(tenantId);
