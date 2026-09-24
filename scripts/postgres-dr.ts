@@ -6,6 +6,7 @@ import { dirname } from "node:path";
 import {
   AgentStatus,
   ApprovalStatus,
+  EvaluationCandidateStatus,
   PrismaClient,
   RunStatus,
   WorkflowJobStatus,
@@ -118,6 +119,8 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       approvals,
       auditEvents,
       workflowJobs,
+      evaluationCandidates,
+      evaluationCandidateOccurrences,
       migrations,
     ] = await Promise.all([
       prisma.tenant.findMany({ orderBy: { id: "asc" } }),
@@ -130,6 +133,10 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       prisma.approval.findMany({ orderBy: { id: "asc" } }),
       prisma.auditEvent.findMany({ orderBy: { id: "asc" } }),
       prisma.workflowJob.findMany({ orderBy: { id: "asc" } }),
+      prisma.evaluationCandidate.findMany({ orderBy: { id: "asc" } }),
+      prisma.evaluationCandidateOccurrence.findMany({
+        orderBy: { id: "asc" },
+      }),
       prisma.$queryRaw<
         Array<{
           migration_name: string;
@@ -158,6 +165,10 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
         Approval: fingerprintRows(approvals),
         AuditEvent: fingerprintRows(auditEvents),
         WorkflowJob: fingerprintRows(workflowJobs),
+        EvaluationCandidate: fingerprintRows(evaluationCandidates),
+        EvaluationCandidateOccurrence: fingerprintRows(
+          evaluationCandidateOccurrences,
+        ),
       },
     };
   } finally {
@@ -509,6 +520,40 @@ async function seedRecoveryFixture(): Promise<void> {
           availableAt: createdAt,
           createdAt,
           updatedAt: createdAt,
+        },
+      });
+
+      const evaluationCandidateId = `00000000-0000-4000-8000-00000000${suffix}a01`;
+      await prisma.evaluationCandidate.create({
+        data: {
+          id: evaluationCandidateId,
+          tenantId,
+          fingerprint: suffix.repeat(64),
+          failureKind: "execution",
+          severity: "high",
+          summary: `tenant-${suffix} recovery evaluation candidate`,
+          reasonLabels: ["dr_fixture", "execution"],
+          metadata: {
+            qualityContractVersion: "raeburnai.quality-loop.v1",
+            sourceEventId: `00000000-0000-4000-8000-00000000${suffix}801`,
+            sourceAction: "dr.fixture.created",
+            redactionCount: 0,
+          },
+          occurrenceCount: 1,
+          firstSeenAt: createdAt,
+          lastSeenAt: createdAt,
+          status: EvaluationCandidateStatus.PENDING_REVIEW,
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
+      await prisma.evaluationCandidateOccurrence.create({
+        data: {
+          id: `00000000-0000-4000-8000-00000000${suffix}a02`,
+          candidateId: evaluationCandidateId,
+          sourceEventId: `00000000-0000-4000-8000-00000000${suffix}801`,
+          createdAt,
         },
       });
     }
