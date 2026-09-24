@@ -104,6 +104,7 @@ export type ModelFreshnessFinding = {
   code:
     | "stale_observation"
     | "provider_deprecated"
+    | "provider_status_unknown"
     | "deprecation_due"
     | "technical_review_missing"
     | "benchmark_evidence_missing";
@@ -150,6 +151,13 @@ export function evaluateModelRegistryFreshness(
         severity: "block",
         code: "provider_deprecated",
         detail: "provider snapshot marks this model deprecated",
+      });
+    } else if (entry.freshness.providerStatus === "unknown") {
+      findings.push({
+        entryId: entry.id,
+        severity: "review",
+        code: "provider_status_unknown",
+        detail: "provider availability/deprecation status is not verified",
       });
     }
     if (
@@ -305,23 +313,32 @@ export function selectRegistryModel(
     throw new ModelRegistryError("no_eligible_model");
   }
 
+  const measuredLatencies = candidates
+    .map((entry) => entry.benchmark.p95LatencyMs)
+    .filter((value): value is number => value !== null);
+  const measuredCosts = candidates
+    .map((entry) => entry.benchmark.costPer1kTokensUsd)
+    .filter((value): value is number => value !== null);
+  const latencyCeiling =
+    request.maxP95LatencyMs ??
+    (measuredLatencies.length > 0
+      ? Math.max(...measuredLatencies) * 1.01
+      : undefined);
+  const costCeiling =
+    request.maxCostPer1kTokensUsd ??
+    (measuredCosts.length > 0 ? Math.max(...measuredCosts) * 1.01 : undefined);
+
   const ranked = candidates
     .map((entry) => {
       const quality = entry.benchmark.qualityScore ?? 0;
       const latency =
         entry.benchmark.p95LatencyMs === null
           ? 0
-          : normalizedInverse(
-              entry.benchmark.p95LatencyMs,
-              request.maxP95LatencyMs,
-            );
+          : normalizedInverse(entry.benchmark.p95LatencyMs, latencyCeiling);
       const cost =
         entry.benchmark.costPer1kTokensUsd === null
           ? 0
-          : normalizedInverse(
-              entry.benchmark.costPer1kTokensUsd,
-              request.maxCostPer1kTokensUsd,
-            );
+          : normalizedInverse(entry.benchmark.costPer1kTokensUsd, costCeiling);
       const score =
         (quality * request.weights.quality +
           latency * request.weights.latency +
