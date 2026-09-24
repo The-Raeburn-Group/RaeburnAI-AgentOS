@@ -61,6 +61,8 @@ jobs:
         run: npm run bench:verify
       - name: Benchmark executable expert routing policy
         run: npm run bench:routing
+      - name: Validate complete governed expert catalog
+        run: npm run bench:experts
       - name: Benchmark independent evidence verifier
         run: npm run bench:evidence
       - name: Gate tool-use, latency/cost and challenger quality
