@@ -86,6 +86,7 @@ function parseCli(argv: string[]): CliOptions {
 }
 
 function canonicalize(value: unknown): unknown {
+  if (typeof value === "bigint") return value.toString();
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value !== null && typeof value === "object") {
@@ -123,6 +124,9 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       evaluationCandidates,
       evaluationCandidateOccurrences,
       optimizationExperiments,
+      budgetPolicies,
+      spendReservations,
+      usageEvents,
       migrations,
     ] = await Promise.all([
       prisma.tenant.findMany({ orderBy: { id: "asc" } }),
@@ -140,6 +144,9 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
         orderBy: { id: "asc" },
       }),
       prisma.optimizationExperiment.findMany({ orderBy: { id: "asc" } }),
+      prisma.budgetPolicy.findMany({ orderBy: { id: "asc" } }),
+      prisma.spendReservation.findMany({ orderBy: { id: "asc" } }),
+      prisma.usageEvent.findMany({ orderBy: { id: "asc" } }),
       prisma.$queryRaw<
         Array<{
           migration_name: string;
@@ -173,6 +180,9 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
           evaluationCandidateOccurrences,
         ),
         OptimizationExperiment: fingerprintRows(optimizationExperiments),
+        BudgetPolicy: fingerprintRows(budgetPolicies),
+        SpendReservation: fingerprintRows(spendReservations),
+        UsageEvent: fingerprintRows(usageEvents),
       },
     };
   } finally {
@@ -620,6 +630,68 @@ async function seedRecoveryFixture(): Promise<void> {
           reviewedAt: createdAt,
           createdAt,
           updatedAt: createdAt,
+        },
+      });
+
+      await prisma.budgetPolicy.create({
+        data: {
+          id: "00000000-0000-4000-8000-00000000" + suffix + "c01",
+          tenantId,
+          currency: "USD",
+          monthlyLimitMicrousd: 5_000_000n,
+          perRequestLimitMicrousd: 1_000_000n,
+          warningRatio: 0.8,
+          enforcementMode: "hard",
+          fallbackMode: "block",
+          version: 1,
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
+      const reservationId = "00000000-0000-4000-8000-00000000" + suffix + "c02";
+      await prisma.spendReservation.create({
+        data: {
+          id: reservationId,
+          tenantId,
+          idempotencyKey: "dr-reservation-" + suffix + "-0001",
+          payloadHash: (suffix === "a" ? "e" : "f").repeat(64),
+          requestId: "dr-usage-request-" + suffix,
+          actorId: "dr-router-" + suffix,
+          estimatedCostMicrousd: 250_000n,
+          committedCostMicrousd: 200_000n,
+          status: "COMMITTED",
+          policyVersion: 1,
+          expiresAt: new Date("2026-09-15T00:05:00.000Z"),
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
+      await prisma.usageEvent.create({
+        data: {
+          id: "00000000-0000-4000-8000-00000000" + suffix + "c03",
+          tenantId,
+          reservationId,
+          idempotencyKey: "dr-usage-" + suffix + "-0001",
+          requestId: "dr-usage-request-" + suffix,
+          runId,
+          actorId: "dr-router-" + suffix,
+          category: "model",
+          provider: "ollama",
+          model: "dr-model",
+          modelRegistryId: "dr-model-registry-" + suffix,
+          expertSlug: "dr-agent",
+          inputTokens: 100,
+          outputTokens: 50,
+          latencyMs: 750,
+          costMicrousd: 200_000n,
+          billableMetric: "model_request",
+          billableUnits: 1,
+          metadata: { fixture: true, tenant: suffix },
+          eventDigest: (suffix === "a" ? "1" : "2").repeat(64),
+          occurredAt: createdAt,
+          createdAt,
         },
       });
     }
