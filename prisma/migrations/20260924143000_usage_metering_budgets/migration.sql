@@ -26,6 +26,8 @@ CREATE TABLE "SpendReservation" (
     "committedCostMicrousd" BIGINT,
     "status" TEXT NOT NULL DEFAULT 'RESERVED',
     "policyVersion" INTEGER NOT NULL,
+    "warning" BOOLEAN NOT NULL DEFAULT false,
+    "decisionReasons" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
