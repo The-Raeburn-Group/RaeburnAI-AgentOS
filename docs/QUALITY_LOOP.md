@@ -26,13 +26,15 @@ npm run quality:sweep
 
 Candidates start as `PENDING_REVIEW`. Only authenticated service callers with an `admin`, `operator` or `quality-reviewer` role may list or change candidates through `/api/quality/candidates`.
 
-A candidate must be explicitly accepted before promotion. Promotion requires a complete `raeburnai.dataset-record.v1` counterexample with both `badAnswer` and `critique`, and provenance must bind the record to the exact candidate using:
+A candidate must be explicitly accepted before promotion. Review transitions are conditional on the expected database state so conflicting reviewers cannot overwrite an earlier terminal decision. Accepted candidates remain discoverable with `GET /api/quality/candidates?status=ACCEPTED`. Promotion requires a complete `raeburnai.dataset-record.v1` counterexample with both `badAnswer` and `critique`, and provenance must bind the record to the exact candidate using:
 
 ```
 evaluation-candidate:<candidate-id>
 ```
 
-Evaluation admissibility is always enforced. If the record declares a training purpose, training admissibility is enforced independently. Legal/licensing approval for real training sources is not inferred from this mechanism.
+Evaluation admissibility is always enforced and expected admissibility failures are returned as client errors rather than false server outages. If the record declares a training purpose, training admissibility is enforced independently. Legal/licensing approval for real training sources is not inferred from this mechanism.
+
+The quality-loop candidate and occurrence tables are included in the PostgreSQL disaster-recovery snapshot fingerprints and deterministic restore fixture, so recovery verification fails if this durable review state is lost or changed.
 
 ## Tool-use benchmark
 
@@ -54,6 +56,8 @@ The checked-in measurements are deterministic seed/reference data. Real provider
 2. the tool-use benchmark passes;
 3. the latency/cost benchmark passes; and
 4. every artifact identifies the exact same candidate and version.
+
+The challenger gate independently verifies the integrity digests of the complete RaeburnBench, tool-use and performance result artifacts before trusting their gate states. It rejects mixed candidate identities and cannot be bypassed by changing a stored `gate` field while retaining a syntactically valid hash.
 
 The daily GitHub workflow runs this gate against the versioned repository reference artifacts. That proves the promotion-control logic remains executable. It does not claim that an external or newly trained model challenger has been invoked.
 
