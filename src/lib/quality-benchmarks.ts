@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { sha256 } from "@/lib/raeburnbench";
+import {
+  sha256,
+  verifyRaeburnBenchResultIntegrity,
+} from "@/lib/raeburnbench";
 
 export const TOOL_BENCHMARK_VERSION = "raeburnai.tool-benchmark.v1" as const;
 export const PERFORMANCE_BENCHMARK_VERSION =
@@ -24,13 +27,27 @@ export const ToolBenchmarkCaseSchema = z.object({
   maxCalls: z.number().int().min(1).max(100),
 });
 
-export const ToolBenchmarkSchema = z.object({
-  contractVersion: z.literal(TOOL_BENCHMARK_VERSION),
-  benchmarkId: z.string().trim().min(1).max(128),
-  version: z.string().trim().min(1).max(64),
-  minimumScore: z.number().min(0).max(1),
-  cases: z.array(ToolBenchmarkCaseSchema).min(3),
-});
+export const ToolBenchmarkSchema = z
+  .object({
+    contractVersion: z.literal(TOOL_BENCHMARK_VERSION),
+    benchmarkId: z.string().trim().min(1).max(128),
+    version: z.string().trim().min(1).max(64),
+    minimumScore: z.number().min(0).max(1),
+    cases: z.array(ToolBenchmarkCaseSchema).min(3),
+  })
+  .superRefine((value, context) => {
+    const seen = new Set<string>();
+    value.cases.forEach((benchmarkCase, index) => {
+      if (seen.has(benchmarkCase.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["cases", index, "id"],
+          message: "duplicate tool benchmark case id: " + benchmarkCase.id,
+        });
+      }
+      seen.add(benchmarkCase.id);
+    });
+  });
 
 export const ToolBenchmarkCandidateSchema = z.object({
   candidate: CandidateIdentitySchema,
@@ -153,12 +170,27 @@ const PerformanceCaseSchema = z.object({
   maxCostUsd: z.number().finite().min(0),
 });
 
-export const PerformanceBenchmarkSchema = z.object({
-  contractVersion: z.literal(PERFORMANCE_BENCHMARK_VERSION),
-  benchmarkId: z.string().trim().min(1).max(128),
-  version: z.string().trim().min(1).max(64),
-  cases: z.array(PerformanceCaseSchema).min(3),
-});
+export const PerformanceBenchmarkSchema = z
+  .object({
+    contractVersion: z.literal(PERFORMANCE_BENCHMARK_VERSION),
+    benchmarkId: z.string().trim().min(1).max(128),
+    version: z.string().trim().min(1).max(64),
+    cases: z.array(PerformanceCaseSchema).min(3),
+  })
+  .superRefine((value, context) => {
+    const seen = new Set<string>();
+    value.cases.forEach((benchmarkCase, index) => {
+      if (seen.has(benchmarkCase.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["cases", index, "id"],
+          message:
+            "duplicate performance benchmark case id: " + benchmarkCase.id,
+        });
+      }
+      seen.add(benchmarkCase.id);
+    });
+  });
 
 export const PerformanceCandidateSchema = z.object({
   candidate: CandidateIdentitySchema,
