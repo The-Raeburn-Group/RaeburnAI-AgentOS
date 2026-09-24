@@ -21,7 +21,7 @@ const IdempotencyKeySchema = z
 
 export const BudgetPolicyInputSchema = z
   .object({
-    currency: z.string().regex(/^[A-Z]{3}$/).default("USD"),
+    currency: z.literal("USD").default("USD"),
     monthlyLimitMicrousd: MicrousdSchema.nullable().default(null),
     perRequestLimitMicrousd: MicrousdSchema.nullable().default(null),
     warningRatio: z.number().finite().gt(0).max(1).default(0.8),
@@ -383,8 +383,8 @@ export async function reserveSpend(
         return {
           reservation: existing,
           idempotent: true,
-          warning: false,
-          reasons: [],
+          warning: existing.warning,
+          reasons: existing.decisionReasons,
         };
       }
 
@@ -414,6 +414,8 @@ export async function reserveSpend(
           actorId: parsed.actorId,
           estimatedCostMicrousd: bigint(parsed.estimatedCostMicrousd),
           policyVersion: policy.version,
+          warning: decision.warning,
+          decisionReasons: decision.reasons,
           expiresAt: new Date(now.getTime() + parsed.ttlSeconds * 1000),
         },
       });
