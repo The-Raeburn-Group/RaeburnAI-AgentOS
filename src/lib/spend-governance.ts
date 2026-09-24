@@ -1,6 +1,7 @@
 import {
   SpendReservationStatus,
   UsageCostBasis,
+  UsageOutcome,
   type Prisma,
   type SpendBudget,
   type SpendReservation,
@@ -560,6 +561,7 @@ async function createUsageLedgerEntry(
     estimatedCostMicros: bigint | null;
     actualCostMicros: bigint | null;
     costBasis: UsageCostBasis;
+    outcome: UsageOutcome;
     occurredAt: Date;
   },
 ): Promise<UsageLedgerEntry> {
@@ -595,6 +597,7 @@ async function createUsageLedgerEntry(
       estimatedCostMicros: options.estimatedCostMicros,
       actualCostMicros: options.actualCostMicros,
       costBasis: options.costBasis,
+      outcome: options.outcome,
       occurredAt: options.occurredAt,
     },
   });
@@ -646,6 +649,7 @@ export async function settleModelSpend(options: {
         estimatedCostMicros: guard.estimatedCostMicros,
         actualCostMicros,
         costBasis,
+        outcome: UsageOutcome.SUCCEEDED,
         occurredAt,
       });
       await tx.auditEvent.create({
@@ -756,6 +760,7 @@ export async function settleModelSpend(options: {
       estimatedCostMicros: reservation.reservedMicros,
       actualCostMicros: totalTokens !== null ? settledMicros : null,
       costBasis,
+      outcome: UsageOutcome.SUCCEEDED,
       occurredAt,
     });
 
@@ -786,6 +791,137 @@ export async function settleModelSpend(options: {
     });
 
     return { ledger, hardLimitOverrun, softLimitExceeded };
+  });
+}
+
+export async function recordFailedModelSpend(options: {
+  guard: ModelSpendGuard;
+  actorId: string;
+  latencyMs: number;
+  reason: string;
+  occurredAt?: Date;
+}): Promise<UsageLedgerEntry> {
+  const occurredAt = options.occurredAt ?? new Date();
+  const latencyMs = assertSafeInteger(options.latencyMs, "latency_ms");
+  const guard = options.guard;
+  const reservation = guard.reservation;
+
+  if (!reservation) {
+    return db.$transaction(async (tx) => {
+      const ledger = await createUsageLedgerEntry(tx, {
+        tenantId: guard.tenantId,
+        idempotencyKey: `model-usage:${guard.taskId ?? guard.requestId}:v1`,
+        runId: guard.runId,
+        taskId: guard.taskId,
+        requestId: guard.requestId,
+        provider: guard.provider,
+        model: guard.model,
+        estimatedTokens: guard.estimatedTokens,
+        totalTokens: null,
+        latencyMs,
+        unitCostMicrosPer1k: guard.unitCostMicrosPer1k,
+        estimatedCostMicros: guard.estimatedCostMicros,
+        actualCostMicros: null,
+        costBasis:
+          guard.unitCostMicrosPer1k === null
+            ? UsageCostBasis.UNKNOWN
+            : UsageCostBasis.REGISTRY_ESTIMATE_ONLY,
+        outcome: UsageOutcome.FAILED,
+        occurredAt,
+      });
+      await tx.auditEvent.create({
+        data: {
+          tenantId: guard.tenantId,
+          runId: guard.runId,
+          actor: options.actorId,
+          action: "usage.failed_call_metered",
+          metadata: {
+            contractVersion: SPEND_GOVERNANCE_CONTRACT_VERSION,
+            usageId: ledger.id,
+            requestId: guard.requestId,
+            taskId: guard.taskId ?? null,
+            provider: guard.provider,
+            model: guard.model,
+            estimatedCostMicros: guard.estimatedCostMicros?.toString() ?? null,
+            latencyMs,
+            reason: options.reason.slice(0, 500),
+          },
+        },
+      });
+      return ledger;
+    });
+  }
+
+  return db.$transaction(async (tx) => {
+    const current = await tx.spendReservation.findUnique({
+      where: { id: reservation.id },
+    });
+    if (!current || current.tenantId !== guard.tenantId) {
+      throw new SpendGovernanceError("reservation_not_found");
+    }
+    await lockBudget(tx, current.budgetId, guard.tenantId);
+
+    if (current.status === SpendReservationStatus.RELEASED) {
+      throw new SpendGovernanceError("settlement_conflict");
+    }
+
+    const existingLedger = await tx.usageLedgerEntry.findUnique({
+      where: { reservationId: current.id },
+    });
+    if (current.status === SpendReservationStatus.SETTLED) {
+      if (!existingLedger || existingLedger.outcome !== UsageOutcome.FAILED) {
+        throw new SpendGovernanceError("settlement_conflict");
+      }
+      return existingLedger;
+    }
+
+    await tx.spendReservation.update({
+      where: { id: current.id },
+      data: {
+        status: SpendReservationStatus.SETTLED,
+        settledMicros: current.reservedMicros,
+        actualTokens: null,
+        settledAt: occurredAt,
+      },
+    });
+    const ledger = await createUsageLedgerEntry(tx, {
+      tenantId: guard.tenantId,
+      reservationId: current.id,
+      idempotencyKey: `model-usage:${guard.taskId ?? guard.requestId}:v1`,
+      runId: guard.runId,
+      taskId: guard.taskId,
+      requestId: guard.requestId,
+      provider: guard.provider,
+      model: guard.model,
+      estimatedTokens: guard.estimatedTokens,
+      totalTokens: null,
+      latencyMs,
+      unitCostMicrosPer1k: current.unitCostMicrosPer1k,
+      estimatedCostMicros: current.reservedMicros,
+      actualCostMicros: null,
+      costBasis: UsageCostBasis.REGISTRY_RESERVED_ESTIMATE,
+      outcome: UsageOutcome.FAILED,
+      occurredAt,
+    });
+    await tx.auditEvent.create({
+      data: {
+        tenantId: guard.tenantId,
+        runId: guard.runId,
+        actor: options.actorId,
+        action: "spend.failed_call_settled",
+        metadata: {
+          contractVersion: SPEND_GOVERNANCE_CONTRACT_VERSION,
+          budgetId: current.budgetId,
+          reservationId: current.id,
+          usageId: ledger.id,
+          requestId: guard.requestId,
+          reservedMicros: current.reservedMicros.toString(),
+          latencyMs,
+          reason: options.reason.slice(0, 500),
+        },
+      },
+    });
+    return ledger;
   });
 }
 
