@@ -2,6 +2,7 @@ import { EvaluationCandidateStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { ZodError, z } from "zod";
 import { db } from "@/lib/db";
+import { DatasetAdmissibilityError } from "@/lib/dataset-provenance";
 import { apiError, rateLimit } from "@/lib/http";
 import {
   QualityLoopError,
@@ -9,6 +10,10 @@ import {
   reviewEvaluationCandidate,
 } from "@/lib/quality-loop";
 import { authenticateChainServiceRequest } from "@/lib/service-auth";
+
+const ListQuerySchema = z.object({
+  status: z.nativeEnum(EvaluationCandidateStatus).optional(),
+});
 
 const CommandSchema = z.discriminatedUnion("action", [
   z.object({
@@ -48,6 +53,9 @@ function qualityError(error: unknown) {
     const status = error.code === "candidate_not_found" ? 404 : 409;
     return NextResponse.json({ error: error.code }, { status });
   }
+  if (error instanceof DatasetAdmissibilityError) {
+    return NextResponse.json({ error: error.code }, { status: 422 });
+  }
   if (error instanceof ZodError || error instanceof SyntaxError) {
     return NextResponse.json(
       { error: "invalid_quality_command" },
@@ -65,10 +73,14 @@ export async function GET(request: Request) {
   if (limited) return limited;
 
   try {
+    const parsedUrl = new URL(request.url);
+    const query = ListQuerySchema.parse({
+      status: parsedUrl.searchParams.get("status") ?? undefined,
+    });
     const candidates = await db.evaluationCandidate.findMany({
       where: {
         tenantId: authentication.context.tenantId,
-        status: EvaluationCandidateStatus.PENDING_REVIEW,
+        status: query.status ?? EvaluationCandidateStatus.PENDING_REVIEW,
       },
       orderBy: [{ occurrenceCount: "desc" }, { createdAt: "asc" }],
       take: 100,
