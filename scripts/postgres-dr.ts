@@ -7,6 +7,7 @@ import {
   AgentStatus,
   ApprovalStatus,
   EvaluationCandidateStatus,
+  OptimizationExperimentStatus,
   PrismaClient,
   RunStatus,
   WorkflowJobStatus,
@@ -121,6 +122,7 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       workflowJobs,
       evaluationCandidates,
       evaluationCandidateOccurrences,
+      optimizationExperiments,
       migrations,
     ] = await Promise.all([
       prisma.tenant.findMany({ orderBy: { id: "asc" } }),
@@ -137,6 +139,7 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
       prisma.evaluationCandidateOccurrence.findMany({
         orderBy: { id: "asc" },
       }),
+      prisma.optimizationExperiment.findMany({ orderBy: { id: "asc" } }),
       prisma.$queryRaw<
         Array<{
           migration_name: string;
@@ -169,6 +172,7 @@ async function snapshotDatabase(): Promise<DatabaseSnapshot> {
         EvaluationCandidateOccurrence: fingerprintRows(
           evaluationCandidateOccurrences,
         ),
+        OptimizationExperiment: fingerprintRows(optimizationExperiments),
       },
     };
   } finally {
@@ -327,6 +331,9 @@ async function seedRecoveryFixture(): Promise<void> {
   const tenantB = FIXTURE_TENANTS[1];
 
   try {
+    await prisma.optimizationExperiment.deleteMany({
+      where: { tenantId: { in: [...FIXTURE_TENANTS] } },
+    });
     await prisma.tenant.deleteMany({
       where: { id: { in: [...FIXTURE_TENANTS] } },
     });
@@ -353,6 +360,8 @@ async function seedRecoveryFixture(): Promise<void> {
     for (const [index, tenantId] of FIXTURE_TENANTS.entries()) {
       const suffix = index === 0 ? "a" : "b";
       const agentId = `00000000-0000-4000-8000-00000000${suffix}101`;
+      const challengerAgentId =
+        `00000000-0000-4000-8000-00000000${suffix}102`;
       const workflowId = `00000000-0000-4000-8000-00000000${suffix}201`;
       const runId = `00000000-0000-4000-8000-00000000${suffix}301`;
 
@@ -371,6 +380,30 @@ async function seedRecoveryFixture(): Promise<void> {
           approvalRequired: true,
           memoryScope: "workspace",
           manifest: { fixture: "postgres-dr", tenant: suffix },
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
+      await prisma.agent.create({
+        data: {
+          id: challengerAgentId,
+          tenantId,
+          name: `DR Agent Challenger ${suffix.toUpperCase()}`,
+          slug: "dr-agent",
+          version: "1.1.0",
+          description: "Disaster-recovery optimization challenger fixture.",
+          systemPrompt: "Return deterministic recovery evidence with review.",
+          status: AgentStatus.DRAFT,
+          marketplaceTags: ["dr", "integrity"],
+          requiredTools: ["memory.search"],
+          approvalRequired: true,
+          memoryScope: "workspace",
+          manifest: {
+            fixture: "postgres-dr",
+            tenant: suffix,
+            optimizationChallenger: true
+          },
           createdAt,
           updatedAt: createdAt,
         },
@@ -554,6 +587,42 @@ async function seedRecoveryFixture(): Promise<void> {
           candidateId: evaluationCandidateId,
           sourceEventId: `00000000-0000-4000-8000-00000000${suffix}801`,
           createdAt,
+        },
+      });
+
+      await prisma.optimizationExperiment.create({
+        data: {
+          id: `00000000-0000-4000-8000-00000000${suffix}b01`,
+          tenantId,
+          baselineAgentId: agentId,
+          challengerAgentId,
+          baselineManifestDigest: suffix.repeat(64),
+          challengerManifestDigest:
+            (suffix === "a" ? "b" : "a").repeat(64),
+          artifactDigest:
+            (suffix === "a" ? "c" : "d").repeat(64),
+          policy: {
+            maxQualityRegression: 0,
+            maxToolRegression: 0,
+            maxP95LatencyIncreaseRatio: 0.1,
+            maxCostIncreaseRatio: 0.1
+          },
+          evidence: {
+            fixture: true,
+            contractVersion: "raeburnai.optimization-experiment.v1"
+          },
+          result: {
+            contractVersion: "raeburnai.optimization-experiment.v1",
+            eligible: true,
+            reasons: []
+          },
+          status: OptimizationExperimentStatus.APPROVED,
+          createdBy: `evaluator-${suffix}`,
+          reviewedBy: `reviewer-${suffix}`,
+          reviewNote: "Recovery fixture approval.",
+          reviewedAt: createdAt,
+          createdAt,
+          updatedAt: createdAt,
         },
       });
     }
