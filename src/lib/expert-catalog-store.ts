@@ -1,10 +1,7 @@
 import { AgentStatus, type Agent, type Prisma } from "@prisma/client";
 import { agentManifestDigest } from "@/lib/collaboration";
 import { db } from "@/lib/db";
-import {
-  buildExpertPack,
-  listExpertPackSlugs,
-} from "@/lib/expert-catalog";
+import { buildExpertPack, listExpertPackSlugs } from "@/lib/expert-catalog";
 import { AgentManifestSchema, type AgentManifest } from "@/lib/types";
 
 export class ExpertCatalogInstallError extends Error {
