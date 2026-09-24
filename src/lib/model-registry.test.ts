@@ -149,16 +149,18 @@ describe("model registry", () => {
     input.entries[0].benchmark.p95LatencyMs = null;
     input.entries[1].benchmark.p95LatencyMs = null;
 
-    expect(captureError(() =>
-      selectRegistryModel(
-        input,
-        {
-          requiredCapabilities: ["general"],
-          weights: { quality: 0.8, latency: 0.2, cost: 0 },
-        },
-        new Date("2026-09-24T10:00:00.000Z"),
+    expect(
+      captureError(() =>
+        selectRegistryModel(
+          input,
+          {
+            requiredCapabilities: ["general"],
+            weights: { quality: 0.8, latency: 0.2, cost: 0 },
+          },
+          new Date("2026-09-24T10:00:00.000Z"),
+        ),
       ),
-    )).toMatchObject<Partial<ModelRegistryError>>({
+    ).toMatchObject<Partial<ModelRegistryError>>({
       code: "no_eligible_model",
     });
   });
@@ -168,23 +170,27 @@ describe("model registry", () => {
     input.entries.forEach((entry) => {
       entry.licensing.technicalReview = "blocked";
     });
-    expect(captureError(() =>
-      selectRegistryModel(
-        input,
-        { requiredCapabilities: ["general"] },
-        new Date("2026-09-24T10:00:00.000Z"),
+    expect(
+      captureError(() =>
+        selectRegistryModel(
+          input,
+          { requiredCapabilities: ["general"] },
+          new Date("2026-09-24T10:00:00.000Z"),
+        ),
       ),
-    )).toMatchObject<Partial<ModelRegistryError>>({
+    ).toMatchObject<Partial<ModelRegistryError>>({
       code: "no_eligible_model",
     });
   });
 
   it("does not silently accept zero selection weights", () => {
-    expect(captureError(() =>
-      selectRegistryModel(registry(), {
-        weights: { quality: 0, latency: 0, cost: 0 },
-      }),
-    )).toMatchObject<Partial<ModelRegistryError>>({
+    expect(
+      captureError(() =>
+        selectRegistryModel(registry(), {
+          weights: { quality: 0, latency: 0, cost: 0 },
+        }),
+      ),
+    ).toMatchObject<Partial<ModelRegistryError>>({
       code: "invalid_selection_weights",
     });
   });

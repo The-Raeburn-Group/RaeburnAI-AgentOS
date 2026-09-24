@@ -62,19 +62,21 @@ describe("optimization evidence", () => {
   });
 
   it("binds every benchmark artifact to the exact expert slug and version", () => {
-    expect(captureError(() =>
-      evaluateOptimizationEvidence({
-        slug: "research-expert",
-        baselineVersion: "1.0.0",
-        challengerVersion: "1.1.0",
-        baselineManifestDigest: "a".repeat(64),
-        challengerManifestDigest: "b".repeat(64),
-        evidence: {
-          baseline: bundle("agent:research-expert", "1.0.0"),
-          challenger: bundle("agent:different-expert", "1.1.0"),
-        },
-      }),
-    )).toMatchObject<Partial<OptimizationControlError>>({
+    expect(
+      captureError(() =>
+        evaluateOptimizationEvidence({
+          slug: "research-expert",
+          baselineVersion: "1.0.0",
+          challengerVersion: "1.1.0",
+          baselineManifestDigest: "a".repeat(64),
+          challengerManifestDigest: "b".repeat(64),
+          evidence: {
+            baseline: bundle("agent:research-expert", "1.0.0"),
+            challenger: bundle("agent:different-expert", "1.1.0"),
+          },
+        }),
+      ),
+    ).toMatchObject<Partial<OptimizationControlError>>({
       code: "evidence_candidate_mismatch",
     });
   });
@@ -94,16 +96,18 @@ describe("optimization evidence", () => {
       },
     );
 
-    expect(captureError(() =>
-      evaluateOptimizationEvidence({
-        slug: "research-expert",
-        baselineVersion: "1.0.0",
-        challengerVersion: "1.1.0",
-        baselineManifestDigest: "a".repeat(64),
-        challengerManifestDigest: "b".repeat(64),
-        evidence: { baseline, challenger },
-      }),
-    )).toMatchObject<Partial<OptimizationControlError>>({
+    expect(
+      captureError(() =>
+        evaluateOptimizationEvidence({
+          slug: "research-expert",
+          baselineVersion: "1.0.0",
+          challengerVersion: "1.1.0",
+          baselineManifestDigest: "a".repeat(64),
+          challengerManifestDigest: "b".repeat(64),
+          evidence: { baseline, challenger },
+        }),
+      ),
+    ).toMatchObject<Partial<OptimizationControlError>>({
       code: "benchmark_definition_mismatch",
     });
   });
