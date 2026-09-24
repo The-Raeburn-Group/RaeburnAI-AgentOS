@@ -294,6 +294,18 @@ export function selectRegistryModel(
       return false;
     }
     if (
+      request.weights.latency > 0 &&
+      entry.benchmark.p95LatencyMs === null
+    ) {
+      return false;
+    }
+    if (
+      request.weights.cost > 0 &&
+      entry.benchmark.costPer1kTokensUsd === null
+    ) {
+      return false;
+    }
+    if (
       request.maxP95LatencyMs !== undefined &&
       (entry.benchmark.p95LatencyMs === null ||
         entry.benchmark.p95LatencyMs > request.maxP95LatencyMs)
