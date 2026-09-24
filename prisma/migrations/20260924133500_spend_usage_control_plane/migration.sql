@@ -158,3 +158,90 @@ ALTER TABLE "UsageLedgerEntry"
   ADD CONSTRAINT "UsageLedgerEntry_tenantId_fkey"
   FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id")
   ON DELETE CASCADE ON UPDATE CASCADE;
+
+CREATE OR REPLACE FUNCTION "enforce_spend_reservation_tenant"()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW."runId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "WorkflowRun"
+    WHERE "id" = NEW."runId" AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'spend_reservation_run_tenant_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NEW."taskId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "AgentTask"
+    WHERE "id" = NEW."taskId" AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'spend_reservation_task_tenant_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NEW."runId" IS NOT NULL AND NEW."taskId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "AgentTask"
+    WHERE "id" = NEW."taskId"
+      AND "runId" = NEW."runId"
+      AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'spend_reservation_task_run_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "SpendReservation_tenant_guard"
+BEFORE INSERT OR UPDATE OF "tenantId", "runId", "taskId"
+ON "SpendReservation"
+FOR EACH ROW
+EXECUTE FUNCTION "enforce_spend_reservation_tenant"();
+
+CREATE OR REPLACE FUNCTION "enforce_usage_ledger_tenant"()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW."reservationId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "SpendReservation"
+    WHERE "id" = NEW."reservationId"
+      AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'usage_reservation_tenant_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NEW."runId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "WorkflowRun"
+    WHERE "id" = NEW."runId" AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'usage_run_tenant_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NEW."taskId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "AgentTask"
+    WHERE "id" = NEW."taskId" AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'usage_task_tenant_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NEW."runId" IS NOT NULL AND NEW."taskId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "AgentTask"
+    WHERE "id" = NEW."taskId"
+      AND "runId" = NEW."runId"
+      AND "tenantId" = NEW."tenantId"
+  ) THEN
+    RAISE EXCEPTION 'usage_task_run_mismatch'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "UsageLedgerEntry_tenant_guard"
+BEFORE INSERT OR UPDATE OF "tenantId", "reservationId", "runId", "taskId"
+ON "UsageLedgerEntry"
+FOR EACH ROW
+EXECUTE FUNCTION "enforce_usage_ledger_tenant"();
