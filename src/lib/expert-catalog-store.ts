@@ -119,76 +119,76 @@ export async function installExpertCatalogDraft(options: {
 
   try {
     return await db.$transaction(async (tx) => {
-    const existing = await tx.agent.findUnique({
-      where: {
-        tenantId_slug_version: {
+      const existing = await tx.agent.findUnique({
+        where: {
+          tenantId_slug_version: {
+            tenantId: options.tenantId,
+            slug: manifest.slug,
+            version: manifest.version,
+          },
+        },
+      });
+
+      if (existing) {
+        if (!storedManifestMatches(existing, manifest, manifestDigest)) {
+          throw new ExpertCatalogInstallError("expert_version_conflict");
+        }
+        await tx.auditEvent.create({
+          data: {
+            tenantId: options.tenantId,
+            actor: options.actorId,
+            action: "expert.catalog.install_replayed",
+            metadata: {
+              agentId: existing.id,
+              slug: manifest.slug,
+              version: manifest.version,
+              status: existing.status,
+              manifestDigest,
+            },
+          },
+        });
+        return {
+          agent: existing,
+          mode: "existing_idempotent" as const,
+          manifestDigest,
+        };
+      }
+
+      const agent = await tx.agent.create({
+        data: {
           tenantId: options.tenantId,
+          name: manifest.name,
           slug: manifest.slug,
           version: manifest.version,
+          description: manifest.description,
+          systemPrompt: manifest.systemPrompt,
+          modelProvider: manifest.modelProvider,
+          modelName: manifest.modelName,
+          status: AgentStatus.DRAFT,
+          marketplaceTags: manifest.marketplaceTags,
+          requiredTools: manifest.requiredTools,
+          approvalRequired: manifest.approvalRequired,
+          memoryScope: manifest.memoryScope,
+          manifest: storedManifest,
         },
-      },
-    });
+      });
 
-    if (existing) {
-      if (!storedManifestMatches(existing, manifest, manifestDigest)) {
-        throw new ExpertCatalogInstallError("expert_version_conflict");
-      }
       await tx.auditEvent.create({
         data: {
           tenantId: options.tenantId,
           actor: options.actorId,
-          action: "expert.catalog.install_replayed",
+          action: "expert.catalog.installed",
           metadata: {
-            agentId: existing.id,
+            agentId: agent.id,
             slug: manifest.slug,
             version: manifest.version,
-            status: existing.status,
+            status: AgentStatus.DRAFT,
             manifestDigest,
+            seedCaseCount: pack.evaluationSeed.length,
+            taskCount: pack.taskTaxonomy.length,
           },
         },
       });
-      return {
-        agent: existing,
-        mode: "existing_idempotent" as const,
-        manifestDigest,
-      };
-    }
-
-    const agent = await tx.agent.create({
-      data: {
-        tenantId: options.tenantId,
-        name: manifest.name,
-        slug: manifest.slug,
-        version: manifest.version,
-        description: manifest.description,
-        systemPrompt: manifest.systemPrompt,
-        modelProvider: manifest.modelProvider,
-        modelName: manifest.modelName,
-        status: AgentStatus.DRAFT,
-        marketplaceTags: manifest.marketplaceTags,
-        requiredTools: manifest.requiredTools,
-        approvalRequired: manifest.approvalRequired,
-        memoryScope: manifest.memoryScope,
-        manifest: storedManifest,
-      },
-    });
-
-    await tx.auditEvent.create({
-      data: {
-        tenantId: options.tenantId,
-        actor: options.actorId,
-        action: "expert.catalog.installed",
-        metadata: {
-          agentId: agent.id,
-          slug: manifest.slug,
-          version: manifest.version,
-          status: AgentStatus.DRAFT,
-          manifestDigest,
-          seedCaseCount: pack.evaluationSeed.length,
-          taskCount: pack.taskTaxonomy.length,
-        },
-      },
-    });
 
       return {
         agent,
@@ -208,7 +208,10 @@ export async function installExpertCatalogDraft(options: {
         },
       },
     });
-    if (!existing || !storedManifestMatches(existing, manifest, manifestDigest)) {
+    if (
+      !existing ||
+      !storedManifestMatches(existing, manifest, manifestDigest)
+    ) {
       throw new ExpertCatalogInstallError("expert_version_conflict");
     }
 
