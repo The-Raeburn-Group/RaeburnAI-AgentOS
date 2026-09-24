@@ -5,9 +5,10 @@ import {
   modelRegistryDigest,
   parseModelRegistry,
   selectRegistryModel,
+  type ModelRegistry,
 } from "@/lib/model-registry";
 
-function registry() {
+function registry(): ModelRegistry {
   return {
     contractVersion: "raeburnai.model-registry.v1",
     registryVersion: "0.1.0",
