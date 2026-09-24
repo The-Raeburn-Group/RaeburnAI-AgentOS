@@ -299,7 +299,7 @@ export function validateStructuredValue(
     for (const [key, item] of Object.entries(candidate)) {
       const propertySchema = current.properties[key];
       if (!propertySchema) {
-        if (current.additionalProperties === false) {
+        if (current.additionalProperties !== true) {
           throw new ProviderExecutionError("invalid_structured_output");
         }
         if (
