@@ -36,22 +36,14 @@ describe("provider execution contract", () => {
 
     expect(() =>
       validateStructuredValue({ answer: "missing confidence" }, objectSchema),
-    ).toThrowError(
-      expect.objectContaining<Partial<ProviderExecutionError>>({
-        code: "invalid_structured_output",
-      }),
-    );
+    ).toThrowError("invalid_structured_output");
 
     expect(() =>
       validateStructuredValue(
         { answer: "grounded", confidence: 0.9, hidden: "unexpected" },
         objectSchema,
       ),
-    ).toThrowError(
-      expect.objectContaining<Partial<ProviderExecutionError>>({
-        code: "invalid_structured_output",
-      }),
-    );
+    ).toThrowError("invalid_structured_output");
   });
 
   it("parses JSON text and rejects malformed JSON before it can be trusted", () => {
@@ -67,11 +59,7 @@ describe("provider execution contract", () => {
         '{"answer":"ok","confidence":',
         objectSchema,
       ),
-    ).toThrowError(
-      expect.objectContaining<Partial<ProviderExecutionError>>({
-        code: "invalid_structured_output",
-      }),
-    );
+    ).toThrowError("invalid_structured_output");
   });
 
   it("rejects excessively deep and internally inconsistent schemas", () => {
@@ -82,11 +70,7 @@ describe("provider execution contract", () => {
         items: nested,
       };
     }
-    expect(() => validateStructuredOutputSchema(nested)).toThrowError(
-      expect.objectContaining<Partial<ProviderExecutionError>>({
-        code: "invalid_output_schema",
-      }),
-    );
+    expect(() => validateStructuredOutputSchema(nested)).toThrowError("invalid_output_schema");
 
     expect(() =>
       validateStructuredOutputSchema({
@@ -94,11 +78,7 @@ describe("provider execution contract", () => {
         minLength: 5,
         maxLength: 2,
       }),
-    ).toThrowError(
-      expect.objectContaining<Partial<ProviderExecutionError>>({
-        code: "invalid_output_schema",
-      }),
-    );
+    ).toThrowError("invalid_output_schema");
   });
 
   it("normalizes only declared tool calls with schema-valid arguments", () => {
@@ -137,22 +117,14 @@ describe("provider execution contract", () => {
         { name: "delete_everything", arguments: "{}" },
         tools,
       ),
-    ).toThrowError(
-      expect.objectContaining<Partial<ProviderExecutionError>>({
-        code: "unexpected_tool_call",
-      }),
-    );
+    ).toThrowError("unexpected_tool_call");
 
     expect(() =>
       normalizeToolCall(
         { name: "lookup_record", arguments: '{"unexpected":true}' },
         tools,
       ),
-    ).toThrowError(
-      expect.objectContaining<Partial<ProviderExecutionError>>({
-        code: "invalid_tool_arguments",
-      }),
-    );
+    ).toThrowError("invalid_tool_arguments");
   });
 
   it("rejects duplicate or malformed tool definitions", () => {
@@ -169,11 +141,7 @@ describe("provider execution contract", () => {
           inputSchema: { type: "object", properties: {} },
         },
       ]),
-    ).toThrowError(
-      expect.objectContaining<Partial<ProviderExecutionError>>({
-        code: "invalid_tool_definition",
-      }),
-    );
+    ).toThrowError("invalid_tool_definition");
   });
 
   it("normalizes Retry-After seconds and HTTP dates", () => {
