@@ -100,6 +100,10 @@ ALTER TABLE "UsageEvent"
   FOREIGN KEY ("reservationId") REFERENCES "SpendReservation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 ALTER TABLE "BudgetPolicy"
+  ADD CONSTRAINT "BudgetPolicy_currency_usd_v1"
+  CHECK ("currency" = 'USD');
+
+ALTER TABLE "BudgetPolicy"
   ADD CONSTRAINT "BudgetPolicy_monthlyLimitMicrousd_nonnegative"
   CHECK ("monthlyLimitMicrousd" IS NULL OR "monthlyLimitMicrousd" >= 0);
 
