@@ -226,6 +226,7 @@ export function projectFailureAuditEvent(event: FailureEvent) {
 export async function ingestFailureAuditEvents(
   options: {
     limit?: number;
+    tenantId?: string;
   } = {},
 ): Promise<{
   scanned: number;
