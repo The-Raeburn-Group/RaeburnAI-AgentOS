@@ -51,7 +51,8 @@ function configured(value: string | undefined): string | undefined {
 
 function kgBaseUrl(env: Environment): URL {
   const raw = configured(env.RAEBURN_KG_BASE_URL);
-  if (!raw) throw new KgEvidenceClientError("unconfigured", "RAEBURN_KG_BASE_URL");
+  if (!raw)
+    throw new KgEvidenceClientError("unconfigured", "RAEBURN_KG_BASE_URL");
 
   let url: URL;
   try {
@@ -60,15 +61,18 @@ function kgBaseUrl(env: Environment): URL {
     throw new KgEvidenceClientError("invalid_base_url");
   }
   if (!["http:", "https:"].includes(url.protocol)) {
-    throw new KgEvidenceClientError("invalid_base_url", "protocol must be http or https");
+    throw new KgEvidenceClientError(
+      "invalid_base_url",
+      "protocol must be http or https",
+    );
   }
   if (url.username || url.password) {
-    throw new KgEvidenceClientError("invalid_base_url", "credentials are not allowed in URL");
+    throw new KgEvidenceClientError(
+      "invalid_base_url",
+      "credentials are not allowed in URL",
+    );
   }
-  if (
-    env.NODE_ENV === "production" &&
-    url.protocol !== "https:"
-  ) {
+  if (env.NODE_ENV === "production" && url.protocol !== "https:") {
     throw new KgEvidenceClientError("insecure_base_url");
   }
   url.pathname = url.pathname.replace(/\/+$/, "") + "/";
@@ -164,18 +168,16 @@ export async function retrieveKnowledgeEvidence(
     throw new KgEvidenceClientError("invalid_request", "query");
   }
   const limit = boundedInt(request.limit, 10, 1, 50);
-  const candidateMultiplier = boundedInt(
-    request.candidateMultiplier,
-    4,
-    1,
-    10,
-  );
+  const candidateMultiplier = boundedInt(request.candidateMultiplier, 4, 1, 10);
   const graphDepth = boundedInt(request.graphDepth, 0, 0, 3);
 
   const timeoutMs = boundedInt(request.timeoutMs, 8_000, 100, 60_000);
   const controller = new AbortController();
   const detach = attachAbort(controller, request.signal);
-  const timeout = setTimeout(() => controller.abort("kg_request_timeout"), timeoutMs);
+  const timeout = setTimeout(
+    () => controller.abort("kg_request_timeout"),
+    timeoutMs,
+  );
 
   try {
     const response = await fetchImpl(endpoint, {
