@@ -44,9 +44,7 @@ describe("Knowledge Graph evidence bridge", () => {
   it("accepts the independently generated cross-language contract fixture", () => {
     const parsed = parseKgEvidenceExport(FIXTURE, "tenant-a");
 
-    expect(kgEvidenceBundleDigest(parsed.bundle)).toBe(
-      FIXTURE.bundle_sha256,
-    );
+    expect(kgEvidenceBundleDigest(parsed.bundle)).toBe(FIXTURE.bundle_sha256);
     expect(parsed.trustedSources).toEqual([
       {
         id: "chunk-1",
@@ -76,12 +74,7 @@ describe("Knowledge Graph evidence bridge", () => {
 
   it("binds the export to the exact requested query and result limit", () => {
     expect(() =>
-      parseKgEvidenceExport(
-        FIXTURE,
-        "tenant-a",
-        "different query",
-        10,
-      ),
+      parseKgEvidenceExport(FIXTURE, "tenant-a", "different query", 10),
     ).toThrowError(new KgEvidenceBridgeError("query_mismatch"));
 
     expect(() =>
@@ -105,7 +98,8 @@ describe("Knowledge Graph evidence bridge", () => {
 
   it("rejects source excerpt tampering even when a forged bundle digest is supplied", () => {
     const tampered = structuredClone(FIXTURE);
-    tampered.sources[0].excerpt = "The approved control threshold is 10 percent.";
+    tampered.sources[0].excerpt =
+      "The approved control threshold is 10 percent.";
     tampered.bundle_sha256 = kgEvidenceBundleDigest(tampered);
 
     expect(() => parseKgEvidenceExport(tampered, "tenant-a")).toThrowError(
@@ -129,8 +123,7 @@ describe("Knowledge Graph evidence bridge", () => {
 
   it("accepts stable Knowledge Graph URNs when an external source URI is unavailable", () => {
     const urnFixture = structuredClone(FIXTURE);
-    urnFixture.sources[0].uri =
-      "urn:raeburnai:kg:tenant-a:doc-1:chunk-1";
+    urnFixture.sources[0].uri = "urn:raeburnai:kg:tenant-a:doc-1:chunk-1";
     urnFixture.bundle_sha256 = kgEvidenceBundleDigest(urnFixture);
 
     const parsed = parseKgEvidenceExport(urnFixture, "tenant-a");
