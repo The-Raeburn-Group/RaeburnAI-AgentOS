@@ -16,6 +16,14 @@ const SourceTypeSchema = z.enum([
   "unknown",
 ]);
 
+const RetrievalSecuritySchema = z.object({
+  trust: z.literal("untrusted"),
+  instructionAuthority: z.literal("none"),
+  handling: z.literal("data-only"),
+  injectionDetected: z.boolean(),
+  signals: z.array(z.string().min(1).max(256)).max(64).default([]),
+});
+
 export const TrustedEvidenceSourceSchema = z.object({
   id: z.string().trim().min(1).max(256),
   uri: z.string().url(),
@@ -23,7 +31,7 @@ export const TrustedEvidenceSourceSchema = z.object({
   sourceType: SourceTypeSchema,
   retrievedAt: z.string().datetime(),
   documentId: z.string().trim().min(1).max(256),
-  documentVersion: z.string().trim().min(1).max(128),
+  documentVersion: z.string().trim().min(1).max(512),
   chunkId: z.string().trim().min(1).max(256),
   excerpt: z
     .string()
@@ -33,6 +41,10 @@ export const TrustedEvidenceSourceSchema = z.object({
       message: "source excerpt cannot be blank",
     }),
   contentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  pageStart: z.number().int().min(1).nullable().optional(),
+  pageEnd: z.number().int().min(1).nullable().optional(),
+  sourceAclRef: z.string().trim().min(1).max(512).nullable().optional(),
+  retrievalSecurity: RetrievalSecuritySchema.optional(),
 });
 export type TrustedEvidenceSource = z.infer<typeof TrustedEvidenceSourceSchema>;
 
@@ -320,6 +332,15 @@ function sourceRelation(
   claim: string,
   source: TrustedEvidenceSource,
 ): { relation: "supports" | "contradicts" | "unclear"; reasons: string[] } {
+  if (source.retrievalSecurity?.injectionDetected) {
+    return {
+      relation: "unclear",
+      reasons: [
+        "retrieved source was flagged for prompt-injection content and cannot establish a claim",
+      ],
+    };
+  }
+
   const normalizedClaim = normalizedText(claim);
   if (!normalizedClaim) {
     return {
@@ -947,6 +968,10 @@ export function verifyEvidenceBundle(
     );
   }
 
+  const referencedSourceIds = new Set(
+    request.claims.flatMap((claim) => claim.sourceIds),
+  );
+
   for (const source of request.sources) {
     if (!validSourceIds.has(source.id)) {
       hardFailures.push(
@@ -961,6 +986,16 @@ export function verifyEvidenceBundle(
         "high-assurance verification cannot rely on unknown source type " +
           source.id,
       );
+    }
+    if (
+      referencedSourceIds.has(source.id) &&
+      source.retrievalSecurity?.injectionDetected
+    ) {
+      const reason =
+        "cited evidence source is flagged for prompt-injection content: " +
+        source.id;
+      if (request.strictness === "standard") reviewReasons.push(reason);
+      else hardFailures.push(reason);
     }
   }
 
