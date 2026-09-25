@@ -251,10 +251,7 @@ function parseToolArguments(
 }
 
 function toolName(value: unknown, provider: string): string {
-  if (
-    typeof value !== "string" ||
-    !/^[a-zA-Z0-9_-]{1,128}$/.test(value)
-  ) {
+  if (typeof value !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(value)) {
     throw new ProviderExecutionError("malformed_response", {
       provider,
       detail: "invalid tool name",
@@ -337,8 +334,7 @@ function normalizedTextAndTools(options: {
   text: unknown;
   toolCalls: ProviderToolCall[];
 }): { text: string; toolCalls?: ProviderToolCall[] } {
-  const text =
-    typeof options.text === "string" ? options.text : "";
+  const text = typeof options.text === "string" ? options.text : "";
   if (text.trim().length === 0 && options.toolCalls.length === 0) {
     throw new ProviderExecutionError("malformed_response", {
       provider: options.provider,
@@ -347,9 +343,7 @@ function normalizedTextAndTools(options: {
   }
   return {
     text,
-    ...(options.toolCalls.length === 0
-      ? {}
-      : { toolCalls: options.toolCalls }),
+    ...(options.toolCalls.length === 0 ? {} : { toolCalls: options.toolCalls }),
   };
 }
 
@@ -558,10 +552,9 @@ export async function generateWithProvider(
             }
           : {}),
       };
-      const completion = (await client.chat.completions.create(
-        request,
-        { signal },
-      )) as unknown as {
+      const completion = (await client.chat.completions.create(request, {
+        signal,
+      })) as unknown as {
         choices?: Array<{
           message?: { content?: unknown; tool_calls?: unknown };
         }>;
@@ -579,10 +572,7 @@ export async function generateWithProvider(
           ? promptTokens + completionTokens
           : undefined);
       const message = completion.choices?.[0]?.message;
-      const toolCalls = normalizeOpenAiToolCalls(
-        message?.tool_calls,
-        provider,
-      );
+      const toolCalls = normalizeOpenAiToolCalls(message?.tool_calls, provider);
       const normalized = normalizedTextAndTools({
         provider,
         text: message?.content,
@@ -803,10 +793,9 @@ async function* streamOpenAiCompatible(
           }
         : {}),
     };
-    const stream = (await client.chat.completions.create(
-      request,
-      { signal: context.signal },
-    )) as unknown as AsyncIterable<{
+    const stream = (await client.chat.completions.create(request, {
+      signal: context.signal,
+    })) as unknown as AsyncIterable<{
       choices?: Array<{
         delta?: {
           content?: unknown;
