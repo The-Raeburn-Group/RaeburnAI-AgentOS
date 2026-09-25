@@ -32,9 +32,10 @@ import {
   ProviderExecutionError,
   streamWithProvider,
   type ProviderStreamEvent,
+  type ProviderToolDefinition,
 } from "@/lib/providers";
 
-const weatherTool = {
+const weatherTool: ProviderToolDefinition = {
   name: "get_weather",
   description: "Look up the current weather.",
   parameters: {
@@ -45,7 +46,7 @@ const weatherTool = {
     required: ["city"],
     additionalProperties: false,
   },
-} as const;
+};
 
 async function collect(
   stream: AsyncIterable<ProviderStreamEvent>,
