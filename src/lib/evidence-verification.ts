@@ -26,10 +26,10 @@ const RetrievalSecuritySchema = z.object({
 
 export const TrustedEvidenceSourceSchema = z.object({
   id: z.string().trim().min(1).max(256),
-  uri: z.string().url(),
-  title: z.string().trim().min(1).max(500),
+  uri: z.string().trim().min(1).max(2048),
+  title: z.string().trim().min(1).max(512),
   sourceType: SourceTypeSchema,
-  retrievedAt: z.string().datetime(),
+  retrievedAt: z.string().datetime({ offset: true }),
   documentId: z.string().trim().min(1).max(256),
   documentVersion: z.string().trim().min(1).max(512),
   chunkId: z.string().trim().min(1).max(256),
