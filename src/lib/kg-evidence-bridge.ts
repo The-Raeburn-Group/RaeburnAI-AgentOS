@@ -71,10 +71,7 @@ function canonicalJson(value: unknown): string {
       "{" +
       Object.entries(value as Record<string, unknown>)
         .sort(([left], [right]) => left.localeCompare(right))
-        .map(
-          ([key, item]) =>
-            JSON.stringify(key) + ":" + canonicalJson(item),
-        )
+        .map(([key, item]) => JSON.stringify(key) + ":" + canonicalJson(item))
         .join(",") +
       "}"
     );
@@ -127,10 +124,7 @@ export function parseKgEvidenceExport(
   if (expectedWorkspaceId && bundle.workspace_id !== expectedWorkspaceId) {
     throw new KgEvidenceBridgeError(
       "workspace_mismatch",
-      "expected " +
-        expectedWorkspaceId +
-        ", received " +
-        bundle.workspace_id,
+      "expected " + expectedWorkspaceId + ", received " + bundle.workspace_id,
     );
   }
   if (expectedQuery !== undefined && bundle.query !== expectedQuery) {
@@ -139,10 +133,7 @@ export function parseKgEvidenceExport(
       "Knowledge Graph response query does not match the request",
     );
   }
-  if (
-    expectedLimit !== undefined &&
-    bundle.sources.length > expectedLimit
-  ) {
+  if (expectedLimit !== undefined && bundle.sources.length > expectedLimit) {
     throw new KgEvidenceBridgeError(
       "result_limit_exceeded",
       "Knowledge Graph returned " +
@@ -165,10 +156,7 @@ export function parseKgEvidenceExport(
     if (source.workspace_id !== bundle.workspace_id) {
       throw new KgEvidenceBridgeError(
         "workspace_mismatch",
-        "source " +
-          source.id +
-          " belongs to " +
-          source.workspace_id,
+        "source " + source.id + " belongs to " + source.workspace_id,
       );
     }
     if (evidenceSourceContentHash(source.excerpt) !== source.content_hash) {
