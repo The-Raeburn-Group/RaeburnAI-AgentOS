@@ -44,6 +44,22 @@ async function seed() {
       },
     },
   });
+  await db.agent.create({
+    data: {
+      id: "governed-workflow-tool-agent",
+      tenantId,
+      name: "Tool-call expert",
+      slug: "tool-expert",
+      description: "Provider tool-call boundary integration test expert.",
+      systemPrompt: "Request a governed tool when it is required.",
+      modelProvider: "ollama",
+      modelName: "test-model",
+      approvalRequired: false,
+      manifest: {
+        schemaVersion: "raeburnai.agent-manifest.v1",
+      },
+    },
+  });
 }
 
 function generator(text: string): WorkflowModelGenerator {
@@ -102,6 +118,11 @@ describeWithDatabase("governed workflow request lifecycle", () => {
     expect(usage.inputTokens).toBe(10);
     expect(usage.outputTokens).toBe(5);
     expect(usage.costMicrousd).toBe(0n);
+    expect(usage.metadata).toMatchObject({
+      output_validation: "passed",
+      response_format: "json",
+      tool_call_count: 0,
+    });
     expect(completed.metadata).toMatchObject({
       usageEventId: usage.id,
       outputContract: "json",
@@ -137,15 +158,75 @@ describeWithDatabase("governed workflow request lifecycle", () => {
     });
     expect(run.status).toBe(RunStatus.FAILED);
     expect(task.status).toBe(RunStatus.FAILED);
-    expect(
-      await db.usageEvent.count({
-        where: { tenantId, runId: run.id, expertSlug: "structured-expert" },
-      }),
-    ).toBe(1);
+    const failedUsage = await db.usageEvent.findFirstOrThrow({
+      where: { tenantId, runId: run.id, expertSlug: "structured-expert" },
+    });
+    expect(failedUsage.metadata).toMatchObject({
+      output_validation: "failed",
+      response_format: "json",
+    });
     expect(
       await db.auditEvent.count({
         where: { tenantId, runId: run.id, action: "agent.failed" },
       }),
     ).toBe(1);
   });
+
+  it("fails the workflow rather than treating an unhandled provider tool call as empty success", async () => {
+    const generate = vi.fn(async () => ({
+      text: "",
+      provider: "ollama",
+      model: "test-model",
+      promptTokens: 7,
+      completionTokens: 3,
+      tokens: 10,
+      toolCalls: [
+        {
+          id: "call-1",
+          name: "lookup_record",
+          arguments: { recordId: "record-1" },
+        },
+      ],
+    }));
+
+    await expect(
+      runWorkflow(
+        {
+          tenantSlug: "ignored",
+          name: "Unhandled tool call",
+          goal: "Prove provider tool calls cannot silently become empty workflow outputs",
+          agents: ["tool-expert"],
+        },
+        {
+          tenantReference: tenantId,
+          actorId: "requester",
+          requestId: "governed-lifecycle-tool",
+        },
+        generate,
+      ),
+    ).rejects.toThrow(
+      "Provider returned tool calls but governed workflow tool execution is not configured",
+    );
+
+    const run = await db.workflowRun.findFirstOrThrow({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+    });
+    const usage = await db.usageEvent.findFirstOrThrow({
+      where: { tenantId, runId: run.id, expertSlug: "tool-expert" },
+    });
+    expect(run.status).toBe(RunStatus.FAILED);
+    expect(usage.inputTokens).toBe(7);
+    expect(usage.outputTokens).toBe(3);
+    expect(usage.metadata).toMatchObject({
+      output_validation: "passed",
+      response_format: "text",
+      tool_call_count: 1,
+    });
+    expect(
+      await db.auditEvent.count({
+        where: { tenantId, runId: run.id, action: "agent.failed" },
+      }),
+    ).toBe(1);
+
 });
