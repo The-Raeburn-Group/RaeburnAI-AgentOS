@@ -8,6 +8,7 @@ import {
 } from "@/lib/kg-evidence-client";
 import { apiError, rateLimit } from "@/lib/http";
 import { authenticateChainServiceRequest } from "@/lib/service-auth";
+import { resolveTenantReference } from "@/lib/human-tenant";
 
 const RetrievalRequestSchema = z.object({
   query: z.string().trim().min(1).max(8_000),
@@ -54,19 +55,19 @@ export async function POST(request: Request) {
 
   try {
     const payload = RetrievalRequestSchema.parse(await request.json());
-    const tenantId = authentication.context.tenantId;
-    const tenant = await db.tenant.findUnique({
-      where: { id: tenantId },
-      select: { id: true, slug: true },
-    });
+    const tenant = await resolveTenantReference(
+      authentication.context.tenantId,
+    );
     if (!tenant) {
       return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
     }
+    const tenantId = tenant.id;
 
     const result = await retrieveKnowledgeEvidence({
       workspaceId: tenantId,
       actorId: authentication.context.actorId,
       roles: authentication.context.roles,
+      groups: authentication.context.groups,
       query: payload.query,
       limit: payload.limit,
       retrievalMode: payload.retrievalMode,
