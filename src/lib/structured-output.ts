@@ -20,7 +20,8 @@ export const OutputContractSchema = z.discriminatedUnion("mode", [
   }),
 ]);
 
-export type OutputContract = z.infer<typeof OutputContractSchema>;
+export type OutputContractInput = z.input<typeof OutputContractSchema>;
+export type OutputContract = z.output<typeof OutputContractSchema>;
 
 export class StructuredOutputError extends Error {
   constructor(
