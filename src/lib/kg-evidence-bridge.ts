@@ -40,7 +40,7 @@ export const KgEvidenceExportSchema = z.object({
   workspace_id: z.string().min(1).max(128),
   query: z.string().min(1).max(8_000),
   retrieved_at: z.string().datetime({ offset: true }),
-  sources: z.array(KgEvidenceSourceSchema),
+  sources: z.array(KgEvidenceSourceSchema).max(50),
   bundle_sha256: z.string().regex(/^[0-9a-f]{64}$/),
 });
 
@@ -52,6 +52,8 @@ export class KgEvidenceBridgeError extends Error {
       | "bundle_integrity_invalid"
       | "source_integrity_invalid"
       | "workspace_mismatch"
+      | "query_mismatch"
+      | "result_limit_exceeded"
       | "duplicate_source_id",
     public readonly detail?: string,
   ) {
@@ -115,6 +117,8 @@ export function kgEvidenceBundleDigest(bundle: KgEvidenceExport): string {
 export function parseKgEvidenceExport(
   input: unknown,
   expectedWorkspaceId?: string,
+  expectedQuery?: string,
+  expectedLimit?: number,
 ): {
   bundle: KgEvidenceExport;
   trustedSources: TrustedEvidenceSource[];
@@ -127,6 +131,24 @@ export function parseKgEvidenceExport(
         expectedWorkspaceId +
         ", received " +
         bundle.workspace_id,
+    );
+  }
+  if (expectedQuery !== undefined && bundle.query !== expectedQuery) {
+    throw new KgEvidenceBridgeError(
+      "query_mismatch",
+      "Knowledge Graph response query does not match the request",
+    );
+  }
+  if (
+    expectedLimit !== undefined &&
+    bundle.sources.length > expectedLimit
+  ) {
+    throw new KgEvidenceBridgeError(
+      "result_limit_exceeded",
+      "Knowledge Graph returned " +
+        bundle.sources.length +
+        " sources for requested limit " +
+        expectedLimit,
     );
   }
   if (kgEvidenceBundleDigest(bundle) !== bundle.bundle_sha256) {
