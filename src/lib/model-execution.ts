@@ -12,6 +12,7 @@ import {
 import {
   enforceStructuredOutput,
   type OutputContract,
+  type OutputContractInput,
   OutputContractSchema,
   StructuredOutputError,
 } from "@/lib/structured-output";
@@ -53,7 +54,7 @@ export interface GovernedModelCallOptions {
   model: string;
   messages: ProviderMessage[];
   responseFormat?: "text" | "json";
-  outputContract?: OutputContract;
+  outputContract?: OutputContractInput;
   tools?: ProviderToolDefinition[];
   toolChoice?: ProviderToolChoice;
   signal?: AbortSignal;
