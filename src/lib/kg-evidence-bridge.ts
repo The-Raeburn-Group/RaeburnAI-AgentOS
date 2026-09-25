@@ -9,6 +9,14 @@ import {
 export const KG_EVIDENCE_EXPORT_VERSION =
   "raeburnai.kg-evidence-export.v1" as const;
 
+const KgEvidenceSecuritySchema = z.object({
+  trust: z.literal("untrusted"),
+  instruction_authority: z.literal("none"),
+  handling: z.literal("data-only"),
+  injection_detected: z.boolean(),
+  signals: z.array(z.string().min(1).max(256)).max(64),
+});
+
 const KgEvidenceSourceSchema = z.object({
   id: z.string().min(1).max(256),
   uri: z.string().min(1).max(2048),
@@ -21,7 +29,10 @@ const KgEvidenceSourceSchema = z.object({
   chunk_id: z.string().min(1).max(256),
   excerpt: z.string().min(1).max(20_000),
   content_hash: z.string().regex(/^[0-9a-f]{64}$/),
-  source_acl_ref: z.string().max(512).nullable().default(null),
+  page_start: z.number().int().min(1).nullable(),
+  page_end: z.number().int().min(1).nullable(),
+  source_acl_ref: z.string().max(512).nullable(),
+  security: KgEvidenceSecuritySchema,
 });
 
 export const KgEvidenceExportSchema = z.object({
@@ -87,7 +98,10 @@ function bundlePayload(bundle: KgEvidenceExport) {
       chunk_id: source.chunk_id,
       excerpt: source.excerpt,
       content_hash: source.content_hash,
+      page_start: source.page_start,
+      page_end: source.page_end,
       source_acl_ref: source.source_acl_ref,
+      security: source.security,
     })),
   };
 }
@@ -150,6 +164,16 @@ export function parseKgEvidenceExport(
       chunkId: source.chunk_id,
       excerpt: source.excerpt,
       contentHash: source.content_hash,
+      pageStart: source.page_start,
+      pageEnd: source.page_end,
+      sourceAclRef: source.source_acl_ref,
+      retrievalSecurity: {
+        trust: source.security.trust,
+        instructionAuthority: source.security.instruction_authority,
+        handling: source.security.handling,
+        injectionDetected: source.security.injection_detected,
+        signals: source.security.signals,
+      },
     });
   });
 
