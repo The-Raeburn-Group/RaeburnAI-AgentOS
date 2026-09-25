@@ -228,6 +228,5 @@ describeWithDatabase("governed workflow request lifecycle", () => {
         where: { tenantId, runId: run.id, action: "agent.failed" },
       }),
     ).toBe(1);
-
   });
 });
