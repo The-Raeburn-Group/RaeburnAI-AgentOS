@@ -41,32 +41,34 @@ const FIXTURE = {
 
 describe("Knowledge Graph evidence client", () => {
   it("propagates delegated context and returns verified trusted sources", async () => {
-    const fetchImpl = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
-      expect(String(input)).toBe(
-        "https://kg.example.test/base/v1/search/evidence",
-      );
-      expect(init?.method).toBe("POST");
-      expect(init?.redirect).toBe("manual");
-      expect(init?.headers).toMatchObject({
-        "content-type": "application/json",
-        "x-workspace-id": "tenant-a",
-        "x-actor-id": "actor-a",
-        "x-actor-roles": "researcher,auditor",
-        "x-actor-groups": "team-alpha",
-        "x-api-key": "kg-secret",
-      });
-      expect(JSON.parse(String(init?.body))).toMatchObject({
-        workspace_id: "tenant-a",
-        query: "approved control threshold",
-        retrieval_mode: "hybrid",
-        include_graph: false,
-        graph_depth: 0,
-      });
-      return new Response(JSON.stringify(FIXTURE), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
-    });
+    const fetchImpl = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        expect(String(input)).toBe(
+          "https://kg.example.test/base/v1/search/evidence",
+        );
+        expect(init?.method).toBe("POST");
+        expect(init?.redirect).toBe("manual");
+        expect(init?.headers).toMatchObject({
+          "content-type": "application/json",
+          "x-workspace-id": "tenant-a",
+          "x-actor-id": "actor-a",
+          "x-actor-roles": "researcher,auditor",
+          "x-actor-groups": "team-alpha",
+          "x-api-key": "kg-secret",
+        });
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          workspace_id: "tenant-a",
+          query: "approved control threshold",
+          retrieval_mode: "hybrid",
+          include_graph: false,
+          graph_depth: 0,
+        });
+        return new Response(JSON.stringify(FIXTURE), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
 
     const result = await retrieveKnowledgeEvidence(
       {
@@ -164,7 +166,9 @@ describe("Knowledge Graph evidence client", () => {
   });
 
   it("rejects non-2xx and integrity-invalid Knowledge Graph responses", async () => {
-    const notFound = vi.fn(async () => new Response("missing", { status: 404 }));
+    const notFound = vi.fn(
+      async () => new Response("missing", { status: 404 }),
+    );
     await expect(
       retrieveKnowledgeEvidence(
         {
@@ -204,13 +208,15 @@ describe("Knowledge Graph evidence client", () => {
   });
 
   it("rejects redirect responses without forwarding credentials", async () => {
-    const fetchImpl = vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
-      expect(init?.redirect).toBe("manual");
-      return new Response(null, {
-        status: 302,
-        headers: { location: "http://attacker.invalid/collect" },
-      });
-    });
+    const fetchImpl = vi.fn(
+      async (_input: URL | RequestInfo, init?: RequestInit) => {
+        expect(init?.redirect).toBe("manual");
+        return new Response(null, {
+          status: 302,
+          headers: { location: "http://attacker.invalid/collect" },
+        });
+      },
+    );
 
     await expect(
       retrieveKnowledgeEvidence(
