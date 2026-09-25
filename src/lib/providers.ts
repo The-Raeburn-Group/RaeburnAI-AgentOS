@@ -197,13 +197,6 @@ function streamAbortContext(options: {
   };
 }
 
-function requireText(value: unknown, provider: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new ProviderExecutionError("malformed_response", { provider });
-  }
-  return value;
-}
-
 function usageNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
     ? value
