@@ -31,6 +31,7 @@ export class KgEvidenceClientError extends Error {
   constructor(
     public readonly code:
       | "unconfigured"
+      | "invalid_request"
       | "invalid_base_url"
       | "insecure_base_url"
       | "request_failed"
@@ -74,6 +75,31 @@ function kgBaseUrl(env: Environment): URL {
   url.search = "";
   url.hash = "";
   return url;
+}
+
+function safeHeaderValue(
+  value: string,
+  field: string,
+  options: { allowComma?: boolean } = {},
+): string {
+  const normalized = value.trim();
+  if (
+    !normalized ||
+    /[\r\n\0]/.test(normalized) ||
+    (!options.allowComma && normalized.includes(","))
+  ) {
+    throw new KgEvidenceClientError(
+      "invalid_request",
+      "invalid delegated header value: " + field,
+    );
+  }
+  return normalized;
+}
+
+function safeHeaderList(values: string[] | undefined, field: string): string[] {
+  return (values ?? []).map((value, index) =>
+    safeHeaderValue(value, field + "[" + index + "]"),
+  );
 }
 
 function boundedInt(
@@ -125,6 +151,18 @@ export async function retrieveKnowledgeEvidence(
     );
   }
 
+  const workspaceId = safeHeaderValue(request.workspaceId, "workspaceId", {
+    allowComma: true,
+  });
+  const actorId = safeHeaderValue(request.actorId, "actorId", {
+    allowComma: true,
+  });
+  const roles = safeHeaderList(request.roles, "roles");
+  const groups = safeHeaderList(request.groups, "groups");
+  if (!request.query.trim() || request.query.length > 8_000) {
+    throw new KgEvidenceClientError("invalid_request", "query");
+  }
+
   const timeoutMs = boundedInt(request.timeoutMs, 8_000, 100, 60_000);
   const controller = new AbortController();
   const detach = attachAbort(controller, request.signal);
@@ -135,18 +173,14 @@ export async function retrieveKnowledgeEvidence(
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-workspace-id": request.workspaceId,
-        "x-actor-id": request.actorId,
-        ...(request.roles?.length
-          ? { "x-actor-roles": request.roles.join(",") }
-          : {}),
-        ...(request.groups?.length
-          ? { "x-actor-groups": request.groups.join(",") }
-          : {}),
+        "x-workspace-id": workspaceId,
+        "x-actor-id": actorId,
+        ...(roles.length ? { "x-actor-roles": roles.join(",") } : {}),
+        ...(groups.length ? { "x-actor-groups": groups.join(",") } : {}),
         ...(apiKey ? { "x-api-key": apiKey } : {}),
       },
       body: JSON.stringify({
-        workspace_id: request.workspaceId,
+        workspace_id: workspaceId,
         query: request.query,
         limit: boundedInt(request.limit, 10, 1, 50),
         include_graph: request.includeGraph ?? false,
@@ -182,7 +216,7 @@ export async function retrieveKnowledgeEvidence(
     }
 
     try {
-      return parseKgEvidenceExport(payload, request.workspaceId);
+      return parseKgEvidenceExport(payload, workspaceId);
     } catch (error) {
       throw new KgEvidenceClientError(
         "invalid_response",
