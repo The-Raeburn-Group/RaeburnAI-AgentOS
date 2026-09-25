@@ -36,6 +36,7 @@ function headers() {
     "x-actor-id": "analyst-a",
     "x-request-id": "request-123",
     "x-roles": "researcher,auditor",
+    "x-groups": "team-alpha,finance",
     "content-type": "application/json",
   };
 }
@@ -95,6 +96,7 @@ describe("evidence retrieval API", () => {
         workspaceId: "tenant-a",
         actorId: "analyst-a",
         roles: ["researcher", "auditor"],
+        groups: ["team-alpha", "finance"],
         query: "approved control threshold",
         retrievalMode: "hybrid",
         rerank: true,
@@ -158,6 +160,47 @@ describe("evidence retrieval API", () => {
     expect(mocks.retrieveKnowledgeEvidence).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: "tenant-a" }),
     );
+  });
+
+  it("resolves slug-mode tenant references to the canonical database id", async () => {
+    vi.stubEnv("RAEBURN_CHAIN_SERVICE_TOKEN", "evidence-retrieval-token");
+    vi.stubEnv("AGENTOS_TENANT_REFERENCE_MODE", "slug");
+    mocks.tenantFindUnique.mockResolvedValue({
+      id: "tenant-canonical-id",
+      slug: "tenant-a",
+    });
+    mocks.retrieveKnowledgeEvidence.mockResolvedValue({
+      bundle: {
+        contract_version: "raeburnai.kg-evidence-export.v1",
+        workspace_id: "tenant-canonical-id",
+        query: "approved control threshold",
+        retrieved_at: "2026-09-25T18:00:00Z",
+        sources: [],
+        bundle_sha256:
+          "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      },
+      trustedSources: [],
+    });
+    mocks.auditCreate.mockResolvedValue({ id: "audit-slug" });
+
+    const response = await POST(
+      new Request("http://localhost:3000/api/evidence/retrieve", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ query: "approved control threshold" }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.tenantFindUnique).toHaveBeenCalledWith({
+      where: { slug: "tenant-a" },
+    });
+    expect(mocks.retrieveKnowledgeEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "tenant-canonical-id" }),
+    );
+    expect(mocks.auditCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ tenantId: "tenant-canonical-id" }),
+    });
   });
 
   it("returns no evidence when the tenant does not exist locally", async () => {
