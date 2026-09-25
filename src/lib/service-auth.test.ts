@@ -87,6 +87,7 @@ describe("authenticateChainServiceRequest", () => {
           "x-actor-id": "user-123",
           "x-request-id": "request-456",
           "x-roles": "operator,auditor",
+          "x-groups": "finance,reviewers",
         },
       }),
     );
@@ -98,6 +99,7 @@ describe("authenticateChainServiceRequest", () => {
         actorId: "user-123",
         requestId: "request-456",
         roles: ["operator", "auditor"],
+        groups: ["finance", "reviewers"],
       },
     });
   });
