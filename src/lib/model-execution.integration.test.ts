@@ -6,6 +6,7 @@ import {
   estimateTokenUpperBound,
   executeGovernedModelCall,
 } from "@/lib/model-execution";
+import { StructuredOutputError } from "@/lib/structured-output";
 import { setBudgetPolicy, UsageLedgerError } from "@/lib/usage-ledger";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -225,6 +226,162 @@ describeWithDatabase("governed model execution", () => {
     });
     expect(reservation.status).toBe("RELEASED");
     expect(await db.usageEvent.count({ where: { tenantId } })).toBe(0);
+  });
+
+  it("returns parsed structured output when the governed JSON contract passes", async () => {
+    const result = await executeGovernedModelCall({
+      tenantId,
+      actorId: "requester",
+      requestId: "model-request-structured-valid",
+      runId,
+      taskId: "task-structured-valid",
+      provider: "ollama",
+      model: "test-model",
+      messages: [{ role: "user", content: "return a governed decision" }],
+      outputContract: {
+        mode: "json",
+        required: ["decision", "confidence"],
+        properties: {
+          decision: "string",
+          confidence: "number",
+        },
+        additionalProperties: false,
+      },
+      generate: vi.fn(async (options) => {
+        expect(options.responseFormat).toBe("json");
+        return {
+          text: '{"decision":"approve","confidence":0.92}',
+          provider: "ollama",
+          model: "test-model",
+          promptTokens: 9,
+          completionTokens: 6,
+          tokens: 15,
+        };
+      }),
+      costResolver: () => ({
+        modelRegistryId: "test.registry.model",
+        unitCostMicrousdPer1k: 1_000,
+      }),
+    });
+
+    expect(result.response.structuredOutput).toEqual({
+      decision: "approve",
+      confidence: 0.92,
+    });
+    const event = await db.usageEvent.findUniqueOrThrow({
+      where: { id: result.usageEventId },
+    });
+    expect(event.metadata).toMatchObject({
+      output_validation: "passed",
+      response_format: "json",
+      tool_call_count: 0,
+    });
+  });
+
+  it("meters invalid structured output as real provider usage before rejecting it", async () => {
+    await setBudgetPolicy({
+      tenantId,
+      actorId: "finance",
+      policy: {
+        monthlyLimitMicrousd: 10_000,
+        perRequestLimitMicrousd: 5_000,
+        warningRatio: 0.8,
+        enforcementMode: "hard",
+        fallbackMode: "block",
+      },
+    });
+
+    await expect(
+      executeGovernedModelCall({
+        tenantId,
+        actorId: "requester",
+        requestId: "model-request-structured-invalid",
+        runId,
+        taskId: "task-structured-invalid",
+        provider: "ollama",
+        model: "test-model",
+        messages: [{ role: "user", content: "return a governed decision" }],
+        outputContract: {
+          mode: "json",
+          required: ["decision", "confidence"],
+          properties: {
+            decision: "string",
+            confidence: "number",
+          },
+          additionalProperties: false,
+        },
+        generate: vi.fn(async () => ({
+          text: '{"decision":"approve","confidence":"high"}',
+          provider: "ollama",
+          model: "test-model",
+          promptTokens: 12,
+          completionTokens: 8,
+          tokens: 20,
+        })),
+        costResolver: () => ({
+          modelRegistryId: "test.registry.model",
+          unitCostMicrousdPer1k: 1_000,
+        }),
+      }),
+    ).rejects.toMatchObject<Partial<StructuredOutputError>>({
+      code: "property_type_mismatch",
+    });
+
+    const reservation = await db.spendReservation.findFirstOrThrow({
+      where: { tenantId, requestId: "model-request-structured-invalid" },
+    });
+    expect(reservation.status).toBe("COMMITTED");
+    expect(reservation.committedCostMicrousd).toBe(20n);
+    const event = await db.usageEvent.findFirstOrThrow({
+      where: {
+        tenantId,
+        reservationId: reservation.id,
+      },
+    });
+    expect(event.costMicrousd).toBe(20n);
+    expect(event.metadata).toMatchObject({
+      output_validation: "failed",
+      response_format: "json",
+    });
+  });
+
+  it("rejects conflicting response-format configuration before dispatch or spend reservation", async () => {
+    const generate = vi.fn(async () => ({
+      text: "{}",
+      provider: "ollama",
+      model: "test-model",
+    }));
+
+    await expect(
+      executeGovernedModelCall({
+        tenantId,
+        actorId: "requester",
+        requestId: "model-request-contract-conflict",
+        taskId: "task-contract-conflict",
+        provider: "ollama",
+        model: "test-model",
+        messages: [{ role: "user", content: "return json" }],
+        responseFormat: "text",
+        outputContract: {
+          mode: "json",
+          required: ["result"],
+          properties: { result: "string" },
+        },
+        generate,
+        costResolver: () => ({
+          modelRegistryId: "test.registry.model",
+          unitCostMicrousdPer1k: 1_000,
+        }),
+      }),
+    ).rejects.toMatchObject<Partial<StructuredOutputError>>({
+      code: "invalid_output_contract",
+    });
+    expect(generate).not.toHaveBeenCalled();
+    expect(
+      await db.spendReservation.count({
+        where: { tenantId, requestId: "model-request-contract-conflict" },
+      }),
+    ).toBe(0);
   });
 
   it("uses UTF-8 bytes as a conservative input-token upper bound and exact rounded-up cost", () => {
