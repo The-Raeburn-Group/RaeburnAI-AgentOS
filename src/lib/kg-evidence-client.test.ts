@@ -46,6 +46,7 @@ describe("Knowledge Graph evidence client", () => {
         "https://kg.example.test/base/v1/search/evidence",
       );
       expect(init?.method).toBe("POST");
+      expect(init?.redirect).toBe("manual");
       expect(init?.headers).toMatchObject({
         "content-type": "application/json",
         "x-workspace-id": "tenant-a",
@@ -200,6 +201,64 @@ describe("Knowledge Graph evidence client", () => {
         },
       ),
     ).rejects.toMatchObject({ code: "invalid_response" });
+  });
+
+  it("rejects redirect responses without forwarding credentials", async () => {
+    const fetchImpl = vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, {
+        status: 302,
+        headers: { location: "http://attacker.invalid/collect" },
+      });
+    });
+
+    await expect(
+      retrieveKnowledgeEvidence(
+        {
+          workspaceId: "tenant-a",
+          actorId: "actor-a",
+          query: "approved control threshold",
+        },
+        {
+          env: {
+            NODE_ENV: "production",
+            RAEBURN_KG_BASE_URL: "https://kg.example.test",
+            RAEBURN_KG_API_KEY: "kg-secret",
+          },
+          fetchImpl: fetchImpl as typeof fetch,
+        },
+      ),
+    ).rejects.toMatchObject({ code: "request_failed" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a correctly shaped bundle for the wrong query", async () => {
+    const stale = structuredClone(FIXTURE);
+    stale.query = "stale cached query";
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify(stale), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    await expect(
+      retrieveKnowledgeEvidence(
+        {
+          workspaceId: "tenant-a",
+          actorId: "actor-a",
+          query: "approved control threshold",
+        },
+        {
+          env: { RAEBURN_KG_BASE_URL: "http://localhost:8000" },
+          fetchImpl: fetchImpl as typeof fetch,
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "invalid_response",
+      detail: expect.stringContaining("query_mismatch"),
+    });
   });
 
   it("enforces a bounded timeout", async () => {
