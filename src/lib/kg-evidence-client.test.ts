@@ -23,11 +23,11 @@ const FIXTURE = {
       excerpt: "The approved control threshold is 75 percent.",
       content_hash:
         "105e8d8a4f05b8f4de9ec72d3580c5406c8a9dde3525fe53c20c6f893fffe8ae",
-      source_acl_ref: "drive:file-policy-1:acl-v4",
+      source_acl_ref: null,
     },
   ],
   bundle_sha256:
-    "2871bfe6c6f1e84dd78ecab89567dc863b9a79b0b9d39295e04a65773c6d46ed",
+    "a50b20a5f87e8c219bddadefb06cab41d67ffac316d2dc7f054c3843fae57057",
 } as const;
 
 describe("Knowledge Graph evidence client", () => {
