@@ -5,9 +5,22 @@ import { env } from "@/lib/env";
 import { parseModelRegistry } from "@/lib/model-registry";
 import {
   type ProviderGenerationOptions,
+  type ProviderToolChoice,
+  type ProviderToolDefinition,
   generateWithProvider,
 } from "@/lib/providers";
-import type { ProviderMessage, ProviderResponse } from "@/lib/types";
+import {
+  enforceStructuredOutput,
+  type OutputContract,
+  type OutputContractInput,
+  OutputContractSchema,
+  StructuredOutputError,
+} from "@/lib/structured-output";
+import {
+  JsonValueSchema,
+  type ProviderMessage,
+  type ProviderResponse,
+} from "@/lib/types";
 import {
   commitSpend,
   recordUnreservedUsage,
@@ -41,6 +54,9 @@ export interface GovernedModelCallOptions {
   model: string;
   messages: ProviderMessage[];
   responseFormat?: "text" | "json";
+  outputContract?: OutputContractInput;
+  tools?: ProviderToolDefinition[];
+  toolChoice?: ProviderToolChoice;
   signal?: AbortSignal;
   now?: Date;
   generate?: ModelGenerator;
@@ -136,6 +152,37 @@ function providerTokenBreakdown(response: ProviderResponse): {
   };
 }
 
+function resolveOutputContract(
+  options: GovernedModelCallOptions,
+): OutputContract | undefined {
+  if (!options.outputContract) return undefined;
+  const contract = OutputContractSchema.parse(options.outputContract);
+  if (
+    options.responseFormat !== undefined &&
+    options.responseFormat !== contract.mode
+  ) {
+    throw new StructuredOutputError(
+      "invalid_output_contract",
+      "responseFormat conflicts with outputContract.mode",
+    );
+  }
+  return contract;
+}
+
+function applyOutputContract(
+  response: ProviderResponse,
+  contract: OutputContract | undefined,
+): ProviderResponse {
+  if (!contract || contract.mode === "text") return response;
+  const structured = JsonValueSchema.parse(
+    enforceStructuredOutput(response.text, contract),
+  );
+  return {
+    ...response,
+    structuredOutput: structured,
+  };
+}
+
 export async function executeGovernedModelCall(
   options: GovernedModelCallOptions,
 ): Promise<{
@@ -148,6 +195,8 @@ export async function executeGovernedModelCall(
   const now = options.now ?? new Date();
   const generate = options.generate ?? generateWithProvider;
   const costResolver = options.costResolver ?? resolveRegistryModelCost;
+  const outputContract = resolveOutputContract(options);
+  const responseFormat = outputContract?.mode ?? options.responseFormat;
   const costEvidence = costResolver(options.provider, options.model);
   const budgetPolicy = await db.budgetPolicy.findUnique({
     where: { tenantId: options.tenantId },
@@ -198,10 +247,12 @@ export async function executeGovernedModelCall(
       provider: options.provider,
       model: options.model,
       messages: options.messages,
-      responseFormat: options.responseFormat,
+      responseFormat,
       maxOutputTokens: env.MODEL_MAX_OUTPUT_TOKENS,
       timeoutMs: env.MODEL_REQUEST_TIMEOUT_MS,
       signal: options.signal,
+      tools: options.tools,
+      toolChoice: options.toolChoice,
     });
   } catch (error) {
     if (reservation) {
@@ -221,6 +272,13 @@ export async function executeGovernedModelCall(
     throw error;
   }
 
+  let outputValidationError: unknown;
+  try {
+    response = applyOutputContract(response, outputContract);
+  } catch (error) {
+    outputValidationError = error;
+  }
+
   const latencyMs = Math.max(0, Date.now() - startedAt);
   const tokens = providerTokenBreakdown(response);
   const chargeableTokens = tokens.totalTokens ?? estimatedTokens;
@@ -237,7 +295,14 @@ export async function executeGovernedModelCall(
       costEvidence === null ? "unavailable" : "governed_model_registry",
     token_evidence:
       tokens.totalTokens === null ? "conservative_upper_bound" : "provider",
-    response_format: options.responseFormat ?? "text",
+    response_format: responseFormat ?? "text",
+    output_validation:
+      outputContract === undefined
+        ? "not_requested"
+        : outputValidationError
+          ? "failed"
+          : "passed",
+    tool_call_count: response.toolCalls?.length ?? 0,
   };
 
   if (reservation) {
@@ -261,6 +326,7 @@ export async function executeGovernedModelCall(
       metadata,
       occurredAt,
     });
+    if (outputValidationError) throw outputValidationError;
     return {
       response,
       usageEventId: committed.event.id,
@@ -290,6 +356,7 @@ export async function executeGovernedModelCall(
     metadata,
     occurredAt,
   });
+  if (outputValidationError) throw outputValidationError;
   return {
     response,
     usageEventId: recorded.event.id,

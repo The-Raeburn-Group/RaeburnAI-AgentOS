@@ -24,10 +24,7 @@ import {
   type ProviderGenerationOptions,
   generateWithProvider,
 } from "@/lib/providers";
-import {
-  enforceStructuredOutput,
-  outputContractFromManifest,
-} from "@/lib/structured-output";
+import { outputContractFromManifest } from "@/lib/structured-output";
 import {
   WorkflowRunRequestSchema,
   type ProviderResponse,
@@ -262,10 +259,14 @@ async function executeAgentTask(options: {
       provider: options.agent.modelProvider,
       model: options.agent.modelName,
       messages,
-      responseFormat: outputContract.mode,
+      outputContract,
       generate: options.generate,
     });
-    enforceStructuredOutput(execution.response.text, outputContract);
+    if ((execution.response.toolCalls?.length ?? 0) > 0) {
+      throw new Error(
+        "Provider returned tool calls but governed workflow tool execution is not configured",
+      );
+    }
 
     await db.agentTask.update({
       where: { id: options.taskId },

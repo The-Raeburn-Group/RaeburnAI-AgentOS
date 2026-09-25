@@ -57,6 +57,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Verify provider runtime contract
+        run: npm run provider:contract
       - name: Verify immutable RaeburnBench seed baseline
         run: npm run bench:verify
       - name: Benchmark executable expert routing policy

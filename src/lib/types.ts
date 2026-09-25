@@ -117,6 +117,12 @@ export type ProviderMessage = {
   content: string;
 };
 
+export type ProviderToolCall = {
+  id: string;
+  name: string;
+  arguments: Record<string, JsonValue>;
+};
+
 export type ProviderResponse = {
   text: string;
   provider: string;
@@ -124,4 +130,6 @@ export type ProviderResponse = {
   promptTokens?: number;
   completionTokens?: number;
   tokens?: number;
+  toolCalls?: ProviderToolCall[];
+  structuredOutput?: JsonValue;
 };
