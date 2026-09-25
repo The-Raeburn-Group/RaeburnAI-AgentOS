@@ -37,7 +37,7 @@ const FIXTURE = {
   ],
   bundle_sha256:
     "7f3db78a8f63af03766ed94b453e329929dd6f179fa312aa397b96b942dfb84c",
-} as const;
+};
 
 describe("Knowledge Graph evidence client", () => {
   it("propagates delegated context and returns verified trusted sources", async () => {
