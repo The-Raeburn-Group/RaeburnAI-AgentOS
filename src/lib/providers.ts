@@ -686,8 +686,10 @@ async function* streamOllama(
         });
       }
       const content = chunk.message?.content;
-      if (typeof content === "string" && content.length > 0) {
-        yield { type: "text_delta", text: content };
+      if (typeof content === "string") {
+        if (content.length > 0) {
+          yield { type: "text_delta", text: content };
+        }
       } else if (content !== undefined && content !== null) {
         throw new ProviderExecutionError("malformed_response", {
           provider: options.provider,
