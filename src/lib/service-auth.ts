@@ -6,6 +6,7 @@ export interface ChainServiceContext {
   actorId: string;
   requestId: string;
   roles: string[];
+  groups: string[];
   approvalId?: string;
   idempotencyKey?: string;
   executionId?: string;
@@ -108,6 +109,10 @@ export function authenticateChainServiceRequest(
     .split(",")
     .map((role) => role.trim())
     .filter(Boolean);
+  const groups = (request.headers.get("x-groups") ?? "")
+    .split(",")
+    .map((group) => group.trim())
+    .filter(Boolean);
 
   return {
     ok: true,
@@ -116,6 +121,7 @@ export function authenticateChainServiceRequest(
       actorId,
       requestId,
       roles,
+      groups,
       ...(approvalId ? { approvalId } : {}),
       ...(idempotencyKey ? { idempotencyKey } : {}),
       ...(executionId ? { executionId } : {}),
