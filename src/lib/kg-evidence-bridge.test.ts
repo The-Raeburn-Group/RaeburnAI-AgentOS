@@ -74,6 +74,26 @@ describe("Knowledge Graph evidence bridge", () => {
     ]);
   });
 
+  it("binds the export to the exact requested query and result limit", () => {
+    expect(() =>
+      parseKgEvidenceExport(
+        FIXTURE,
+        "tenant-a",
+        "different query",
+        10,
+      ),
+    ).toThrowError(new KgEvidenceBridgeError("query_mismatch"));
+
+    expect(() =>
+      parseKgEvidenceExport(
+        FIXTURE,
+        "tenant-a",
+        "approved control threshold",
+        0,
+      ),
+    ).toThrowError(new KgEvidenceBridgeError("result_limit_exceeded"));
+  });
+
   it("rejects bundle transport tampering", () => {
     const tampered = structuredClone(FIXTURE) as Record<string, unknown>;
     tampered.query = "tampered query";
