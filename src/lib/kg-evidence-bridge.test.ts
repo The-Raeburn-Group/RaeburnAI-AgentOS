@@ -3,9 +3,10 @@ import {
   KgEvidenceBridgeError,
   kgEvidenceBundleDigest,
   parseKgEvidenceExport,
+  type KgEvidenceExport,
 } from "@/lib/kg-evidence-bridge";
 
-const FIXTURE = {
+const FIXTURE: KgEvidenceExport = {
   contract_version: "raeburnai.kg-evidence-export.v1",
   workspace_id: "tenant-a",
   query: "approved control threshold",
@@ -38,7 +39,7 @@ const FIXTURE = {
   ],
   bundle_sha256:
     "7f3db78a8f63af03766ed94b453e329929dd6f179fa312aa397b96b942dfb84c",
-} as const;
+};
 
 describe("Knowledge Graph evidence bridge", () => {
   it("accepts the independently generated cross-language contract fixture", () => {
