@@ -159,9 +159,18 @@ export async function retrieveKnowledgeEvidence(
   });
   const roles = safeHeaderList(request.roles, "roles");
   const groups = safeHeaderList(request.groups, "groups");
-  if (!request.query.trim() || request.query.length > 8_000) {
+  const query = request.query.trim();
+  if (!query || query.length > 8_000) {
     throw new KgEvidenceClientError("invalid_request", "query");
   }
+  const limit = boundedInt(request.limit, 10, 1, 50);
+  const candidateMultiplier = boundedInt(
+    request.candidateMultiplier,
+    4,
+    1,
+    10,
+  );
+  const graphDepth = boundedInt(request.graphDepth, 0, 0, 3);
 
   const timeoutMs = boundedInt(request.timeoutMs, 8_000, 100, 60_000);
   const controller = new AbortController();
@@ -181,21 +190,17 @@ export async function retrieveKnowledgeEvidence(
       },
       body: JSON.stringify({
         workspace_id: workspaceId,
-        query: request.query,
-        limit: boundedInt(request.limit, 10, 1, 50),
+        query,
+        limit,
         include_graph: request.includeGraph ?? false,
         retrieval_mode: request.retrievalMode ?? "hybrid",
-        candidate_multiplier: boundedInt(
-          request.candidateMultiplier,
-          4,
-          1,
-          10,
-        ),
+        candidate_multiplier: candidateMultiplier,
         rerank: request.rerank ?? true,
-        graph_depth: boundedInt(request.graphDepth, 0, 0, 3),
+        graph_depth: graphDepth,
       }),
       signal: controller.signal,
       cache: "no-store",
+      redirect: "manual",
     });
 
     if (!response.ok) {
@@ -216,7 +221,7 @@ export async function retrieveKnowledgeEvidence(
     }
 
     try {
-      return parseKgEvidenceExport(payload, workspaceId);
+      return parseKgEvidenceExport(payload, workspaceId, query, limit);
     } catch (error) {
       throw new KgEvidenceClientError(
         "invalid_response",
