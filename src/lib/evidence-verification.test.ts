@@ -547,6 +547,55 @@ describe("independent evidence verification", () => {
     );
   });
 
+  it("does not allow prompt-injection flagged retrieval evidence to establish a claim", () => {
+    const trusted = source("s1", "The approved limit is 50.");
+    const hostile = {
+      ...trusted,
+      retrievalSecurity: {
+        trust: "untrusted" as const,
+        instructionAuthority: "none" as const,
+        handling: "data-only" as const,
+        injectionDetected: true,
+        signals: ["ignore_previous_instructions"],
+      },
+    };
+
+    const standard = verifyEvidenceBundle({
+      strictness: "standard",
+      sources: [hostile],
+      claims: [
+        {
+          id: "c1",
+          claim: "The approved limit is 50.",
+          sourceIds: ["s1"],
+        },
+      ],
+    });
+    expect(standard.decision).toBe("review");
+    expect(standard.claimResults[0]?.verdict).toBe("insufficient");
+    expect(standard.reasons).toContain(
+      "cited evidence source is flagged for prompt-injection content: s1",
+    );
+
+    const high = verifyEvidenceBundle({
+      strictness: "high",
+      sources: [hostile],
+      claims: [
+        {
+          id: "c1",
+          claim: "The approved limit is 50.",
+          sourceIds: ["s1"],
+        },
+      ],
+      contradictionSearchPerformed: true,
+      criticReview: critic(),
+    });
+    expect(high.decision).toBe("fail");
+    expect(high.reasons).toContain(
+      "cited evidence source is flagged for prompt-injection content: s1",
+    );
+  });
+
   it("rejects duplicate identifiers and unknown citation references", () => {
     const trusted = source("s1", "Supported claim.");
     expect(() =>
