@@ -388,7 +388,9 @@ function ollamaTools(tools: ProviderToolDefinition[]) {
   return openAiTools(tools);
 }
 
-function toolChoiceForOpenAi(choice: ProviderToolChoice | undefined) {
+function toolChoiceForOpenAi(
+  choice: ProviderToolChoice | undefined,
+): "auto" | "none" | "required" {
   if (!choice || choice === "auto") return "auto";
   if (choice === "none") return "none";
   return "required";
@@ -535,6 +537,7 @@ export async function generateWithProvider(
         model,
         messages: options.messages,
         max_tokens: maxOutputTokens,
+        stream: false as const,
         ...(responseFormat === "json"
           ? { response_format: { type: "json_object" as const } }
           : {}),
@@ -774,7 +777,7 @@ async function* streamOpenAiCompatible(
       model: options.model,
       messages: options.messages,
       max_tokens: options.maxOutputTokens,
-      stream: true,
+      stream: true as const,
       stream_options: { include_usage: true },
       ...(options.responseFormat === "json"
         ? { response_format: { type: "json_object" as const } }
